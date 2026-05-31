@@ -285,8 +285,8 @@ export default function GraphPage() {
 
         <div className="flex flex-1 overflow-hidden">
 
-          {/* ── Vault Sidebar ──────────────────────────────────────────── */}
-          <aside className="w-52 flex-shrink-0 bg-[#0a0e1a] border-r border-white/5 flex flex-col h-full overflow-hidden">
+          {/* ── Vault Sidebar — hidden on mobile ──────────────────── */}
+          <aside className="hidden md:flex w-52 flex-shrink-0 bg-[#0a0e1a] border-r border-white/5 flex-col h-full overflow-hidden">
             {/* Header */}
             <div className="px-3 py-3 border-b border-white/5">
               <div className="flex items-center gap-2 mb-3">
@@ -414,7 +414,7 @@ export default function GraphPage() {
             </div>
 
             {/* Type filter pills (QB graph-filter-btn style) */}
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 overflow-x-auto max-w-[calc(100vw-2rem)] px-2 scrollbar-hide">
               {Object.entries(NODE_COLORS).map(([type, color]) => (
                 <button
                   key={type}
@@ -453,7 +453,7 @@ export default function GraphPage() {
             </AnimatePresence>
           </div>
 
-          {/* ── Detail Panel ─────────────────────────────────────────── */}
+          {/* ── Detail Panel — hidden on mobile (bottom sheet), shown on desktop ── */}
           <AnimatePresence>
             {selectedNode && (
               <motion.div
@@ -461,7 +461,7 @@ export default function GraphPage() {
                 animate={{ opacity:1, x:0 }}
                 exit={{ opacity:0, x:320 }}
                 transition={{ type:"spring", stiffness:300, damping:28 }}
-                className="w-72 border-l border-white/5 bg-[#0a0e1a] overflow-y-auto flex-shrink-0 scrollbar-hide"
+                className="hidden md:block w-72 border-l border-white/5 bg-[#0a0e1a] overflow-y-auto flex-shrink-0 scrollbar-hide"
               >
                 <div className="p-4 space-y-4">
                   {/* Header */}
@@ -526,6 +526,46 @@ export default function GraphPage() {
                     </a>
                   )}
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Mobile Bottom Sheet (node detail) ─────────────────── */}
+          <AnimatePresence>
+            {selectedNode && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type:"spring", stiffness:300, damping:30 }}
+                className="md:hidden absolute bottom-0 left-0 right-0 z-20 bg-[#0d1526] border-t border-white/10 rounded-t-2xl p-4 max-h-[55vh] overflow-y-auto"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-white mb-1.5"
+                      style={{ backgroundColor: (selectedNode.color ?? NODE_COLORS[selectedNode.type]) + "30",
+                               border: `1px solid ${selectedNode.color ?? NODE_COLORS[selectedNode.type]}40` }}
+                    >
+                      <span>{typeEmoji(selectedNode.type)}</span>
+                      {NODE_TYPE_LABELS[selectedNode.type]}
+                    </div>
+                    <h3 className="text-sm font-bold text-white">{selectedNode.label}</h3>
+                  </div>
+                  <button onClick={() => setSelectedNode(null)} className="text-gray-500 hover:text-white transition-colors mt-1">
+                    <X className="w-4 h-4"/>
+                  </button>
+                </div>
+                {selectedNode.description && (
+                  <p className="text-xs text-gray-400 leading-relaxed mb-3">{selectedNode.description}</p>
+                )}
+                {selectedNode.url && (
+                  <a href={selectedNode.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                    <ExternalLink className="w-3 h-3" />
+                    Learn more
+                  </a>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

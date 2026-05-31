@@ -57,7 +57,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Dashboard" description="The AI Intelligence Command Center" />
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-3 md:p-6 space-y-6">
         {/* Hero Stats Row */}
         <motion.div
           variants={STAGGER}

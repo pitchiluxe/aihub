@@ -3,10 +3,6 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "env": {
-    "OPENROUTER_API_KEY": "@openrouter-api-key",
-    "DATABASE_URL": "@database-url"
-  },
   "headers": [
     {
       "source": "/api/(.*)",

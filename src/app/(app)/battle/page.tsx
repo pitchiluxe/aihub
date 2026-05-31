@@ -137,7 +137,7 @@ export default function BattlePage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="AI Battle Arena" description="Compare AI model responses side-by-side" />
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-3 md:p-6 space-y-6">
         {/* Arena Header */}
         <div className="text-center py-4">
           <div className="inline-flex h-14 w-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 items-center justify-center mb-3">

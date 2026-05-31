@@ -104,7 +104,7 @@ export default function SkillsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Skills Library" description="Structured AI learning paths from beginner to expert" />
-      <div className="flex-1 p-6 space-y-8">
+      <div className="flex-1 p-3 md:p-6 space-y-8">
         {/* Learning Paths */}
         <div>
           <h2 className="text-base font-semibold mb-4 flex items-center gap-2">

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useStore } from "@/store";
 import {
   LayoutDashboard,
   Newspaper,
@@ -23,6 +24,7 @@ import {
   NotebookPen,
   Code,
   ChevronRight,
+  X,
 } from "lucide-react";
 
 type BadgeType = "HOT" | "NEW" | "AI" | null;
@@ -75,15 +77,16 @@ function NavBadge({ type }: { type: BadgeType }) {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { sidebarOpen, setSidebarOpen } = useStore();
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 
-  return (
-    <aside className="w-64 bg-[#0d1526] border-r border-white/5 flex flex-col h-screen fixed top-0 left-0 z-40">
+  const content = (
+    <>
       {/* Logo */}
-      <div className="px-4 py-4 border-b border-white/5">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
+      <div className="px-4 py-4 border-b border-white/5 flex items-center justify-between">
+        <Link href="/dashboard" className="flex items-center gap-3 group" onClick={() => setSidebarOpen(false)}>
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:shadow-indigo-500/50 transition-all group-hover:scale-105">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
@@ -92,6 +95,13 @@ export function Sidebar() {
             <div className="font-black text-xl leading-none bg-gradient-to-r from-white via-white to-indigo-300 bg-clip-text text-transparent">AIHub</div>
           </div>
         </Link>
+        {/* Close button — mobile only */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="md:hidden p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* AI Copilot Active */}
@@ -107,7 +117,7 @@ export function Sidebar() {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href}>
+              <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}>
                 <div className={cn("sidebar-item group", active && "active", item.highlight && !active && "border-indigo-500/10 bg-indigo-500/5")}>
                   <Icon className={cn("w-4 h-4 flex-shrink-0 transition-colors", active ? "text-indigo-400" : "text-gray-500 group-hover:text-gray-300")} />
                   <div className="flex-1 min-w-0">
@@ -134,7 +144,7 @@ export function Sidebar() {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href}>
+              <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}>
                 <div className={cn("sidebar-item group", active && "active")}>
                   <Icon className={cn("w-4 h-4 flex-shrink-0 transition-colors", active ? "text-indigo-400" : "text-gray-500 group-hover:text-gray-300")} />
                   <div className="flex-1 min-w-0">
@@ -167,6 +177,30 @@ export function Sidebar() {
           <div className="text-[10px] text-gray-600">v1.0 · OpenRouter &amp; Ollama</div>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "w-64 bg-[#0d1526] border-r border-white/5 flex flex-col h-screen fixed top-0 left-0 z-40 transition-transform duration-300",
+          // Mobile: hidden off-screen by default, slide in when open
+          "md:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
+      >
+        {content}
+      </aside>
+    </>
   );
 }

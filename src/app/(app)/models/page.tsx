@@ -76,9 +76,9 @@ export default function ModelsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Models Hub" description="Explore AI models from OpenRouter and Ollama" />
-      <div className="flex-1 p-6 space-y-5">
+      <div className="flex-1 p-3 md:p-6 space-y-5">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: "Total Models", value: loading ? "…" : formatNumber(models.length), sub: "OpenRouter + Ollama", color: "text-violet-500" },
             { label: "Free Models", value: loading ? "…" : formatNumber(freeCount), sub: "No cost to run", color: "text-green-500" },

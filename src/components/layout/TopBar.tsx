@@ -4,7 +4,7 @@ import { useStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NotificationBell } from "@/components/layout/NotificationPanel";
-import { Search, Moon, Sun, Command } from "lucide-react";
+import { Search, Moon, Sun, Command, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,7 +15,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ title, description }: TopBarProps) {
-  const { setCommandOpen } = useStore();
+  const { setCommandOpen, setSidebarOpen } = useStore();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const [localSearch, setLocalSearch] = useState("");
@@ -28,7 +28,15 @@ export function TopBar({ title, description }: TopBarProps) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-3 md:px-6">
+      {/* Hamburger — mobile only */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="md:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
       <div className="flex flex-1 items-center gap-4">
         {title && (
           <div className="hidden md:block">

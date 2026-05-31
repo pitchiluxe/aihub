@@ -97,7 +97,7 @@ export default function NewsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="News Center" description="Real-time AI intelligence from 24+ sources" />
-      <div className="flex-1 p-6 space-y-4">
+      <div className="flex-1 p-3 md:p-6 space-y-4">
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Input
@@ -130,7 +130,7 @@ export default function NewsPage() {
 
         {/* Tabs: Recent / Archive */}
         <Tabs defaultValue="recent">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <TabsList>
               <TabsTrigger value="recent" className="gap-2">
                 <Newspaper className="h-3.5 w-3.5" />

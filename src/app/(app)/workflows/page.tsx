@@ -151,7 +151,7 @@ export default function WorkflowsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Workflow Marketplace" description="n8n-inspired AI automation blueprints" />
-      <div className="flex-1 p-6 space-y-5">
+      <div className="flex-1 p-3 md:p-6 space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1">

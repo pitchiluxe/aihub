@@ -47,7 +47,7 @@ export default function ResearchPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Research Center" description="Live research from arXiv and Semantic Scholar" />
-      <div className="flex-1 p-6 space-y-5">
+      <div className="flex-1 p-3 md:p-6 space-y-5">
         {/* Controls */}
         <form onSubmit={handleSearch} className="flex gap-3">
           <Input

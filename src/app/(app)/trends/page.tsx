@@ -50,7 +50,7 @@ export default function TrendsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Trends Hub" description="What the AI world is talking about right now" />
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-3 md:p-6 space-y-6">
         {/* Chart */}
         <Card>
           <CardHeader>

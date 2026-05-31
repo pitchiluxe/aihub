@@ -310,7 +310,7 @@ export default function AgentsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="AI Agents Hub" description="AI specialist agents for every task" />
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-3 md:p-6 space-y-6">
         {/* Header */}
         <div className="text-center py-8">
           <div className="inline-flex h-16 w-16 rounded-2xl ai-gradient items-center justify-center mb-4">

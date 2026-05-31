@@ -1045,7 +1045,7 @@ export default function TutorialsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar title="Tutorials Academy" description="Step-by-step AI development courses with AI tutoring" />
-      <div className="flex-1 p-6 space-y-5">
+      <div className="flex-1 p-3 md:p-6 space-y-5">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
