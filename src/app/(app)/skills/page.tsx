@@ -1334,10 +1334,123 @@ When given a paper to analyze:
     tags: ["TypeScript", "Types", "Generics"],
     skillMd: `---
 name: typescript-expert
-description: Advanced TypeScript patterns, generics, utility types, decorators, and type-safe architecture.
+description: Advanced TypeScript patterns, generics, utility types, decorators, and type-safe architecture for production applications.
 ---
+
 # TypeScript Expert
-Master advanced TypeScript for type-safe, maintainable code.`,
+
+Master advanced TypeScript to build type-safe, maintainable, production-grade applications.
+
+## Advanced Type Patterns
+
+### Conditional Types
+\`\`\`ts
+// Extract function parameters
+type Parameters<T extends (...args: any) => any> = T extends (...args: infer P) => any ? P : never;
+
+// Discriminated unions for type narrowing
+type Result<T> = { success: true; data: T } | { success: false; error: string };
+
+function handle<T>(result: Result<T>) {
+  if (result.success) {
+    // result.data is available here
+  } else {
+    // result.error is available here
+  }
+}
+\`\`\`
+
+### Generic Constraints & Inference
+\`\`\`ts
+// Powerful constraint-based designs
+function pick<T, K extends keyof T>(obj: T, ...keys: K[]): Pick<T, K> {
+  return Object.fromEntries(keys.map(k => [k, obj[k]])) as Pick<T, K>;
+}
+
+// Preserved literal types
+type BuildUrl<T extends string> = T extends \`\${infer Base}/\${infer Rest}\`
+  ? Base | BuildUrl<\`/\${Rest}\`>
+  : T;
+
+type Routes = BuildUrl<'/api/users/profile'>; // '/api' | '/api/users' | '/api/users/profile'
+\`\`\`
+
+## Utility Types Mastery
+
+- **Partial<T>** — All properties optional
+- **Pick<T, K>** — Select subset of properties
+- **Omit<T, K>** — Remove properties
+- **Record<K, T>** — Map keys to values
+- **Readonly<T>** — Immutable properties
+- **ReturnType<T>** — Extract return type
+- **ThisParameterType<T>** — Extract 'this' context
+
+## Advanced Patterns
+
+### Factory Pattern with Generics
+\`\`\`ts
+class Factory<T> {
+  private instances: Map<string, T> = new Map();
+  
+  register(key: string, creator: () => T): void {
+    this.instances.set(key, creator());
+  }
+  
+  get(key: string): T {
+    const instance = this.instances.get(key);
+    if (!instance) throw new Error(\`\${key} not registered\`);
+    return instance;
+  }
+}
+\`\`\`
+
+### Decorator-Based Architecture
+\`\`\`ts
+function Memoize(target: any, key: string, desc: PropertyDescriptor) {
+  const original = desc.value;
+  const cache = new Map();
+  
+  desc.value = function(...args: any[]) {
+    const cacheKey = JSON.stringify(args);
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+    
+    const result = original.apply(this, args);
+    cache.set(cacheKey, result);
+    return result;
+  };
+  
+  return desc;
+}
+\`\`\`
+
+## Type Safety Best Practices
+
+1. **Strict Mode** — Enable \`strict: true\` in tsconfig.json
+2. **No Implicit Any** — Catch untyped variables
+3. **Exhaustive Checking** — Use discriminated unions
+4. **Branded Types** — Create distinct types for domain concepts
+5. **Type Guards** — Narrow types with predicates
+
+## Performance Optimization
+
+- Use \`type\` over \`interface\` for unions
+- Avoid deep nesting in generic types
+- Cache complex type computations
+- Use \`const\` assertions for literal types
+
+## Build & Compilation
+
+- Use \`skipLibCheck: true\` for faster builds
+- Enable incremental compilation
+- Use \`isolatedModules: true\` for bundlers
+- Configure sourceMaps for debugging
+
+## Common Pitfalls
+
+- ❌ Over-generic types that lose type info
+- ❌ Using \`any\` to escape type errors
+- ❌ Circular type dependencies
+- ❌ Forgetting \`as const\` for literal types`,
   },
   {
     id: "rust-systems",
@@ -1350,9 +1463,96 @@ Master advanced TypeScript for type-safe, maintainable code.`,
     tags: ["Rust", "Systems", "Performance"],
     skillMd: `---
 name: rust-systems
-description: High-performance systems programming with Rust.
+description: High-performance systems programming with Rust — ownership, lifetimes, and performance.
 ---
-# Rust Systems Programming`,
+
+# Rust Systems Programming
+
+Build fast, memory-safe systems without garbage collection.
+
+## Ownership & Lifetimes
+
+- **Ownership** — Each value has one owner; prevents use-after-free
+- **Borrowing** — Immutable (&T) or mutable (&mut T) references
+- **Lifetimes** — Compiler tracks reference validity automatically
+
+\`\`\`rs
+// Ownership transfer
+let s1 = String::from("hello");
+let s2 = s1;  // s1 moved, no longer valid
+
+// Borrowing
+fn len(s: &String) -> usize { s.len() }  // immutable borrow
+fn append(s: &mut String, c: char) { s.push(c); }  // mutable borrow
+\`\`\`
+
+## Performance Patterns
+
+### Zero-Copy Abstractions
+- Use slices (&[T]) instead of owned vectors when possible
+- Avoid cloning; use references where applicable
+- Use iterators for lazy evaluation
+
+### Memory Layout
+\`\`\`rs
+// Stack allocation (fast, limited size)
+let array: [i32; 100] = [0; 100];
+
+// Heap allocation (flexible)
+let vec: Vec<i32> = vec![1, 2, 3];
+
+// Smart pointers
+use std::sync::Arc;  // Atomic reference counting
+let arc = Arc::new(data);  // Share ownership
+\`\`\`
+
+## Concurrency & Thread Safety
+
+- **Send** — Safe to send across threads
+- **Sync** — Safe to share across threads
+- **Mutex<T>** — Interior mutability with locking
+- **Arc<T>** — Atomic reference counting for shared ownership
+
+\`\`\`rs
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+let counter = Arc::new(Mutex::new(0));
+let mut handles = vec![];
+
+for _ in 0..10 {
+    let c = Arc::clone(&counter);
+    handles.push(thread::spawn(move || {
+        let mut num = c.lock().unwrap();
+        *num += 1;
+    }));
+}
+\`\`\`
+
+## Best Practices
+
+1. **Follow the Borrow Checker** — Let compiler catch errors
+2. **Use Result<T, E>** — Explicit error handling
+3. **Pattern Matching** — Exhaustive case handling
+4. **Generic Constraints** — Type safety at compile time
+5. **No Runtime Overhead** — Abstractions compile away
+
+## Common Use Cases
+
+- CLI tools and servers
+- Embedded systems
+- Game engines
+- Cryptocurrencies & blockchain
+- System utilities (ripgrep, fd, exa)
+
+## Performance Comparison
+
+| Task | Rust | C | Go | Python |
+|------|------|---|----|---------|
+| JSON Parsing | ~50ns | ~60ns | ~200ns | ~5µs |
+| Startup | <5ms | ~10ms | ~20ms | ~100ms |
+| Memory | Minimal | Minimal | ~5MB | ~50MB |
+`,
   },
   {
     id: "go-concurrency",
@@ -1365,9 +1565,158 @@ description: High-performance systems programming with Rust.
     tags: ["Go", "Concurrency", "Networking"],
     skillMd: `---
 name: go-concurrency
-description: Concurrent systems and networking with Go.
+description: Concurrent systems, goroutines, channels, and networking with Go.
 ---
-# Go Concurrency`,
+
+# Go Concurrency & Networking
+
+Build highly concurrent systems with Go's lightweight goroutines.
+
+## Goroutines & Channels
+
+### Goroutines (Lightweight Threads)
+\`\`\`go
+// Launch concurrent task
+go func() {
+    // Runs concurrently
+}()
+
+// Goroutines are cheap — launch thousands
+for i := 0; i < 10000; i++ {
+    go process(i)
+}
+\`\`\`
+
+### Channels (Communication)
+\`\`\`go
+// Unbuffered channel
+results := make(chan string)
+go func() {
+    results <- "done"  // Send
+}()
+val := <-results  // Receive
+
+// Buffered channel
+results := make(chan string, 10)  // Queue up to 10
+
+// Ranges over channel
+for msg := range results {
+    fmt.Println(msg)
+}
+close(results)  // Signal no more values
+\`\`\`
+
+## Concurrency Patterns
+
+### Worker Pool
+\`\`\`go
+jobs := make(chan Job, 100)
+results := make(chan Result, 100)
+
+for w := 1; w <= numWorkers; w++ {
+    go worker(jobs, results)
+}
+
+for j := range jobList {
+    jobs <- j
+}
+close(jobs)
+\`\`\`
+
+### Fan-Out / Fan-In
+\`\`\`go
+// Start multiple workers
+var channels []<-chan Result
+for i := 0; i < 5; i++ {
+    channels = append(channels, startWorker(i))
+}
+
+// Merge all channels
+func merge(channels ...<-chan Result) <-chan Result {
+    var wg sync.WaitGroup
+    out := make(chan Result)
+    output := func(c <-chan Result) {
+        for r := range c {
+            out <- r
+        }
+        wg.Done()
+    }
+    wg.Add(len(channels))
+    for _, c := range channels {
+        go output(c)
+    }
+    go func() {
+        wg.Wait()
+        close(out)
+    }()
+    return out
+}
+\`\`\`
+
+## HTTP Servers & APIs
+
+\`\`\`go
+http.HandleFunc("/api/users", func(w http.ResponseWriter, r *http.Request) {
+    if r.Method == http.MethodGet {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(users)
+    }
+})
+
+http.ListenAndServe(":8080", nil)  // Handles connections concurrently
+\`\`\`
+
+## Synchronization
+
+- **sync.WaitGroup** — Wait for goroutines to finish
+- **sync.Mutex** — Protect shared state
+- **sync.Once** — Execute code exactly once
+- **context.Context** — Cancellation and timeouts
+
+\`\`\`go
+var wg sync.WaitGroup
+wg.Add(3)
+
+for i := 0; i < 3; i++ {
+    go func() {
+        defer wg.Done()
+        // work
+    }()
+}
+wg.Wait()  // Block until all done
+\`\`\`
+
+## Networking
+
+### TCP Server
+\`\`\`go
+ln, _ := net.Listen("tcp", ":8080")
+for {
+    conn, _ := ln.Accept()
+    go handleConnection(conn)  // Concurrent per client
+}
+\`\`\`
+
+### gRPC (High-Performance RPC)
+- Protocol Buffers for serialization
+- HTTP/2 for multiplexing
+- Built-in streaming
+
+## Best Practices
+
+1. **Avoid goroutine leaks** — Always close channels
+2. **Use context for cancellation** — Respect deadlines
+3. **Keep critical sections small** — Lock briefly
+4. **Prefer channels over mutexes** — Share memory by communicating
+5. **Monitor goroutine count** — runtime.NumGoroutine()
+
+## Performance Tips
+
+- Goroutines: ~2KB each vs threads ~1MB
+- Use buffered channels to reduce blocking
+- Profile with pprof: \`import _ "net/http/pprof"\`
+- Benchmark with testing.B
+`,
   },
   {
     id: "python-data-science",
@@ -1380,9 +1729,174 @@ description: Concurrent systems and networking with Go.
     tags: ["Python", "Data", "ML"],
     skillMd: `---
 name: python-data-science
-description: Data science with Python stack.
+description: Python data science stack — NumPy, Pandas, Scikit-learn for analysis and ML.
 ---
-# Python Data Science`,
+
+# Python Data Science Stack
+
+Analyze data and build machine learning models with Python's most powerful libraries.
+
+## NumPy Foundations
+
+\`\`\`python
+import numpy as np
+
+# Arrays (vectorized, fast)
+arr = np.array([1, 2, 3, 4, 5])
+arr = np.arange(0, 10, 2)  # [0, 2, 4, 6, 8]
+arr = np.linspace(0, 1, 5)  # [0., 0.25, 0.5, 0.75, 1.]
+
+# Shape & reshape
+arr = np.random.randn(3, 4)
+reshaped = arr.reshape(2, 6)
+
+# Vectorized operations (FAST!)
+result = arr * 2 + 1  # No loops needed
+
+# Broadcasting
+matrix = np.random.randn(3, 4)
+vector = np.array([1, 2, 3, 4])
+result = matrix + vector  # Adds to each row
+\`\`\`
+
+## Pandas for Data Manipulation
+
+\`\`\`python
+import pandas as pd
+
+# Read data
+df = pd.read_csv('data.csv')
+df = pd.read_excel('data.xlsx')
+
+# Explore
+df.head()  # First 5 rows
+df.info()  # Data types, nulls
+df.describe()  # Statistics
+
+# Selection
+df['column_name']  # Get column
+df.loc[0]  # Row by label
+df.iloc[0]  # Row by position
+df[df['age'] > 25]  # Filter
+
+# Grouping
+df.groupby('category').agg({
+    'price': 'mean',
+    'quantity': 'sum'
+})
+
+# Pivot
+pivot = df.pivot_table(
+    values='value',
+    index='date',
+    columns='category',
+    aggfunc='sum'
+)
+
+# Joining
+result = pd.merge(df1, df2, on='id')
+result = df1.join(df2)  # Index-based
+\`\`\`
+
+## Scikit-Learn ML Pipeline
+
+\`\`\`python
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# Scale features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Train model
+model = RandomForestClassifier(n_estimators=100, max_depth=10)
+model.fit(X_train, y_train)
+
+# Evaluate
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(confusion_matrix(y_test, y_pred))
+\`\`\`
+
+## Data Cleaning
+
+\`\`\`python
+# Handle missing values
+df.fillna(df.mean())  # Fill with mean
+df.dropna()  # Remove rows with nulls
+df.interpolate()  # Linear interpolation
+
+# Remove duplicates
+df = df.drop_duplicates()
+
+# Outlier detection
+Q1 = df['value'].quantile(0.25)
+Q3 = df['value'].quantile(0.75)
+IQR = Q3 - Q1
+outliers = df[(df['value'] < Q1 - 1.5 * IQR) | (df['value'] > Q3 + 1.5 * IQR)]
+\`\`\`
+
+## Feature Engineering
+
+- **Scaling** — StandardScaler, MinMaxScaler
+- **Encoding** — OneHotEncoder, LabelEncoder
+- **Polynomial Features** — Create interaction terms
+- **Feature Selection** — SelectKBest, RFE
+
+\`\`\`python
+from sklearn.preprocessing import PolynomialFeatures
+poly = PolynomialFeatures(degree=2)
+X_poly = poly.fit_transform(X)
+\`\`\`
+
+## Model Selection & Tuning
+
+\`\`\`python
+from sklearn.model_selection import cross_val_score, GridSearchCV
+
+# Cross-validation
+scores = cross_val_score(model, X, y, cv=5)
+print(f"Mean: {scores.mean()}, Std: {scores.std()}")
+
+# Hyperparameter tuning
+param_grid = {'max_depth': [5, 10, 15], 'n_estimators': [50, 100, 200]}
+grid = GridSearchCV(RandomForestClassifier(), param_grid, cv=5)
+grid.fit(X_train, y_train)
+print(grid.best_params_)
+\`\`\`
+
+## Visualization
+
+\`\`\`python
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize=(10, 6))
+plt.scatter(df['x'], df['y'], alpha=0.5)
+plt.xlabel('X Label')
+plt.ylabel('Y Label')
+plt.show()
+
+# Seaborn for statistical viz
+sns.heatmap(df.corr(), annot=True)
+sns.boxplot(data=df, x='category', y='value')
+\`\`\`
+
+## Performance Optimization
+
+- Use **numpy** operations instead of loops
+- Use **chunksize** when reading large CSV files
+- Use **categorical** dtype for memory efficiency
+- Use **Polars** for 10x+ speed on large datasets
+`,
   },
   {
     id: "kubernetes-orchestration",
@@ -1395,9 +1909,119 @@ description: Data science with Python stack.
     tags: ["Kubernetes", "DevOps", "Docker"],
     skillMd: `---
 name: kubernetes-orchestration
-description: Kubernetes orchestration and deployment.
+description: Kubernetes for orchestrating, scaling, and managing containerized applications.
 ---
-# Kubernetes`,
+
+# Kubernetes Orchestration
+
+Master container orchestration at scale with Kubernetes.
+
+## Core Concepts
+
+- **Pods** — Smallest unit, wraps containers
+- **Services** — Expose pods internally/externally
+- **Deployments** — Manage pod replicas
+- **StatefulSets** — For stateful applications
+- **ConfigMaps & Secrets** — Configuration management
+- **PersistentVolumes** — Persistent storage
+
+## Deployment Manifest
+
+\`\`\`yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: app
+        image: my-app:1.0
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+\`\`\`
+
+## Service Exposure
+
+\`\`\`yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: my-app
+\`\`\`
+
+## Key kubectl Commands
+
+\`\`\`bash
+# Deploy
+kubectl apply -f deployment.yaml
+
+# Check status
+kubectl get pods
+kubectl get services
+kubectl describe pod my-app-0
+
+# Scaling
+kubectl scale deployment my-app --replicas=5
+
+# Rolling updates
+kubectl set image deployment/my-app app=my-app:2.0
+kubectl rollout status deployment/my-app
+kubectl rollout undo deployment/my-app
+
+# Debugging
+kubectl logs my-app-0
+kubectl exec -it my-app-0 -- /bin/sh
+
+# Port forwarding
+kubectl port-forward svc/my-app 8080:8080
+\`\`\`
+
+## Best Practices
+
+1. **Resource Requests/Limits** — Always specify
+2. **Health Checks** — Use livenessProbe and readinessProbe
+3. **Rolling Updates** — Gradual deployment of new versions
+4. **Namespaces** — Isolate resources logically
+5. **RBAC** — Role-based access control
+6. **Network Policies** — Restrict traffic between pods
+
+## Advanced Topics
+
+- **Helm** — Package manager for K8s
+- **Operators** — Manage complex applications
+- **Service Mesh** (Istio, Linkerd) — Advanced networking
+- **ArgoCD** — GitOps continuous deployment
+- **Prometheus & Grafana** — Monitoring
+`,
   },
   {
     id: "postgres-optimization",
@@ -1410,9 +2034,97 @@ description: Kubernetes orchestration and deployment.
     tags: ["PostgreSQL", "Database", "Performance"],
     skillMd: `---
 name: postgres-optimization
-description: PostgreSQL performance tuning and optimization.
+description: PostgreSQL performance tuning, indexing, and query optimization for production databases.
 ---
-# PostgreSQL`,
+
+# PostgreSQL Optimization
+
+Master advanced PostgreSQL for lightning-fast databases.
+
+## Indexing Strategies
+
+\`\`\`sql
+-- B-tree index (default)
+CREATE INDEX idx_users_email ON users(email);
+
+-- Partial index (for WHERE conditions)
+CREATE INDEX idx_active_users ON users(email) WHERE active = true;
+
+-- Multi-column index
+CREATE INDEX idx_orders_user_date ON orders(user_id, created_at);
+
+-- EXPLAIN to analyze queries
+EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM orders WHERE user_id = 123;
+\`\`\`
+
+## Query Optimization
+
+\`\`\`sql
+-- Use EXPLAIN to see query plan
+EXPLAIN SELECT * FROM orders o
+JOIN users u ON o.user_id = u.id
+WHERE o.created_at > NOW() - INTERVAL '30 days';
+
+-- Avoid N+1: use JOIN instead of separate queries
+SELECT u.*, COUNT(o.id) as order_count
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id
+GROUP BY u.id;
+
+-- Use LIMIT for large results
+SELECT * FROM logs LIMIT 1000 OFFSET 0;
+
+-- Aggregate at database level
+SELECT DATE(created_at), COUNT(*) as total
+FROM orders
+GROUP BY DATE(created_at);
+\`\`\`
+
+## Connection Pooling
+
+- **pgBouncer** — Lightweight connection pooler
+- **PgPool** — Advanced pooling with replication
+- Configure pool size: \`pool_size = (2 × CPU cores) + spindle_count\`
+
+## Scaling Strategies
+
+1. **Read Replicas** — Offload reads to secondary servers
+2. **Replication** — Streaming replication to standby
+3. **Partitioning** — Split large tables by time/range
+4. **Sharding** — Distribute data across servers
+
+## Monitoring
+
+\`\`\`sql
+-- Check long-running queries
+SELECT pid, now() - pg_stat_activity.query_start AS duration, query
+FROM pg_stat_activity
+WHERE (now() - pg_stat_activity.query_start) > interval '5 minutes';
+
+-- Cache hit ratio (should be >99%)
+SELECT
+  sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) as ratio
+FROM pg_statio_user_tables;
+\`\`\`
+
+## Performance Tuning
+
+\`\`\`sql
+shared_buffers = 256MB
+effective_cache_size = 1GB
+work_mem = 16MB
+maintenance_work_mem = 64MB
+random_page_cost = 1.1  -- for SSD
+\`\`\`
+
+## Best Practices
+
+1. **Always use indexes** on WHERE/JOIN columns
+2. **Monitor with pg_stat_statements**
+3. **Vacuum regularly** to reclaim space
+4. **Use connection pooling** in production
+5. **Analyze query plans** with EXPLAIN
+`,
   },
   {
     id: "react-native-mobile",
@@ -1425,9 +2137,150 @@ description: PostgreSQL performance tuning and optimization.
     tags: ["React Native", "Mobile", "iOS", "Android"],
     skillMd: `---
 name: react-native-mobile
-description: React Native mobile app development.
+description: Cross-platform mobile apps with React Native and Expo for iOS and Android.
 ---
-# React Native`,
+
+# React Native Mobile Development
+
+Write once, deploy to iOS and Android.
+
+## Project Setup
+
+\`\`\`bash
+# With Expo (recommended)
+npx create-expo-app my-app
+cd my-app
+npm start
+
+# With React Native CLI
+npx react-native@latest init MyApp
+\`\`\`
+
+## Core Components
+
+\`\`\`jsx
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+
+export default function App() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>Hello Mobile!</Text>
+      <FlatList
+        data={[{id: '1', title: 'Item 1'}]}
+        renderItem={({item}) => <Text>{item.title}</Text>}
+        keyExtractor={item => item.id}
+      />
+      <TouchableOpacity onPress={() => alert('Pressed!')}>
+        <Text>Press me</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+});
+\`\`\`
+
+## Navigation
+
+\`\`\`jsx
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+
+const Tab = createBottomTabNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Tab.Navigator>
+        <Tab.Screen name="Home" component={HomeScreen} />
+        <Tab.Screen name="Settings" component={SettingsScreen} />
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
+\`\`\`
+
+## State Management
+
+\`\`\`jsx
+import { create } from 'zustand';
+
+const useStore = create(set => ({
+  count: 0,
+  increment: () => set(state => ({ count: state.count + 1 })),
+}));
+
+export default function Counter() {
+  const { count, increment } = useStore();
+  return <TouchableOpacity onPress={increment}><Text>{count}</Text></TouchableOpacity>;
+}
+\`\`\`
+
+## API Calls & Async Storage
+
+\`\`\`jsx
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export default function DataScreen() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const cached = await AsyncStorage.getItem('data');
+      if (cached) setData(JSON.parse(cached));
+      
+      const response = await fetch('https://api.example.com/data');
+      const json = await response.json();
+      setData(json);
+      await AsyncStorage.setItem('data', JSON.stringify(json));
+    };
+    loadData();
+  }, []);
+
+  return <Text>{data ? JSON.stringify(data) : 'Loading...'}</Text>;
+}
+\`\`\`
+
+## Native Modules
+
+- **Camera** — Access device camera
+- **Geolocation** — GPS coordinates
+- **Permissions** — Request device permissions
+- **Push Notifications** — Firebase integration
+
+## Performance Tips
+
+1. Use **FlatList** with \`keyExtractor\` for long lists
+2. Use **useMemo** to prevent re-renders
+3. Lazy load images with progressive loading
+4. Profile with React DevTools Profiler
+5. Minimize JavaScript bundle size
+
+## Deployment
+
+- **iOS**: \`eas build --platform ios\`
+- **Android**: \`eas build --platform android\`
+- Sign and submit to App Store / Play Store
+
+## Best Practices
+
+✅ Use TypeScript for type safety
+✅ Optimize FlatList with virtualization
+✅ Test on real devices before release
+✅ Monitor app performance with Sentry
+✅ Use environment-specific configs
+`,
   },
   {
     id: "graphql-api-design",
@@ -1440,9 +2293,146 @@ description: React Native mobile app development.
     tags: ["GraphQL", "API", "Backend"],
     skillMd: `---
 name: graphql-api-design
-description: GraphQL API design and optimization.
+description: Efficient GraphQL schemas, resolvers, subscriptions, and optimization.
 ---
-# GraphQL`,
+
+# GraphQL API Design
+
+Master modern API design with GraphQL.
+
+## Schema Design Best Practices
+
+\`\`\`graphql
+type Query {
+  user(id: ID!): User
+  users(limit: Int!, offset: Int!): UserConnection!
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  posts: [Post!]!
+  createdAt: DateTime!
+}
+
+type UserConnection {
+  edges: [UserEdge!]!
+  pageInfo: PageInfo!
+}
+
+type UserEdge {
+  node: User!
+  cursor: String!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): User!
+  updateUser(id: ID!, input: UpdateUserInput!): User
+}
+
+input CreateUserInput {
+  name: String!
+  email: String!
+}
+
+type Subscription {
+  userCreated: User!
+}
+\`\`\`
+
+## Resolver Implementation
+
+\`\`\`typescript
+const resolvers = {
+  Query: {
+    user: async (_, { id }, { loaders }) => {
+      return loaders.user.load(id);
+    },
+    users: async (_, { limit, offset }, { db }) => {
+      const users = await db.users.find().limit(limit).skip(offset);
+      return { edges: users.map(u => ({node: u, cursor: btoa(u.id)})), pageInfo: {...} };
+    },
+  },
+  User: {
+    posts: async (user, _, { loaders }) => {
+      return loaders.postsByUserId.load(user.id);
+    },
+  },
+  Mutation: {
+    createUser: async (_, { input }, { db, pubSub }) => {
+      const user = await db.users.insert(input);
+      pubSub.publish('USER_CREATED', { userCreated: user });
+      return user;
+    },
+  },
+};
+\`\`\`
+
+## Query Optimization with DataLoader
+
+\`\`\`typescript
+import DataLoader from 'dataloader';
+
+// Prevents N+1 queries
+const userLoader = new DataLoader(async (userIds) => {
+  return db.users.findByIds(userIds);
+});
+
+// In resolver
+const posts = await postsLoader.loadMany(postIds);
+\`\`\`
+
+## Performance & Security
+
+1. **Depth Limiting** — Prevent deeply nested queries
+2. **Query Complexity** — Calculate operation cost
+3. **Rate Limiting** — Throttle API usage
+4. **Persisted Queries** — Pre-compute common queries
+5. **Field Authorization** — Check permissions per field
+
+\`\`\`typescript
+function validateQueryComplexity(query, schema) {
+  let complexity = 0;
+  // Traverse AST and sum field complexities
+  return complexity <= MAX_COMPLEXITY;
+}
+\`\`\`
+
+## Real-Time with Subscriptions
+
+\`\`\`typescript
+Subscription: {
+  userCreated: {
+    subscribe: (_, __, { pubSub }) => {
+      return pubSub.asyncIterator(['USER_CREATED']);
+    },
+  },
+}
+\`\`\`
+
+## Error Handling
+
+\`\`\`typescript
+throw new GraphQLError('User not found', {
+  extensions: { code: 'NOT_FOUND', userId: id }
+});
+\`\`\`
+
+## Best Practices
+
+✅ Use meaningful field names
+✅ Mark required fields with \`!\`
+✅ Implement cursor-based pagination
+✅ Use DataLoader for batching
+✅ Deprecate gracefully, never remove fields
+✅ Monitor query performance
+`,
   },
   {
     id: "aws-infrastructure",
@@ -1455,9 +2445,199 @@ description: GraphQL API design and optimization.
     tags: ["AWS", "IaC", "Terraform"],
     skillMd: `---
 name: aws-infrastructure
-description: AWS infrastructure and IaC patterns.
+description: AWS infrastructure as code with Terraform, CloudFormation, and CDK.
 ---
-# AWS IaC`,
+
+# AWS Infrastructure as Code
+
+Build scalable, reproducible cloud infrastructure.
+
+## Terraform Fundamentals
+
+\`\`\`hcl
+# Provider configuration
+provider "aws" {
+  region = "us-east-1"
+}
+
+# VPC
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_hostnames = true
+
+  tags = { Name = "main-vpc" }
+}
+
+# Subnet
+resource "aws_subnet" "main" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.1.0/24"
+  availability_zone = "us-east-1a"
+}
+
+# EC2 Instance
+resource "aws_instance" "app" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+  subnet_id     = aws_subnet.main.id
+
+  tags = { Name = "app-server" }
+}
+\`\`\`
+
+## RDS Database
+
+\`\`\`hcl
+resource "aws_db_instance" "postgres" {
+  identifier           = "my-database"
+  engine              = "postgres"
+  engine_version      = "14.7"
+  instance_class      = "db.t3.micro"
+  allocated_storage   = 20
+  username            = "admin"
+  password            = random_password.db.result
+  skip_final_snapshot = true
+
+  tags = { Name = "postgres-db" }
+}
+
+resource "random_password" "db" {
+  length  = 32
+  special = true
+}
+\`\`\`
+
+## Auto-Scaling Group
+
+\`\`\`hcl
+resource "aws_launch_template" "app" {
+  image_id = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+}
+
+resource "aws_autoscaling_group" "app" {
+  name              = "app-asg"
+  min_size          = 2
+  max_size          = 5
+  desired_capacity  = 3
+  vpc_zone_identifier = [aws_subnet.main.id]
+  launch_template {
+    id      = aws_launch_template.app.id
+    version = "\$Latest"
+  }
+}
+\`\`\`
+
+## S3 Bucket
+
+\`\`\`hcl
+resource "aws_s3_bucket" "assets" {
+  bucket = "my-app-assets-${data.aws_caller_identity.current.account_id}"
+}
+
+resource "aws_s3_bucket_versioning" "assets" {
+  bucket = aws_s3_bucket.assets.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "assets" {
+  bucket                  = aws_s3_bucket.assets.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+\`\`\`
+
+## CloudFront CDN
+
+\`\`\`hcl
+resource "aws_cloudfront_distribution" "cdn" {
+  enabled = true
+  origin {
+    domain_name = aws_s3_bucket.assets.bucket_regional_domain_name
+    origin_id   = "s3"
+  }
+  default_cache_behavior {
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "s3"
+    forwarded_values {
+      query_string = false
+    }
+    viewer_protocol_policy = "redirect-to-https"
+  }
+}
+\`\`\`
+
+## Variables & Outputs
+
+\`\`\`hcl
+variable "environment" {
+  type    = string
+  default = "production"
+}
+
+variable "instance_type" {
+  type    = string
+  default = "t2.micro"
+}
+
+output "instance_ip" {
+  value = aws_instance.app.public_ip
+}
+
+output "db_endpoint" {
+  value = aws_db_instance.postgres.endpoint
+}
+\`\`\`
+
+## Best Practices
+
+1. **State Management** — Use S3 with locking (DynamoDB)
+2. **Workspaces** — Separate dev/staging/prod
+3. **Modules** — Reusable infrastructure components
+4. **Variables** — Externalize configuration
+5. **Documentation** — Add descriptions to resources
+6. **Tagging** — Consistent resource labeling
+
+\`\`\`hcl
+# terraform.tfvars
+environment  = "production"
+instance_type = "t3.small"
+region       = "us-west-2"
+
+# State backend
+terraform {
+  backend "s3" {
+    bucket         = "my-terraform-state"
+    key            = "prod/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "terraform-locks"
+  }
+}
+\`\`\`
+
+## Common Commands
+
+\`\`\`bash
+terraform init        # Initialize
+terraform plan        # Preview changes
+terraform apply       # Deploy
+terraform destroy     # Teardown
+terraform state list  # View state
+terraform fmt         # Format code
+\`\`\`
+
+## AWS CDK (Alternative)
+
+- Write infrastructure in Python/TypeScript
+- Synthesizes to CloudFormation templates
+- Better type safety than CloudFormation
+- Perfect for complex applications
+`,
   },
   {
     id: "vue-ecosystem",
