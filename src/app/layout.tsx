@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   authors: [{ name: "AIHub" }],
   creator: "AIHub",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://aihub-eight-xi.vercel.app"),
+  verification: {
+    google: "2d0604ba4ad79e67",
+  },
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
