@@ -33,6 +33,18 @@ const NODE_TYPE_ICONS: Record<string, string> = {
   framework: "⚙️", concept: "💡", tool: "🔧",
 };
 
+// Scale raw size (22–40) down to compact radius (6–14px) matching QB brain style
+function nr(d: ExtendedNode): number {
+  return Math.max(6, Math.round((d.size ?? 20) * 0.38));
+}
+
+// Ease back-out for pop-in animation (overshoot then settle)
+function easeBackOut(t: number, overshoot = 1.8): number {
+  const c = overshoot + 1;
+  return 1 + c * Math.pow(t - 1, 3) + overshoot * Math.pow(t - 1, 2);
+}
+void easeBackOut; // used conceptually via d3.easeBackOut
+
 interface ExtendedNode extends GraphNode, d3.SimulationNodeDatum {
   x?: number; y?: number; vx?: number; vy?: number;
   fx?: number | null; fy?: number | null;
@@ -156,24 +168,24 @@ export default function GraphPage() {
       );
 
     nodeG.append("circle")
-      .attr("r", d => (d.size ?? 20) + 8)
+      .attr("r", 0)
       .attr("fill","none")
       .attr("stroke", d => d.color ?? NODE_COLORS[d.type] ?? "#6366f1")
-      .attr("stroke-width",1.5)
+      .attr("stroke-width",1)
       .attr("stroke-opacity",0.3)
       .attr("class","pulse-ring");
 
     nodeG.append("circle")
-      .attr("r", d => d.size ?? 20)
+      .attr("r", 0)
       .attr("fill", d => `url(#grad-${d.type})`)
       .attr("stroke","rgba(255,255,255,0.25)")
-      .attr("stroke-width",1.5)
+      .attr("stroke-width",1)
       .attr("filter", d => `url(#glow-${d.type})`)
       .on("mouseenter", function(_, d) {
         d3.select(this.parentNode as SVGGElement).select("circle:nth-child(2)")
-          .attr("stroke","rgba(255,255,255,0.8)").attr("stroke-width",2.5).attr("r",(d.size ?? 20) + 2);
+          .attr("stroke","rgba(255,255,255,0.8)").attr("stroke-width",2).attr("r", nr(d) + 2);
         d3.select(this.parentNode as SVGGElement).select(".pulse-ring")
-          .attr("stroke-opacity",0.8).attr("r",(d.size ?? 20) + 14);
+          .attr("stroke-opacity",0.8).attr("r", nr(d) + 6);
         linkSel.attr("stroke", l => {
           const s = typeof l.source === "object" ? (l.source as ExtendedNode).id : l.source;
           const t = typeof l.target === "object" ? (l.target as ExtendedNode).id : l.target;
@@ -192,9 +204,9 @@ export default function GraphPage() {
       })
       .on("mouseleave", function(_, d) {
         d3.select(this.parentNode as SVGGElement).select("circle:nth-child(2)")
-          .attr("stroke","rgba(255,255,255,0.25)").attr("stroke-width",1.5).attr("r", d.size ?? 20);
+          .attr("stroke","rgba(255,255,255,0.25)").attr("stroke-width",1).attr("r", nr(d));
         d3.select(this.parentNode as SVGGElement).select(".pulse-ring")
-          .attr("stroke-opacity",0.3).attr("r",(d.size ?? 20) + 8);
+          .attr("stroke-opacity",0.3).attr("r", nr(d) + 4);
         linkSel.attr("stroke","rgba(148,163,184,0.25)").attr("stroke-width",1);
         linkLabel.attr("fill","rgba(148,163,184,0.0)");
         setHoveredId(null);
@@ -204,8 +216,8 @@ export default function GraphPage() {
     nodeG.append("text")
       .text(d => d.label)
       .attr("text-anchor","middle")
-      .attr("dy", d => (d.size ?? 20) + 14)
-      .attr("font-size","10px")
+      .attr("dy", d => nr(d) + 11)
+      .attr("font-size","9px")
       .attr("font-weight","600")
       .attr("fill","currentColor")
       .attr("class","fill-foreground select-none pointer-events-none")
@@ -214,18 +226,20 @@ export default function GraphPage() {
     nodeG.append("text")
       .text(d => typeEmoji(d.type))
       .attr("text-anchor","middle")
-      .attr("dy","0.4em")
-      .attr("font-size", d => `${Math.max(10, (d.size ?? 20) * 0.65)}px`)
+      .attr("dy","0.35em")
+      .attr("font-size", d => `${Math.max(6, nr(d) * 0.7)}px`)
       .attr("class","select-none pointer-events-none");
 
     svg.on("click", () => setSelectedNode(null));
 
     const sim = d3.forceSimulation<ExtendedNode>(nodes)
       .force("link", d3.forceLink(links as d3.SimulationLinkDatum<ExtendedNode>[])
-        .id((d) => (d as ExtendedNode).id).distance(150).strength(0.4))
-      .force("charge",    d3.forceManyBody().strength(-450))
-      .force("center",    d3.forceCenter(W/2, H/2))
-      .force("collision", d3.forceCollide().radius(d => (d as ExtendedNode).size ?? 20 + 18))
+        .id((d) => (d as ExtendedNode).id).distance(90).strength(0.45))
+      .force("charge",    d3.forceManyBody().strength(-220).distanceMax(400))
+      .force("center",    d3.forceCenter(W/2, H/2).strength(0.05))
+      .alphaDecay(0.028)
+      .velocityDecay(0.4)
+      .force("collision", d3.forceCollide().radius(d => nr(d as ExtendedNode) + 6).strength(0.8))
       .on("tick", () => {
         linkSel
           .attr("x1", d => ((d.source as unknown as ExtendedNode).x ?? 0))
@@ -239,6 +253,22 @@ export default function GraphPage() {
       });
 
     simRef.current = sim;
+
+    // ── Entrance animation — hub-first pop-in with easeBackOut ──────────
+    // Main circles: larger nodes (hubs) pop in first, leaves cascade after
+    nodeG.select<SVGCircleElement>("circle:nth-child(2)")
+      .transition()
+      .delay(d => Math.max(0, (15 - nr(d)) * 25))
+      .duration(480)
+      .ease(d3.easeBackOut.overshoot(1.8))
+      .attr("r", d => nr(d))
+      .on("end", function(_d) {
+        const d = _d as ExtendedNode;
+        d3.select((this as SVGCircleElement).parentNode as SVGGElement)
+          .select("circle:nth-child(1)")
+          .transition().duration(300).attr("r", nr(d) + 4);
+      });
+
     return () => { sim.stop(); };
   }, [activeTypes]);
 
