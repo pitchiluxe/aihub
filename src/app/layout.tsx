@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "AIHub" }],
   creator: "AIHub",
-  metadataBase: new URL("https://aihub.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://aihub-eight-xi.vercel.app"),
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://aihub.vercel.app",
+    url: process.env.NEXT_PUBLIC_APP_URL ?? "https://aihub-eight-xi.vercel.app",
     title: "AIHub — The Homepage of Artificial Intelligence",
     description: "The Bloomberg Terminal for AI. Discover models, track news, explore research.",
     siteName: "AIHub",
@@ -57,8 +57,31 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "AIHub",
+    url: process.env.NEXT_PUBLIC_APP_URL ?? "https://aihub-eight-xi.vercel.app",
+    description:
+      "The ultimate AI intelligence platform — discover models, track news, explore research, build agents, and master AI workflows.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://aihub-eight-xi.vercel.app"}/search?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body>
         <ThemeProvider
           attribute="class"
