@@ -1,15 +1,17 @@
-"use client";
+﻿"use client";
+
+// Canvas-based force graph — GPU-composited, 60fps, handles hundreds of nodes
+// Spring-physics drag, easeBackOut pop-in, matches QB brain style
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
-import { Badge } from "@/components/ui/badge";
-import { GraphNode, GraphLink } from "@/types";
+import { GraphNode } from "@/types";
 import { INITIAL_GRAPH_DATA } from "@/lib/graph-data";
 import {
-  Search, ZoomIn, ZoomOut, Maximize2, X, RefreshCw,
+  Search, ZoomIn, ZoomOut, X, RefreshCw,
   Brain, Share2, Filter, ChevronDown, ChevronRight as ChevronRightIcon,
-  Crosshair, Play, ExternalLink,
+  Crosshair, ExternalLink, Maximize2, Minimize2,
 } from "lucide-react";
 import * as d3 from "d3";
 import { cn } from "@/lib/utils";
@@ -22,589 +24,755 @@ const NODE_COLORS: Record<string, string> = {
   concept:   "#06b6d4",
   tool:      "#ef4444",
 };
-
 const NODE_TYPE_LABELS: Record<string, string> = {
   model: "Models", company: "Companies", research: "Research",
   framework: "Frameworks", concept: "Concepts", tool: "Tools",
 };
+const MIN_ZOOM = 0.08;
+const MAX_ZOOM = 10;
+const LABEL_ZOOM = 0.65;
 
-const NODE_TYPE_ICONS: Record<string, string> = {
-  model: "🧠", company: "🏢", research: "📄",
-  framework: "⚙️", concept: "💡", tool: "🔧",
-};
-
-// Scale raw size (22–40) down to compact radius (6–14px) matching QB brain style
-function nr(d: ExtendedNode): number {
-  return Math.max(6, Math.round((d.size ?? 20) * 0.38));
+function nodeRadius(size: number): number {
+  return Math.max(5, Math.round(size * 0.28));
 }
-
-// Ease back-out for pop-in animation (overshoot then settle)
 function easeBackOut(t: number, overshoot = 1.8): number {
   const c = overshoot + 1;
   return 1 + c * Math.pow(t - 1, 3) + overshoot * Math.pow(t - 1, 2);
 }
-void easeBackOut; // used conceptually via d3.easeBackOut
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function typeEmoji(type: string): string {
+  return ({ model: "🧠", company: "🏢", research: "📄", framework: "⚙️", concept: "💡", tool: "🔧" } as Record<string,string>)[type] ?? "●";
+}
 
-interface ExtendedNode extends GraphNode, d3.SimulationNodeDatum {
+interface ExtNode extends GraphNode, d3.SimulationNodeDatum {
   x?: number; y?: number; vx?: number; vy?: number;
   fx?: number | null; fy?: number | null;
 }
+interface Transform { x: number; y: number; k: number }
 
 export default function GraphPage() {
-  const svgRef    = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const simRef    = useRef<d3.Simulation<ExtendedNode, undefined> | null>(null);
-  const zoomRef   = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const canvasRef     = useRef<HTMLCanvasElement>(null);
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const simRef        = useRef<d3.Simulation<ExtNode, undefined> | null>(null);
+  const nodesRef      = useRef<ExtNode[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const linksRef      = useRef<any[]>([]);
+  const transformRef  = useRef<Transform>({ x: 0, y: 0, k: 1 });
+  const rafRef        = useRef<number | null>(null);
+  const draggingRef   = useRef<ExtNode | null>(null);
+  const hoveredRef    = useRef<ExtNode | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
 
+  const entranceActiveRef = useRef(false);
+  const entranceStartRef  = useRef(0);
+  const entranceMapRef    = useRef<Map<string, { delay: number; duration: number }>>(new Map());
+  const nodeAnimRef       = useRef<Map<string, { t0: number; duration: number }>>(new Map());
+
+  const [activeTypes,  setActiveTypes]  = useState<Set<string>>(new Set(Object.keys(NODE_COLORS)));
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [search, setSearch]             = useState("");
-  const [zoomLevel, setZoomLevel]       = useState(1);
-  const [activeTypes, setActiveTypes]   = useState<Set<string>>(
-    new Set(["model","company","research","framework","concept","tool"])
-  );
-  const [hoveredId, setHoveredId]       = useState<string | null>(null);
-  const [foldersOpen, setFoldersOpen]   = useState(true);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [hoveredNode,  setHoveredNode]  = useState<GraphNode | null>(null);
+  const [zoom,         setZoom]         = useState(1);
+  const [search,       setSearch]       = useState("");
+  const [foldersOpen,  setFoldersOpen]  = useState(true);
+  const [fullscreen,   setFullscreen]   = useState(false);
 
-  const toggleType = useCallback((t: string) => {
-    setActiveTypes(prev => {
-      const n = new Set(prev);
-      n.has(t) ? n.delete(t) : n.add(t);
-      return n;
-    });
-  }, []);
+  useEffect(() => { selectedIdRef.current = selectedNode?.id ?? null; }, [selectedNode]);
 
-  // Count per type
-  const typeCounts = Object.keys(NODE_COLORS).reduce<Record<string,number>>((acc, t) => {
+  const typeCounts = Object.keys(NODE_COLORS).reduce<Record<string, number>>((acc, t) => {
     acc[t] = INITIAL_GRAPH_DATA.nodes.filter(n => n.type === t).length;
     return acc;
   }, {});
 
-  // ── Build graph ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!svgRef.current || !containerRef.current) return;
-    const W = containerRef.current.clientWidth;
-    const H = containerRef.current.clientHeight;
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    const nodes: ExtendedNode[] = INITIAL_GRAPH_DATA.nodes
-      .filter(n => activeTypes.has(n.type))
-      .map(n => ({ ...n }));
+    const { x: tx, y: ty, k } = transformRef.current;
+    const nodes  = nodesRef.current;
+    const links  = linksRef.current;
+    const selId  = selectedIdRef.current;
+    const now    = performance.now();
+    const q      = search.toLowerCase().trim();
 
-    const nodeIds = new Set(nodes.map(n => n.id));
-    const links = INITIAL_GRAPH_DATA.links
-      .filter(l => nodeIds.has(String(l.source)) && nodeIds.has(String(l.target)))
-      .map(l => ({ ...l }));
+    const entranceActive  = entranceActiveRef.current;
+    const entranceElapsed = entranceActive ? now - entranceStartRef.current : Infinity;
+    if (entranceActive && entranceElapsed > 1200) entranceActiveRef.current = false;
+    const entranceEdgeAlpha = entranceActive ? Math.min(1, entranceElapsed / 800) : 1;
 
-    const defs = svg.append("defs");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.scale(k, k);
 
-    const glow = defs.append("filter").attr("id","glow").attr("x","-50%").attr("y","-50%").attr("width","200%").attr("height","200%");
-    glow.append("feGaussianBlur").attr("stdDeviation","4").attr("result","blur");
-    const merge = glow.append("feMerge");
-    merge.append("feMergeNode").attr("in","blur");
-    merge.append("feMergeNode").attr("in","SourceGraphic");
+    let connectedIds: Set<string> | null = null;
+    if (selId) {
+      connectedIds = new Set([selId]);
+      for (const l of INITIAL_GRAPH_DATA.links) {
+        if (l.source === selId) connectedIds.add(String(l.target));
+        if (l.target === selId) connectedIds.add(String(l.source));
+      }
+    }
 
-    const strongGlow = defs.append("filter").attr("id","glow-strong").attr("x","-80%").attr("y","-80%").attr("width","260%").attr("height","260%");
-    strongGlow.append("feGaussianBlur").attr("stdDeviation","8").attr("result","blur");
-    const merge2 = strongGlow.append("feMerge");
-    merge2.append("feMergeNode").attr("in","blur");
-    merge2.append("feMergeNode").attr("in","SourceGraphic");
+    // Edges
+    for (const l of links) {
+      const sx = l.source.x ?? 0, sy = l.source.y ?? 0;
+      const ex = l.target.x ?? 0, ey = l.target.y ?? 0;
+      const src = l.source.id as string;
+      const tgt = l.target.id as string;
 
-    Object.entries(NODE_COLORS).forEach(([type, color]) => {
-      const grad = defs.append("radialGradient").attr("id", `grad-${type}`);
-      grad.append("stop").attr("offset","0%").attr("stop-color",color).attr("stop-opacity","1");
-      grad.append("stop").attr("offset","100%").attr("stop-color",color).attr("stop-opacity","0.65");
+      if (selId) {
+        const touches = src === selId || tgt === selId;
+        if (touches) {
+          const selN = nodes.find(nd => nd.id === selId);
+          const col  = selN ? (selN.color ?? NODE_COLORS[selN.type] ?? "#8b5cf6") : "#8b5cf6";
+          ctx.strokeStyle = hexToRgba(col, 0.75 * entranceEdgeAlpha);
+          ctx.lineWidth   = 1.8 / k;
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.strokeStyle = `rgba(255,255,255,${0.03 * entranceEdgeAlpha})`;
+          ctx.lineWidth   = 0.8 / k;
+          ctx.globalAlpha = 1;
+        }
+      } else {
+        ctx.strokeStyle = `rgba(255,255,255,${0.13 * entranceEdgeAlpha})`;
+        ctx.lineWidth   = 1 / k;
+        ctx.globalAlpha = 1;
+      }
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+    }
 
-      const f = defs.append("filter").attr("id",`glow-${type}`).attr("x","-60%").attr("y","-60%").attr("width","220%").attr("height","220%");
-      f.append("feGaussianBlur").attr("stdDeviation","5").attr("in","SourceGraphic").attr("result","blur");
-      const fm = f.append("feMerge");
-      fm.append("feMergeNode").attr("in","blur");
-      fm.append("feMergeNode").attr("in","SourceGraphic");
-    });
+    // Nodes
+    for (const node of nodes) {
+      const nx  = node.x ?? 0, ny = node.y ?? 0;
+      const r   = nodeRadius(node.size ?? 20);
+      const col = node.color ?? NODE_COLORS[node.type] ?? "#6366f1";
+      const isSel  = node.id === selId;
+      const isConn = connectedIds ? connectedIds.has(node.id) : true;
+      const matchQ = !q || node.label.toLowerCase().includes(q) || (node.description ?? "").toLowerCase().includes(q);
+      if (q && !matchQ) { ctx.globalAlpha = 0.05; }
 
-    defs.append("marker").attr("id","arrow").attr("viewBox","0 0 8 8").attr("refX","22").attr("refY","4")
-      .attr("markerWidth","5").attr("markerHeight","5").attr("orient","auto")
-      .append("path").attr("d","M0,0 L8,4 L0,8 z").attr("fill","rgba(148,163,184,0.5)");
+      let animScale = 1;
+      if (entranceActive) {
+        const info = entranceMapRef.current.get(node.id);
+        if (info) {
+          const el = entranceElapsed - info.delay;
+          if (el < 0) animScale = 0;
+          else if (el < info.duration) animScale = Math.max(0, easeBackOut(el / info.duration));
+        }
+      }
+      const anim = nodeAnimRef.current.get(node.id);
+      if (anim) {
+        const el = now - anim.t0;
+        if (el < anim.duration) animScale = Math.max(0, easeBackOut(el / anim.duration));
+        else nodeAnimRef.current.delete(node.id);
+      }
 
-    const zb = d3.zoom<SVGSVGElement,unknown>()
-      .scaleExtent([0.15,5])
-      .on("zoom", ev => { g.attr("transform", ev.transform); setZoomLevel(ev.transform.k); });
-    zoomRef.current = zb;
-    svg.call(zb);
+      const drawR = r * animScale;
+      if (drawR <= 0) { ctx.globalAlpha = 1; continue; }
 
-    const g = svg.append("g");
+      const fillA   = isSel ? 0.95 : isConn ? 0.82 : 0.1;
+      const strokeA = isSel ? 1    : isConn ? 0.4  : 0.05;
 
-    const linkSel = g.append("g").selectAll("line")
-      .data(links).enter().append("line")
-      .attr("stroke","rgba(148,163,184,0.25)")
-      .attr("stroke-width",1)
-      .attr("marker-end","url(#arrow)")
-      .style("stroke-dasharray","4 4")
-      .style("animation","dash 4s linear infinite");
+      if (isSel) { ctx.shadowColor = col; ctx.shadowBlur = 18; }
 
-    const linkLabel = g.append("g").selectAll("text")
-      .data(links).enter().append("text")
-      .attr("text-anchor","middle")
-      .attr("font-size","8px")
-      .attr("fill","rgba(148,163,184,0.0)")
-      .attr("dy","-3px")
-      .text(d => d.label ?? "");
+      ctx.beginPath();
+      ctx.arc(nx, ny, isSel ? drawR * 1.3 : drawR, 0, Math.PI * 2);
+      ctx.fillStyle   = hexToRgba(col, fillA);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(col, strokeA);
+      ctx.lineWidth   = (isSel ? 2.5 : 1.5) / k;
+      ctx.stroke();
+      if (isSel) ctx.shadowBlur = 0;
 
-    const nodeG = g.append("g").selectAll("g")
-      .data(nodes).enter().append("g")
-      .attr("cursor","pointer")
-      .call(
-        d3.drag<SVGGElement, ExtendedNode>()
-          .on("start", (ev,d) => {
-            if (!ev.active && simRef.current) simRef.current.alphaTarget(0.3).restart();
-            d.fx = d.x; d.fy = d.y;
-          })
-          .on("drag",  (ev,d) => { d.fx = ev.x; d.fy = ev.y; })
-          .on("end",   (ev,d) => {
-            if (!ev.active && simRef.current) simRef.current.alphaTarget(0);
-            d.fx = null; d.fy = null;
-          })
-      );
+      const hov = hoveredRef.current;
+      if (hov?.id === node.id && !selId) {
+        ctx.beginPath();
+        ctx.arc(nx, ny, drawR + 5 / k, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(col, 0.55);
+        ctx.lineWidth   = 1.5 / k;
+        ctx.stroke();
+      }
 
-    nodeG.append("circle")
-      .attr("r", 0)
-      .attr("fill","none")
-      .attr("stroke", d => d.color ?? NODE_COLORS[d.type] ?? "#6366f1")
-      .attr("stroke-width",1)
-      .attr("stroke-opacity",0.3)
-      .attr("class","pulse-ring");
+      ctx.globalAlpha = 1;
+    }
 
-    nodeG.append("circle")
-      .attr("r", 0)
-      .attr("fill", d => `url(#grad-${d.type})`)
-      .attr("stroke","rgba(255,255,255,0.25)")
-      .attr("stroke-width",1)
-      .attr("filter", d => `url(#glow-${d.type})`)
-      .on("mouseenter", function(_, d) {
-        d3.select(this.parentNode as SVGGElement).select("circle:nth-child(2)")
-          .attr("stroke","rgba(255,255,255,0.8)").attr("stroke-width",2).attr("r", nr(d) + 2);
-        d3.select(this.parentNode as SVGGElement).select(".pulse-ring")
-          .attr("stroke-opacity",0.8).attr("r", nr(d) + 6);
-        linkSel.attr("stroke", l => {
-          const s = typeof l.source === "object" ? (l.source as ExtendedNode).id : l.source;
-          const t = typeof l.target === "object" ? (l.target as ExtendedNode).id : l.target;
-          return s === d.id || t === d.id ? "rgba(148,163,184,0.8)" : "rgba(148,163,184,0.1)";
-        }).attr("stroke-width", l => {
-          const s = typeof l.source === "object" ? (l.source as ExtendedNode).id : l.source;
-          const t = typeof l.target === "object" ? (l.target as ExtendedNode).id : l.target;
-          return s === d.id || t === d.id ? 2 : 0.5;
-        });
-        linkLabel.attr("fill", l => {
-          const s = typeof l.source === "object" ? (l.source as ExtendedNode).id : l.source;
-          const t = typeof l.target === "object" ? (l.target as ExtendedNode).id : l.target;
-          return s === d.id || t === d.id ? "rgba(148,163,184,0.7)" : "rgba(148,163,184,0.0)";
-        });
-        setHoveredId(d.id);
-      })
-      .on("mouseleave", function(_, d) {
-        d3.select(this.parentNode as SVGGElement).select("circle:nth-child(2)")
-          .attr("stroke","rgba(255,255,255,0.25)").attr("stroke-width",1).attr("r", nr(d));
-        d3.select(this.parentNode as SVGGElement).select(".pulse-ring")
-          .attr("stroke-opacity",0.3).attr("r", nr(d) + 4);
-        linkSel.attr("stroke","rgba(148,163,184,0.25)").attr("stroke-width",1);
-        linkLabel.attr("fill","rgba(148,163,184,0.0)");
-        setHoveredId(null);
-      })
-      .on("click", (ev, d) => { ev.stopPropagation(); setSelectedNode(d); });
+    // Labels
+    if (k >= LABEL_ZOOM) {
+      const fontSize = Math.max(7, Math.min(11, 8 / k));
+      ctx.font = `${fontSize}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      for (const node of nodes) {
+        const isConn = connectedIds ? connectedIds.has(node.id) : true;
+        if (selId && !isConn) continue;
+        const matchQ = !q || node.label.toLowerCase().includes(q);
+        ctx.globalAlpha = q && !matchQ ? 0.04 : (node.id === selId ? 1 : isConn ? 0.72 : 0.2);
+        const r   = nodeRadius(node.size ?? 20);
+        const lbl = node.label.length > 18 ? node.label.slice(0, 18) + "…" : node.label;
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fillText(lbl, node.x ?? 0, (node.y ?? 0) + r + 11 / k);
+        ctx.globalAlpha = 1;
+      }
+    }
 
-    nodeG.append("text")
-      .text(d => d.label)
-      .attr("text-anchor","middle")
-      .attr("dy", d => nr(d) + 11)
-      .attr("font-size","9px")
-      .attr("font-weight","600")
-      .attr("fill","currentColor")
-      .attr("class","fill-foreground select-none pointer-events-none")
-      .attr("opacity",0.85);
-
-    nodeG.append("text")
-      .text(d => typeEmoji(d.type))
-      .attr("text-anchor","middle")
-      .attr("dy","0.35em")
-      .attr("font-size", d => `${Math.max(6, nr(d) * 0.7)}px`)
-      .attr("class","select-none pointer-events-none");
-
-    svg.on("click", () => setSelectedNode(null));
-
-    const sim = d3.forceSimulation<ExtendedNode>(nodes)
-      .force("link", d3.forceLink(links as d3.SimulationLinkDatum<ExtendedNode>[])
-        .id((d) => (d as ExtendedNode).id).distance(90).strength(0.45))
-      .force("charge",    d3.forceManyBody().strength(-220).distanceMax(400))
-      .force("center",    d3.forceCenter(W/2, H/2).strength(0.05))
-      .alphaDecay(0.028)
-      .velocityDecay(0.4)
-      .force("collision", d3.forceCollide().radius(d => nr(d as ExtendedNode) + 6).strength(0.8))
-      .on("tick", () => {
-        linkSel
-          .attr("x1", d => ((d.source as unknown as ExtendedNode).x ?? 0))
-          .attr("y1", d => ((d.source as unknown as ExtendedNode).y ?? 0))
-          .attr("x2", d => ((d.target as unknown as ExtendedNode).x ?? 0))
-          .attr("y2", d => ((d.target as unknown as ExtendedNode).y ?? 0));
-        linkLabel
-          .attr("x", d => ((((d.source as unknown as ExtendedNode).x ?? 0) + ((d.target as unknown as ExtendedNode).x ?? 0))/2))
-          .attr("y", d => ((((d.source as unknown as ExtendedNode).y ?? 0) + ((d.target as unknown as ExtendedNode).y ?? 0))/2));
-        nodeG.attr("transform", d => `translate(${d.x ?? 0},${d.y ?? 0})`);
-      });
-
-    simRef.current = sim;
-
-    // ── Entrance animation — hub-first pop-in with easeBackOut ──────────
-    // Main circles: larger nodes (hubs) pop in first, leaves cascade after
-    nodeG.select<SVGCircleElement>("circle:nth-child(2)")
-      .transition()
-      .delay(d => Math.max(0, (15 - nr(d)) * 25))
-      .duration(480)
-      .ease(d3.easeBackOut.overshoot(1.8))
-      .attr("r", d => nr(d))
-      .on("end", function(_d) {
-        const d = _d as ExtendedNode;
-        d3.select((this as SVGCircleElement).parentNode as SVGGElement)
-          .select("circle:nth-child(1)")
-          .transition().duration(300).attr("r", nr(d) + 4);
-      });
-
-    return () => { sim.stop(); };
-  }, [activeTypes]);
-
-  // Search highlight
-  useEffect(() => {
-    if (!svgRef.current) return;
-    const svg = d3.select(svgRef.current);
-    const q = search.toLowerCase().trim();
-    svg.selectAll<SVGGElement, ExtendedNode>("g g")
-      .style("opacity", d => {
-        if (!q || !d?.id) return null;
-        const match = d.label?.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q);
-        return match ? "1" : "0.15";
-      });
+    ctx.restore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  function zoomIn()  { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1.5); }
-  function zoomOut() { if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 0.67); }
-  function resetZoom(){ if (svgRef.current && zoomRef.current) d3.select(svgRef.current).transition().duration(500).call(zoomRef.current.transform, d3.zoomIdentity.translate(0,0).scale(1)); }
+  const startLoop = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const loop = () => { draw(); rafRef.current = requestAnimationFrame(loop); };
+    rafRef.current = requestAnimationFrame(loop);
+  }, [draw]);
+
+  const stopLoop = useCallback(() => {
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+  }, []);
+
+  const getNodeAt = useCallback((cx: number, cy: number): ExtNode | null => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const { x: tx, y: ty, k } = transformRef.current;
+    const gx = (cx - rect.left - tx) / k;
+    const gy = (cy - rect.top  - ty) / k;
+    for (let i = nodesRef.current.length - 1; i >= 0; i--) {
+      const n  = nodesRef.current[i];
+      const r  = nodeRadius(n.size ?? 20) + 4;
+      const dx = (n.x ?? 0) - gx, dy = (n.y ?? 0) - gy;
+      if (dx * dx + dy * dy <= r * r) return n;
+    }
+    return null;
+  }, []);
+
+  const buildGraph = useCallback(() => {
+    const canvas    = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    stopLoop();
+    simRef.current?.stop();
+    setSelectedNode(null);
+    selectedIdRef.current = null;
+    nodeAnimRef.current   = new Map();
+    draggingRef.current   = null;
+    hoveredRef.current    = null;
+    setHoveredNode(null);
+
+    const W = container.clientWidth  || window.innerWidth;
+    const H = container.clientHeight || window.innerHeight;
+    canvas.width  = W;
+    canvas.height = H;
+
+    const visNodes: ExtNode[] = INITIAL_GRAPH_DATA.nodes
+      .filter(n => activeTypes.has(n.type))
+      .map(n => ({ ...n }));
+    const visIds   = new Set(visNodes.map(n => n.id));
+    const visLinks = INITIAL_GRAPH_DATA.links
+      .filter(l => visIds.has(String(l.source)) && visIds.has(String(l.target)))
+      .map(l => ({ ...l }));
+
+    const n         = visNodes.length;
+    const chargeStr = -Math.max(60, Math.min(280, 280 - n));
+    const linkDist  = Math.max(50, Math.min(100, 50 + n * 0.25));
+
+    const sim = d3.forceSimulation<ExtNode>(visNodes)
+      .alphaDecay(0.028)
+      .velocityDecay(0.4)
+      .force("link",      d3.forceLink(visLinks).id((d: unknown) => (d as ExtNode).id).distance(linkDist).strength(0.5))
+      .force("charge",    d3.forceManyBody().strength(chargeStr).distanceMax(350))
+      .force("center",    d3.forceCenter(W / 2, H / 2).strength(0.05))
+      .force("collision", d3.forceCollide().radius((d: unknown) => nodeRadius((d as ExtNode).size ?? 20) + 4).strength(0.8));
+
+    simRef.current   = sim;
+    nodesRef.current = visNodes;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    linksRef.current = (sim.force("link") as any).links();
+
+    const ticks = Math.min(120, Math.max(40, n));
+    for (let i = 0; i < ticks; i++) sim.tick();
+
+    const xs  = visNodes.map(nd => nd.x ?? 0);
+    const ys  = visNodes.map(nd => nd.y ?? 0);
+    const pad = 60;
+    const fitK = Math.min(
+      (W - pad * 2) / Math.max(Math.max(...xs) - Math.min(...xs), 1),
+      (H - pad * 2) / Math.max(Math.max(...ys) - Math.min(...ys), 1),
+      2.5,
+    );
+    transformRef.current = {
+      k: fitK,
+      x: W / 2 - fitK * (Math.min(...xs) + Math.max(...xs)) / 2,
+      y: H / 2 - fitK * (Math.min(...ys) + Math.max(...ys)) / 2,
+    };
+    setZoom(fitK);
+
+    // Hub-first entrance cascade
+    const linkCount: Record<string, number> = {};
+    for (const l of INITIAL_GRAPH_DATA.links) {
+      linkCount[String(l.source)] = (linkCount[String(l.source)] ?? 0) + 1;
+      linkCount[String(l.target)] = (linkCount[String(l.target)] ?? 0) + 1;
+    }
+    const sorted = [...visNodes].sort((a, b) => (linkCount[b.id] ?? 0) - (linkCount[a.id] ?? 0));
+    const eMap   = new Map<string, { delay: number; duration: number }>();
+    sorted.forEach((nd, i) => {
+      const pct = i / sorted.length;
+      if (pct < 0.15)      eMap.set(nd.id, { delay: 0,   duration: 480 });
+      else if (pct < 0.45) eMap.set(nd.id, { delay: 180, duration: 400 });
+      else                  eMap.set(nd.id, { delay: 420, duration: 340 });
+    });
+    entranceMapRef.current    = eMap;
+    entranceStartRef.current  = performance.now();
+    entranceActiveRef.current = true;
+
+    // Mouse / touch events
+    let isPanning    = false;
+    let panStart     = { x: 0, y: 0 };
+    let panStartTx   = { x: 0, y: 0, k: 1 };
+    let mouseDownPos = { x: 0, y: 0 };
+    let didDrag      = false;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      mouseDownPos = { x: e.clientX, y: e.clientY };
+      didDrag      = false;
+      const node   = getNodeAt(e.clientX, e.clientY);
+      if (node) {
+        draggingRef.current = node;
+        node.fx = node.x; node.fy = node.y;
+        sim.alphaTarget(0.5).restart();
+      } else {
+        isPanning  = true;
+        panStart   = { x: e.clientX, y: e.clientY };
+        panStartTx = { ...transformRef.current };
+      }
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      const ddx = e.clientX - mouseDownPos.x, ddy = e.clientY - mouseDownPos.y;
+      if (Math.sqrt(ddx * ddx + ddy * ddy) > 3) didDrag = true;
+      if (draggingRef.current) {
+        const rect   = canvas.getBoundingClientRect();
+        const { x: tx2, y: ty2, k } = transformRef.current;
+        draggingRef.current.fx = (e.clientX - rect.left - tx2) / k;
+        draggingRef.current.fy = (e.clientY - rect.top  - ty2) / k;
+      } else if (isPanning) {
+        transformRef.current = {
+          k: panStartTx.k,
+          x: panStartTx.x + (e.clientX - panStart.x),
+          y: panStartTx.y + (e.clientY - panStart.y),
+        };
+      } else {
+        const node = getNodeAt(e.clientX, e.clientY);
+        if (node !== hoveredRef.current) {
+          hoveredRef.current = node;
+          setHoveredNode(node);
+        }
+      }
+    };
+    const onMouseUp = () => {
+      if (draggingRef.current) {
+        draggingRef.current.fx = null; draggingRef.current.fy = null;
+        sim.alphaTarget(0.08);
+        setTimeout(() => simRef.current?.alphaTarget(0), 500);
+        draggingRef.current = null;
+      }
+      isPanning = false;
+    };
+    const onClick = (e: MouseEvent) => {
+      if (didDrag) return;
+      const node = getNodeAt(e.clientX, e.clientY);
+      if (node) {
+        setSelectedNode(prev => {
+          const next = prev?.id === node.id ? null : (node as GraphNode);
+          selectedIdRef.current = next?.id ?? null;
+          return next;
+        });
+      } else {
+        setSelectedNode(null);
+        selectedIdRef.current = null;
+      }
+    };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect   = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const factor = e.deltaY > 0 ? 0.85 : 1.18;
+      const { x: tx2, y: ty2, k } = transformRef.current;
+      const newK = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, k * factor));
+      transformRef.current = {
+        k: newK,
+        x: mx - (mx - tx2) * (newK / k),
+        y: my - (my - ty2) * (newK / k),
+      };
+      setZoom(newK);
+    };
+
+    let lastTouchDist = 0;
+    let lastTouchPan  = { x: 0, y: 0 };
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const [a, b] = [e.touches[0], e.touches[1]];
+        lastTouchDist = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+        lastTouchPan  = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+      } else if (e.touches.length === 1) {
+        isPanning  = true;
+        panStart   = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        panStartTx = { ...transformRef.current };
+        didDrag    = false;
+        mouseDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const dist   = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+        const factor = dist / Math.max(lastTouchDist, 1);
+        const mid    = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+        const rect   = canvas.getBoundingClientRect();
+        const mx = mid.x - rect.left, my = mid.y - rect.top;
+        const { x: tx2, y: ty2, k } = transformRef.current;
+        const newK = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, k * factor));
+        transformRef.current = { k: newK, x: mx - (mx - tx2) * (newK / k), y: my - (my - ty2) * (newK / k) };
+        setZoom(newK);
+        lastTouchDist = dist; lastTouchPan = mid;
+      } else if (e.touches.length === 1 && isPanning) {
+        const dx = e.touches[0].clientX - panStart.x, dy = e.touches[0].clientY - panStart.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 3) didDrag = true;
+        transformRef.current = { k: panStartTx.k, x: panStartTx.x + dx, y: panStartTx.y + dy };
+      }
+    };
+    const onTouchEnd = () => { isPanning = false; };
+    const onLeave    = () => { hoveredRef.current = null; setHoveredNode(null); };
+
+    canvas.addEventListener("mousedown",  onMouseDown);
+    canvas.addEventListener("mousemove",  onMouseMove);
+    canvas.addEventListener("mouseup",    onMouseUp);
+    canvas.addEventListener("mouseleave", onLeave);
+    canvas.addEventListener("click",      onClick);
+    canvas.addEventListener("wheel",      onWheel, { passive: false });
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove",  onTouchMove,  { passive: false });
+    canvas.addEventListener("touchend",   onTouchEnd);
+
+    sim.on("tick", () => { /* RAF loop handles drawing */ });
+    startLoop();
+
+    return () => {
+      stopLoop();
+      sim.stop();
+      canvas.removeEventListener("mousedown",  onMouseDown);
+      canvas.removeEventListener("mousemove",  onMouseMove);
+      canvas.removeEventListener("mouseup",    onMouseUp);
+      canvas.removeEventListener("mouseleave", onLeave);
+      canvas.removeEventListener("click",      onClick);
+      canvas.removeEventListener("wheel",      onWheel);
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove",  onTouchMove);
+      canvas.removeEventListener("touchend",   onTouchEnd);
+    };
+  }, [activeTypes, getNodeAt, startLoop, stopLoop]);
+
+  useEffect(() => {
+    const cleanup = buildGraph();
+    return cleanup;
+  }, [buildGraph]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const canvas    = canvasRef.current;
+    if (!container || !canvas) return;
+    const ro = new ResizeObserver(() => {
+      canvas.width  = container.clientWidth;
+      canvas.height = container.clientHeight;
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
+
+  const doZoomIn = () => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const { x, y, k } = transformRef.current;
+    const newK = Math.min(MAX_ZOOM, k * 1.4);
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    transformRef.current = { k: newK, x: cx - (cx - x) * (newK / k), y: cy - (cy - y) * (newK / k) };
+    setZoom(newK);
+  };
+  const doZoomOut = () => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const { x, y, k } = transformRef.current;
+    const newK = Math.max(MIN_ZOOM, k * 0.7);
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    transformRef.current = { k: newK, x: cx - (cx - x) * (newK / k), y: cy - (cy - y) * (newK / k) };
+    setZoom(newK);
+  };
+  const doZoomFit = () => {
+    const canvas    = canvasRef.current;
+    const container = containerRef.current;
+    const nodes     = nodesRef.current;
+    if (!canvas || !container || !nodes.length) return;
+    const xs  = nodes.map(nd => nd.x ?? 0), ys = nodes.map(nd => nd.y ?? 0);
+    const pad = 60;
+    const fitK = Math.min(
+      (canvas.width  - pad * 2) / Math.max(Math.max(...xs) - Math.min(...xs), 1),
+      (canvas.height - pad * 2) / Math.max(Math.max(...ys) - Math.min(...ys), 1),
+      2.5,
+    );
+    transformRef.current = {
+      k: fitK,
+      x: canvas.width  / 2 - fitK * (Math.min(...xs) + Math.max(...xs)) / 2,
+      y: canvas.height / 2 - fitK * (Math.min(...ys) + Math.max(...ys)) / 2,
+    };
+    setZoom(fitK);
+  };
+
+  const toggleType = (t: string) => setActiveTypes(prev => {
+    const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n;
+  });
 
   const connectedLinks = selectedNode
     ? INITIAL_GRAPH_DATA.links.filter(l => l.source === selectedNode.id || l.target === selectedNode.id)
     : [];
   const connectedNodes = connectedLinks.map(l => {
     const otherId = l.source === selectedNode?.id ? l.target : l.source;
-    const node = INITIAL_GRAPH_DATA.nodes.find(n => n.id === otherId);
+    const node    = INITIAL_GRAPH_DATA.nodes.find(n => n.id === otherId);
     return node ? { node, label: l.label, dir: l.source === selectedNode?.id ? "→" : "←" } : null;
   }).filter(Boolean);
 
   return (
-    <>
-      <style>{`
-        @keyframes dash { to { stroke-dashoffset: -24; } }
-        .pulse-ring { animation: ringPulse 2.5s ease-in-out infinite; }
-        @keyframes ringPulse {
-          0%,100% { stroke-opacity: 0.2; transform: scale(1); }
-          50% { stroke-opacity: 0.5; transform: scale(1.08); }
-        }
-        line { animation: dash 5s linear infinite; }
-      `}</style>
+    <div className={cn("flex flex-col h-screen bg-[#080d18]", fullscreen && "fixed inset-0 z-50")}>
+      <TopBar title="AI Brain" description="Obsidian-style AI knowledge graph — explore relationships in the AI ecosystem" />
 
-      <div className="flex flex-col h-screen bg-[#080d18]">
-        <TopBar title="AI Brain" description="Obsidian-style AI knowledge graph — explore relationships in the AI ecosystem" />
+      <div className="flex flex-1 overflow-hidden">
 
-        <div className="flex flex-1 overflow-hidden">
-
-          {/* ── Vault Sidebar — hidden on mobile ──────────────────── */}
-          <aside className="hidden md:flex w-52 flex-shrink-0 bg-[#0a0e1a] border-r border-white/5 flex-col h-full overflow-hidden">
-            {/* Header */}
-            <div className="px-3 py-3 border-b border-white/5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                  <Brain className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white leading-none">AI Brain</div>
-                  <div className="text-[10px] text-gray-600 leading-none mt-0.5">
-                    {INITIAL_GRAPH_DATA.nodes.filter(n => activeTypes.has(n.type)).length} nodes · {INITIAL_GRAPH_DATA.links.length} edges
-                  </div>
-                </div>
+        {/* Vault Sidebar */}
+        <aside className="hidden md:flex w-52 flex-shrink-0 bg-[#0a0e1a] border-r border-white/5 flex-col h-full overflow-hidden">
+          <div className="px-3 py-3 border-b border-white/5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                <Brain className="w-4 h-4 text-white" />
               </div>
-
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Search nodes…"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 transition-colors"
-                />
+              <div>
+                <div className="text-xs font-bold text-white leading-none">AI Brain</div>
+                <div className="text-[10px] text-gray-600 leading-none mt-0.5">
+                  {INITIAL_GRAPH_DATA.nodes.filter(n => activeTypes.has(n.type)).length} nodes · {INITIAL_GRAPH_DATA.links.length} edges
+                </div>
               </div>
             </div>
-
-            {/* Nav */}
-            <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5 scrollbar-hide">
-              {/* Graph View */}
-              <button className="vault-nav-item vault-nav-active w-full">
-                <Share2 className="w-3.5 h-3.5 flex-shrink-0 text-violet-400" />
-                <span className="flex-1 text-left">Graph View</span>
-                <span className="text-[10px] bg-violet-500/20 text-violet-400 px-1 rounded font-mono">D3</span>
-              </button>
-
-              {/* Divider + Folders */}
-              <div className="pt-3 pb-1">
-                <button
-                  onClick={() => setFoldersOpen(!foldersOpen)}
-                  className="flex items-center gap-1 text-[10px] font-semibold text-gray-600 uppercase tracking-wider w-full hover:text-gray-400 px-1 transition-colors"
-                >
-                  {foldersOpen
-                    ? <ChevronDown className="w-3 h-3" />
-                    : <ChevronRightIcon className="w-3 h-3" />}
-                  Node Types
-                </button>
-              </div>
-
-              {foldersOpen && Object.entries(NODE_COLORS).map(([type, color]) => (
-                <button
-                  key={type}
-                  onClick={() => {
-                    setActiveCategory(activeCategory === type ? null : type);
-                    toggleType(type);
-                  }}
-                  className={cn(
-                    "vault-nav-item w-full",
-                    activeTypes.has(type) && activeCategory === type && "vault-nav-active"
-                  )}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                  <span className="flex-1 text-left truncate">{NODE_TYPE_LABELS[type]}</span>
-                  <span className={cn("text-[10px]", activeTypes.has(type) ? "text-gray-500" : "text-gray-700 line-through")}>
-                    {typeCounts[type]}
-                  </span>
-                </button>
-              ))}
-
-              <div className="pt-3 pb-1">
-                <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider px-1">Stats</span>
-              </div>
-
-              <div className="glass-card p-2.5 mx-0.5 space-y-1.5">
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-gray-600">Active nodes</span>
-                  <span className="text-white font-medium">{INITIAL_GRAPH_DATA.nodes.filter(n=>activeTypes.has(n.type)).length}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-gray-600">Connections</span>
-                  <span className="text-white font-medium">{INITIAL_GRAPH_DATA.links.length}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-gray-600">Types visible</span>
-                  <span className="text-white font-medium">{activeTypes.size}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-gray-600">Zoom</span>
-                  <span className="text-violet-400 font-mono">{Math.round(zoomLevel * 100)}%</span>
-                </div>
-              </div>
-
-              {/* Tips */}
-              <div className="pt-3 pb-1">
-                <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider px-1">Controls</span>
-              </div>
-              <div className="px-1 space-y-1">
-                {[
-                  ["Click", "Select node"],
-                  ["Drag", "Move node"],
-                  ["Scroll", "Zoom in/out"],
-                  ["⌘+scroll", "Precision zoom"],
-                ].map(([key, val]) => (
-                  <div key={key} className="flex justify-between text-[10px]">
-                    <kbd className="text-gray-600 font-mono">{key}</kbd>
-                    <span className="text-gray-700">{val}</span>
-                  </div>
-                ))}
-              </div>
-            </nav>
-          </aside>
-
-          {/* ── Main Graph Canvas ─────────────────────────────────────── */}
-          <div className="flex-1 relative overflow-hidden">
-            <div ref={containerRef} className="w-full h-full">
-              <svg ref={svgRef} className="w-full h-full" style={{ cursor:"grab", background:"transparent" }} />
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
+              <input
+                type="text" placeholder="Search nodes…" value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 transition-colors"
+              />
             </div>
-
-            {/* Zoom controls (QB graph-control-btn style) */}
-            <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
-              <button onClick={zoomIn}    className="graph-control-btn"><ZoomIn    className="w-3.5 h-3.5"/></button>
-              <button onClick={zoomOut}   className="graph-control-btn"><ZoomOut   className="w-3.5 h-3.5"/></button>
-              <button onClick={resetZoom} className="graph-control-btn"><Crosshair className="w-3.5 h-3.5"/></button>
-              <button onClick={resetZoom} className="graph-control-btn"><RefreshCw className="w-3.5 h-3.5"/></button>
-            </div>
-
-            {/* Type filter pills (QB graph-filter-btn style) */}
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 overflow-x-auto max-w-[calc(100vw-2rem)] px-2 scrollbar-hide">
-              {Object.entries(NODE_COLORS).map(([type, color]) => (
-                <button
-                  key={type}
-                  onClick={() => toggleType(type)}
-                  className={cn("graph-filter-btn flex items-center gap-1.5", activeTypes.has(type) && "graph-filter-active")}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeTypes.has(type) ? color : "#555" }} />
-                  {NODE_TYPE_LABELS[type]}
-                </button>
-              ))}
-            </div>
-
-            {/* Hovered node tooltip */}
-            <AnimatePresence>
-              {hoveredId && (() => {
-                const n = INITIAL_GRAPH_DATA.nodes.find(x => x.id === hoveredId);
-                if (!n) return null;
-                return (
-                  <motion.div
-                    key={hoveredId}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-                  >
-                    <div className="glass-card px-3 py-1.5 flex items-center gap-2">
-                      <span>{typeEmoji(n.type)}</span>
-                      <span className="text-xs font-medium text-white">{n.label}</span>
-                      <span className="text-[10px] text-gray-500" style={{ color: NODE_COLORS[n.type] }}>
-                        {NODE_TYPE_LABELS[n.type]}
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })()}
-            </AnimatePresence>
           </div>
 
-          {/* ── Detail Panel — hidden on mobile (bottom sheet), shown on desktop ── */}
-          <AnimatePresence>
-            {selectedNode && (
-              <motion.div
-                initial={{ opacity:0, x:320 }}
-                animate={{ opacity:1, x:0 }}
-                exit={{ opacity:0, x:320 }}
-                transition={{ type:"spring", stiffness:300, damping:28 }}
-                className="hidden md:block w-72 border-l border-white/5 bg-[#0a0e1a] overflow-y-auto flex-shrink-0 scrollbar-hide"
+          <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5 scrollbar-hide">
+            <button className="vault-nav-item vault-nav-active w-full">
+              <Share2 className="w-3.5 h-3.5 flex-shrink-0 text-violet-400" />
+              <span className="flex-1 text-left">Graph View</span>
+              <span className="text-[10px] bg-violet-500/20 text-violet-400 px-1 rounded font-mono">Canvas</span>
+            </button>
+
+            <div className="pt-3 pb-1">
+              <button
+                onClick={() => setFoldersOpen(!foldersOpen)}
+                className="flex items-center gap-1 text-[10px] font-semibold text-gray-600 uppercase tracking-wider w-full hover:text-gray-400 px-1 transition-colors"
               >
-                <div className="p-4 space-y-4">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-white mb-2"
-                        style={{ backgroundColor: (selectedNode.color ?? NODE_COLORS[selectedNode.type]) + "30",
-                                 border: `1px solid ${selectedNode.color ?? NODE_COLORS[selectedNode.type]}40` }}
-                      >
-                        <span>{typeEmoji(selectedNode.type)}</span>
-                        {NODE_TYPE_LABELS[selectedNode.type]}
-                      </div>
-                      <h3 className="text-sm font-bold text-white">{selectedNode.label}</h3>
-                    </div>
-                    <button onClick={() => setSelectedNode(null)} className="text-gray-600 hover:text-white transition-colors mt-1">
-                      <X className="w-4 h-4"/>
-                    </button>
-                  </div>
+                {foldersOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRightIcon className="w-3 h-3" />}
+                Node Types
+              </button>
+            </div>
 
-                  {/* Color bar */}
-                  <div
-                    className="h-0.5 w-full rounded-full"
-                    style={{ background: `linear-gradient(90deg, ${selectedNode.color ?? NODE_COLORS[selectedNode.type]}, transparent)` }}
-                  />
+            {foldersOpen && Object.entries(NODE_COLORS).map(([type, color]) => (
+              <button key={type} onClick={() => toggleType(type)}
+                className={cn("vault-nav-item w-full", activeTypes.has(type) && "vault-nav-active")}>
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: activeTypes.has(type) ? color : "#333" }} />
+                <span className="flex-1 text-left truncate">{NODE_TYPE_LABELS[type]}</span>
+                <span className={cn("text-[10px]", activeTypes.has(type) ? "text-gray-500" : "text-gray-700 line-through")}>
+                  {typeCounts[type]}
+                </span>
+              </button>
+            ))}
 
-                  {selectedNode.description && (
-                    <p className="text-xs text-gray-400 leading-relaxed">{selectedNode.description}</p>
-                  )}
+            <div className="pt-3 pb-1">
+              <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider px-1">Stats</span>
+            </div>
+            <div className="glass-card p-2.5 mx-0.5 space-y-1.5">
+              {([
+                ["Active nodes", INITIAL_GRAPH_DATA.nodes.filter(n => activeTypes.has(n.type)).length],
+                ["Connections",  INITIAL_GRAPH_DATA.links.length],
+                ["Types visible", activeTypes.size],
+                ["Zoom", `${Math.round(zoom * 100)}%`],
+              ] as [string, string | number][]).map(([kk, vv]) => (
+                <div key={kk} className="flex justify-between text-[11px]">
+                  <span className="text-gray-600">{kk}</span>
+                  <span className={typeof vv === "string" && vv.includes("%") ? "text-violet-400 font-mono" : "text-white font-medium"}>{vv}</span>
+                </div>
+              ))}
+            </div>
 
-                  {/* Connections */}
-                  {connectedNodes.length > 0 && (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 mb-2">
-                        Connections ({connectedNodes.length})
-                      </p>
-                      <div className="space-y-1">
-                        {connectedNodes.map((item, i) => {
-                          if (!item) return null;
-                          const { node, label, dir } = item as { node: GraphNode; label?: string; dir: string };
-                          return (
-                            <button
-                              key={i}
-                              onClick={() => setSelectedNode(node)}
-                              className="vault-nav-item w-full text-left"
-                            >
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: node.color ?? NODE_COLORS[node.type] }} />
-                              <span className="flex-1 truncate text-xs">{node.label}</span>
-                              <span className="text-[10px] text-gray-700 flex-shrink-0">{dir} {label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+            <div className="pt-3 pb-1">
+              <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider px-1">Controls</span>
+            </div>
+            <div className="px-1 space-y-1">
+              {[["Click","Select node"],["Drag","Move node"],["Scroll","Zoom"],["Pinch","Zoom (mobile)"]].map(([key, val]) => (
+                <div key={key} className="flex justify-between text-[10px]">
+                  <kbd className="text-gray-600 font-mono">{key}</kbd>
+                  <span className="text-gray-700">{val}</span>
+                </div>
+              ))}
+            </div>
+          </nav>
+        </aside>
 
-                  {selectedNode.url && (
-                    <a href={selectedNode.url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-                      <ExternalLink className="w-3 h-3" />
-                      Learn more
-                    </a>
-                  )}
+        {/* Canvas area */}
+        <div className="flex-1 relative overflow-hidden">
+          <div ref={containerRef} className="w-full h-full">
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full"
+              style={{ cursor: "default" }}
+            />
+          </div>
+
+          {/* Zoom controls */}
+          <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
+            <button onClick={doZoomIn}   className="graph-control-btn"><ZoomIn    className="w-3.5 h-3.5"/></button>
+            <button onClick={doZoomOut}  className="graph-control-btn"><ZoomOut   className="w-3.5 h-3.5"/></button>
+            <button onClick={doZoomFit}  className="graph-control-btn"><Crosshair className="w-3.5 h-3.5"/></button>
+            <button onClick={() => buildGraph()} className="graph-control-btn"><RefreshCw className="w-3.5 h-3.5"/></button>
+            <button onClick={() => setFullscreen(f => !f)} className="graph-control-btn">
+              {fullscreen ? <Minimize2 className="w-3.5 h-3.5"/> : <Maximize2 className="w-3.5 h-3.5"/>}
+            </button>
+          </div>
+
+          {/* Filter pills */}
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 overflow-x-auto max-w-[calc(100vw-2rem)] px-2 scrollbar-hide">
+            {Object.entries(NODE_COLORS).map(([type, color]) => (
+              <button key={type} onClick={() => toggleType(type)}
+                className={cn("graph-filter-btn flex items-center gap-1.5", activeTypes.has(type) && "graph-filter-active")}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeTypes.has(type) ? color : "#555" }} />
+                {NODE_TYPE_LABELS[type]}
+              </button>
+            ))}
+          </div>
+
+          {/* Hover tooltip */}
+          <AnimatePresence>
+            {hoveredNode && (
+              <motion.div key={hoveredNode.id}
+                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                <div className="glass-card px-3 py-1.5 flex items-center gap-2">
+                  <span>{typeEmoji(hoveredNode.type)}</span>
+                  <span className="text-xs font-medium text-white">{hoveredNode.label}</span>
+                  <span className="text-[10px]" style={{ color: NODE_COLORS[hoveredNode.type] }}>{NODE_TYPE_LABELS[hoveredNode.type]}</span>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ── Mobile Bottom Sheet (node detail) ─────────────────── */}
-          <AnimatePresence>
-            {selectedNode && (
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type:"spring", stiffness:300, damping:30 }}
-                className="md:hidden absolute bottom-0 left-0 right-0 z-20 bg-[#0d1526] border-t border-white/10 rounded-t-2xl p-4 max-h-[55vh] overflow-y-auto"
-              >
-                <div className="flex items-start justify-between mb-3">
+          {/* Filter badge */}
+          <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
+            <Filter className="w-3 h-3 text-gray-600" />
+            <span className="text-[10px] text-gray-600">{activeTypes.size}/{Object.keys(NODE_COLORS).length}</span>
+          </div>
+        </div>
+
+        {/* Detail Panel (desktop) */}
+        <AnimatePresence>
+          {selectedNode && (
+            <motion.div initial={{ opacity: 0, x: 320 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 320 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              className="hidden md:block w-72 border-l border-white/5 bg-[#0a0e1a] overflow-y-auto flex-shrink-0 scrollbar-hide">
+              <div className="p-4 space-y-4">
+                <div className="flex items-start justify-between">
                   <div>
-                    <div
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-white mb-1.5"
-                      style={{ backgroundColor: (selectedNode.color ?? NODE_COLORS[selectedNode.type]) + "30",
-                               border: `1px solid ${selectedNode.color ?? NODE_COLORS[selectedNode.type]}40` }}
-                    >
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-white mb-2"
+                      style={{ backgroundColor: (selectedNode.color ?? NODE_COLORS[selectedNode.type]) + "30", border: `1px solid ${selectedNode.color ?? NODE_COLORS[selectedNode.type]}40` }}>
                       <span>{typeEmoji(selectedNode.type)}</span>
                       {NODE_TYPE_LABELS[selectedNode.type]}
                     </div>
                     <h3 className="text-sm font-bold text-white">{selectedNode.label}</h3>
                   </div>
-                  <button onClick={() => setSelectedNode(null)} className="text-gray-500 hover:text-white transition-colors mt-1">
+                  <button onClick={() => setSelectedNode(null)} className="text-gray-600 hover:text-white transition-colors mt-1">
                     <X className="w-4 h-4"/>
                   </button>
                 </div>
-                {selectedNode.description && (
-                  <p className="text-xs text-gray-400 leading-relaxed mb-3">{selectedNode.description}</p>
+                <div className="h-0.5 w-full rounded-full"
+                  style={{ background: `linear-gradient(90deg, ${selectedNode.color ?? NODE_COLORS[selectedNode.type]}, transparent)` }} />
+                {selectedNode.description && <p className="text-xs text-gray-400 leading-relaxed">{selectedNode.description}</p>}
+                {connectedNodes.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 mb-2">Connections ({connectedNodes.length})</p>
+                    <div className="space-y-1">
+                      {connectedNodes.map((item, i) => {
+                        if (!item) return null;
+                        const { node, label, dir } = item as { node: GraphNode; label?: string; dir: string };
+                        return (
+                          <button key={i} onClick={() => setSelectedNode(node)} className="vault-nav-item w-full text-left">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: node.color ?? NODE_COLORS[node.type] }} />
+                            <span className="flex-1 truncate text-xs">{node.label}</span>
+                            <span className="text-[10px] text-gray-700 flex-shrink-0">{dir} {label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
                 {selectedNode.url && (
                   <a href={selectedNode.url} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-                    <ExternalLink className="w-3 h-3" />
-                    Learn more
+                    <ExternalLink className="w-3 h-3" /> Learn more
                   </a>
                 )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-    </>
-  );
-}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-function typeEmoji(type: string): string {
-  return NODE_TYPE_ICONS[type] ?? "●";
+        {/* Mobile Bottom Sheet */}
+        <AnimatePresence>
+          {selectedNode && (
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="md:hidden absolute bottom-0 left-0 right-0 z-20 bg-[#0d1526] border-t border-white/10 rounded-t-2xl p-4 max-h-[55vh] overflow-y-auto">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-white mb-1.5"
+                    style={{ backgroundColor: (selectedNode.color ?? NODE_COLORS[selectedNode.type]) + "30", border: `1px solid ${selectedNode.color ?? NODE_COLORS[selectedNode.type]}40` }}>
+                    <span>{typeEmoji(selectedNode.type)}</span>
+                    {NODE_TYPE_LABELS[selectedNode.type]}
+                  </div>
+                  <h3 className="text-sm font-bold text-white">{selectedNode.label}</h3>
+                </div>
+                <button onClick={() => setSelectedNode(null)} className="text-gray-500 hover:text-white transition-colors mt-1">
+                  <X className="w-4 h-4"/>
+                </button>
+              </div>
+              {selectedNode.description && <p className="text-xs text-gray-400 leading-relaxed mb-3">{selectedNode.description}</p>}
+              {selectedNode.url && (
+                <a href={selectedNode.url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                  <ExternalLink className="w-3 h-3" /> Learn more
+                </a>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+      </div>
+    </div>
+  );
 }
