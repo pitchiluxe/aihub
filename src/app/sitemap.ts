@@ -1,6 +1,11 @@
 import type { MetadataRoute } from "next";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://aihub-eight-xi.vercel.app";
+// Use server-side env var (no NEXT_PUBLIC_ prefix) so it's never inlined as localhost
+const baseUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://aihub-eight-xi.vercel.app";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

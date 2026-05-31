@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://aihub-eight-xi.vercel.app";
+const baseUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://aihub-eight-xi.vercel.app";
 
 export default function robots(): MetadataRoute.Robots {
   return {
