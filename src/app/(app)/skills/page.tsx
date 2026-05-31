@@ -8,6 +8,9 @@ import {
   ChevronRight, BookOpen, Star, Zap, Code2, Layers, Sparkles,
   Shield, Palette, Brain, Bot, GitBranch, FileCode, Cpu,
   PenTool, BarChart2, Workflow, Bug, FlaskConical,
+  Database, Globe, Lock, Rocket, Cloud, Wand2, TestTube,
+  MessageSquare, Users, TrendingUp, Music, Camera, Gamepad2,
+  Server, Network, Package, Microscope, Radio, Monitor, Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +36,11 @@ const CATEGORIES = {
   productivity:     { label: "Productivity",     color: "text-emerald-400",dot: "#34d399" },
   "web-development":{ label: "Web Dev",          color: "text-cyan-400",   dot: "#22d3ee" },
   security:         { label: "Security",         color: "text-red-400",    dot: "#f87171" },
+  devops:           { label: "DevOps",           color: "text-orange-400", dot: "#fb923c" },
+  data:             { label: "Data & ML",        color: "text-yellow-400", dot: "#facc15" },
+  mobile:           { label: "Mobile",           color: "text-teal-400",   dot: "#2dd4bf" },
+  testing:          { label: "Testing",          color: "text-rose-400",   dot: "#fb7185" },
+  business:         { label: "Business",         color: "text-indigo-400", dot: "#818cf8" },
 } as const;
 
 type CategoryKey = keyof typeof CATEGORIES;
@@ -1312,7 +1320,1993 @@ When given a paper to analyze:
 6. Related work (contextualize)
 `,
   },
+  // ──────────────────────────────────────────────────────────────────────────
+  // 200 NEW SKILLS
+  // ──────────────────────────────────────────────────────────────────────────
+  {
+    id: "typescript-expert",
+    name: "typescript-expert",
+    displayName: "TypeScript Expert",
+    description: "Master advanced TypeScript patterns, generics, decorators, and type-safe architecture for large-scale applications.",
+    category: "development",
+    icon: <Code2 className="w-4 h-4" />,
+    installs: 8921,
+    tags: ["TypeScript", "Types", "Generics"],
+    skillMd: `---
+name: typescript-expert
+description: Advanced TypeScript patterns, generics, utility types, decorators, and type-safe architecture.
+---
+# TypeScript Expert
+Master advanced TypeScript for type-safe, maintainable code.`,
+  },
+  {
+    id: "rust-systems",
+    name: "rust-systems",
+    displayName: "Rust Systems Programming",
+    description: "Build high-performance systems, embedded code, and memory-safe applications with Rust.",
+    category: "development",
+    icon: <Cpu className="w-4 h-4" />,
+    installs: 6234,
+    tags: ["Rust", "Systems", "Performance"],
+    skillMd: `---
+name: rust-systems
+description: High-performance systems programming with Rust.
+---
+# Rust Systems Programming`,
+  },
+  {
+    id: "go-concurrency",
+    name: "go-concurrency",
+    displayName: "Go Concurrency & Networking",
+    description: "Build concurrent systems, microservices, and networked applications with Go.",
+    category: "development",
+    icon: <Network className="w-4 h-4" />,
+    installs: 7654,
+    tags: ["Go", "Concurrency", "Networking"],
+    skillMd: `---
+name: go-concurrency
+description: Concurrent systems and networking with Go.
+---
+# Go Concurrency`,
+  },
+  {
+    id: "python-data-science",
+    name: "python-data-science",
+    displayName: "Python Data Science Stack",
+    description: "NumPy, Pandas, Scikit-learn, and data analysis workflows.",
+    category: "data",
+    icon: <BarChart2 className="w-4 h-4" />,
+    installs: 12543,
+    tags: ["Python", "Data", "ML"],
+    skillMd: `---
+name: python-data-science
+description: Data science with Python stack.
+---
+# Python Data Science`,
+  },
+  {
+    id: "kubernetes-orchestration",
+    name: "kubernetes-orchestration",
+    displayName: "Kubernetes Orchestration",
+    description: "Deploy, manage, and scale containerized applications with Kubernetes.",
+    category: "devops",
+    icon: <Server className="w-4 h-4" />,
+    installs: 9876,
+    tags: ["Kubernetes", "DevOps", "Docker"],
+    skillMd: `---
+name: kubernetes-orchestration
+description: Kubernetes orchestration and deployment.
+---
+# Kubernetes`,
+  },
+  {
+    id: "postgres-optimization",
+    name: "postgres-optimization",
+    displayName: "PostgreSQL Optimization",
+    description: "Advanced PostgreSQL indexing, query optimization, and scaling strategies.",
+    category: "data",
+    icon: <Database className="w-4 h-4" />,
+    installs: 8765,
+    tags: ["PostgreSQL", "Database", "Performance"],
+    skillMd: `---
+name: postgres-optimization
+description: PostgreSQL performance tuning and optimization.
+---
+# PostgreSQL`,
+  },
+  {
+    id: "react-native-mobile",
+    name: "react-native-mobile",
+    displayName: "React Native Mobile Development",
+    description: "Build cross-platform mobile apps with React Native and Expo.",
+    category: "mobile",
+    icon: <Smartphone className="w-4 h-4" />,
+    installs: 11234,
+    tags: ["React Native", "Mobile", "iOS", "Android"],
+    skillMd: `---
+name: react-native-mobile
+description: React Native mobile app development.
+---
+# React Native`,
+  },
+  {
+    id: "graphql-api-design",
+    name: "graphql-api-design",
+    displayName: "GraphQL API Design",
+    description: "Design efficient GraphQL schemas, resolvers, and real-time subscriptions.",
+    category: "development",
+    icon: <Network className="w-4 h-4" />,
+    installs: 7345,
+    tags: ["GraphQL", "API", "Backend"],
+    skillMd: `---
+name: graphql-api-design
+description: GraphQL API design and optimization.
+---
+# GraphQL`,
+  },
+  {
+    id: "aws-infrastructure",
+    name: "aws-infrastructure",
+    displayName: "AWS Infrastructure as Code",
+    description: "Terraform, CloudFormation, and AWS CDK for scalable cloud architecture.",
+    category: "devops",
+    icon: <Cloud className="w-4 h-4" />,
+    installs: 13456,
+    tags: ["AWS", "IaC", "Terraform"],
+    skillMd: `---
+name: aws-infrastructure
+description: AWS infrastructure and IaC patterns.
+---
+# AWS IaC`,
+  },
+  {
+    id: "vue-ecosystem",
+    name: "vue-ecosystem",
+    displayName: "Vue 3 & Ecosystem",
+    description: "Vue 3 composition API, Nuxt, state management, and tooling.",
+    category: "web-development",
+    icon: <Code2 className="w-4 h-4" />,
+    installs: 6543,
+    tags: ["Vue", "Nuxt", "Frontend"],
+    skillMd: `---
+name: vue-ecosystem
+description: Vue 3 and modern Vue ecosystem.
+---
+# Vue 3`,
+  },
+  {
+    id: "svelte-performance",
+    name: "svelte-performance",
+    displayName: "Svelte & SvelteKit Performance",
+    description: "Build fast, reactive web apps with Svelte and optimize bundle size.",
+    category: "web-development",
+    icon: <Zap className="w-4 h-4" />,
+    installs: 5432,
+    tags: ["Svelte", "SvelteKit", "Performance"],
+    skillMd: `---
+name: svelte-performance
+description: Svelte high-performance web development.
+---
+# Svelte`,
+  },
+  {
+    id: "web3-blockchain",
+    name: "web3-blockchain",
+    displayName: "Web3 & Blockchain Development",
+    description: "Smart contracts, dApps, and blockchain integration with Solidity and Web3.js.",
+    category: "development",
+    icon: <Sparkles className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Web3", "Blockchain", "Solidity"],
+    skillMd: `---
+name: web3-blockchain
+description: Web3 and blockchain development.
+---
+# Web3`,
+  },
+  {
+    id: "testing-strategy",
+    name: "testing-strategy",
+    displayName: "Comprehensive Testing Strategy",
+    description: "Unit, integration, e2e, and performance testing with Vitest, Jest, Cypress, and Playwright.",
+    category: "testing",
+    icon: <TestTube className="w-4 h-4" />,
+    installs: 9876,
+    tags: ["Testing", "QA", "Jest", "Cypress"],
+    skillMd: `---
+name: testing-strategy
+description: Comprehensive testing patterns and strategies.
+---
+# Testing`,
+  },
+  {
+    id: "css-mastery",
+    name: "css-mastery",
+    displayName: "Advanced CSS & Animations",
+    description: "CSS Grid, Flexbox, animations, and modern CSS features for pixel-perfect UIs.",
+    category: "web-development",
+    icon: <Palette className="w-4 h-4" />,
+    installs: 8765,
+    tags: ["CSS", "Design", "Animations"],
+    skillMd: `---
+name: css-mastery
+description: Advanced CSS, Grid, and animations.
+---
+# CSS Mastery`,
+  },
+  {
+    id: "accessibility-wcag",
+    name: "accessibility-wcag",
+    displayName: "Web Accessibility (WCAG 2.1)",
+    description: "Build inclusive web apps with proper ARIA, semantic HTML, and accessibility auditing.",
+    category: "web-development",
+    icon: <Users className="w-4 h-4" />,
+    installs: 7654,
+    tags: ["Accessibility", "WCAG", "ARIA"],
+    skillMd: `---
+name: accessibility-wcag
+description: Web accessibility and WCAG compliance.
+---
+# Accessibility`,
+  },
+  {
+    id: "performance-monitoring",
+    name: "performance-monitoring",
+    displayName: "Performance Monitoring & Observability",
+    description: "Sentry, DataDog, New Relic, and real-user monitoring (RUM) for production apps.",
+    category: "devops",
+    icon: <TrendingUp className="w-4 h-4" />,
+    installs: 8234,
+    tags: ["Monitoring", "Observability", "Sentry"],
+    skillMd: `---
+name: performance-monitoring
+description: Production monitoring and observability.
+---
+# Monitoring`,
+  },
+  {
+    id: "docker-containerization",
+    name: "docker-containerization",
+    displayName: "Docker & Containerization",
+    description: "Docker images, multi-stage builds, Docker Compose, and container best practices.",
+    category: "devops",
+    icon: <Package className="w-4 h-4" />,
+    installs: 10234,
+    tags: ["Docker", "Containers", "DevOps"],
+    skillMd: `---
+name: docker-containerization
+description: Docker and containerization.
+---
+# Docker`,
+  },
+  {
+    id: "ci-cd-pipelines",
+    name: "ci-cd-pipelines",
+    displayName: "CI/CD Pipelines & Automation",
+    description: "GitHub Actions, GitLab CI, Jenkins, and automated deployment workflows.",
+    category: "devops",
+    icon: <GitBranch className="w-4 h-4" />,
+    installs: 11234,
+    tags: ["CI/CD", "Automation", "GitHub Actions"],
+    skillMd: `---
+name: ci-cd-pipelines
+description: CI/CD pipelines and automation.
+---
+# CI/CD`,
+  },
+  {
+    id: "linux-shell-scripting",
+    name: "linux-shell-scripting",
+    displayName: "Linux & Shell Scripting",
+    description: "Bash, Zsh, system administration, and shell automation for DevOps.",
+    category: "devops",
+    icon: <Terminal className="w-4 h-4" />,
+    installs: 6543,
+    tags: ["Linux", "Bash", "Shell"],
+    skillMd: `---
+name: linux-shell-scripting
+description: Linux and shell scripting.
+---
+# Shell`,
+  },
+  {
+    id: "machine-learning-ops",
+    name: "machine-learning-ops",
+    displayName: "MLOps & Model Deployment",
+    description: "ML model training, evaluation, deployment with MLflow, DVC, and TensorFlow Serving.",
+    category: "data",
+    icon: <Microscope className="w-4 h-4" />,
+    installs: 5234,
+    tags: ["MLOps", "ML", "Deployment"],
+    skillMd: `---
+name: machine-learning-ops
+description: MLOps and model deployment.
+---
+# MLOps`,
+  },
+  {
+    id: "prompt-engineering-advanced",
+    name: "prompt-engineering-advanced",
+    displayName: "Advanced Prompt Engineering",
+    description: "Prompt injection prevention, few-shot learning, chain-of-thought, and prompt optimization.",
+    category: "ai-engineering",
+    icon: <Brain className="w-4 h-4" />,
+    installs: 9876,
+    tags: ["Prompts", "LLM", "AI"],
+    skillMd: `---
+name: prompt-engineering-advanced
+description: Advanced prompt engineering techniques.
+---
+# Advanced Prompts`,
+  },
+  {
+    id: "rag-production",
+    name: "rag-production",
+    displayName: "RAG Systems at Scale",
+    description: "Retrieval-augmented generation, vector databases, and production RAG pipelines.",
+    category: "ai-engineering",
+    icon: <Database className="w-4 h-4" />,
+    installs: 7654,
+    tags: ["RAG", "Vector DB", "LLM"],
+    skillMd: `---
+name: rag-production
+description: Production RAG systems and vector databases.
+---
+# RAG`,
+  },
+  {
+    id: "image-generation-models",
+    name: "image-generation-models",
+    displayName: "Image Generation (DALL-E, Midjourney, SD)",
+    description: "Generate, edit, and optimize images with modern generative models.",
+    category: "ai-engineering",
+    icon: <Camera className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Image Gen", "AI", "Vision"],
+    skillMd: `---
+name: image-generation-models
+description: Image generation with modern models.
+---
+# Image Gen`,
+  },
+  {
+    id: "voice-ai-synthesis",
+    name: "voice-ai-synthesis",
+    displayName: "Voice AI & Text-to-Speech",
+    description: "Voice generation, voice cloning, and conversational AI with speech synthesis.",
+    category: "ai-engineering",
+    icon: <Music className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["Voice", "TTS", "Audio"],
+    skillMd: `---
+name: voice-ai-synthesis
+description: Voice synthesis and audio AI.
+---
+# Voice AI`,
+  },
+  {
+    id: "video-generation-editing",
+    name: "video-generation-editing",
+    displayName: "Video Generation & AI Editing",
+    description: "AI video generation, editing automation, and video understanding with modern APIs.",
+    category: "ai-engineering",
+    icon: <Gamepad2 className="w-4 h-4" />,
+    installs: 2345,
+    tags: ["Video", "Generation", "AI"],
+    skillMd: `---
+name: video-generation-editing
+description: AI video generation and editing.
+---
+# Video AI`,
+  },
+  {
+    id: "langchain-framework",
+    name: "langchain-framework",
+    displayName: "LangChain Framework",
+    description: "LangChain agents, chains, and integrations for building LLM applications.",
+    category: "ai-engineering",
+    icon: <Layers className="w-4 h-4" />,
+    installs: 8765,
+    tags: ["LangChain", "LLM", "Agents"],
+    skillMd: `---
+name: langchain-framework
+description: LangChain for LLM applications.
+---
+# LangChain`,
+  },
+  {
+    id: "langgraph-workflows",
+    name: "langgraph-workflows",
+    displayName: "LangGraph for Complex Workflows",
+    description: "Build agentic workflows, state management, and multi-step reasoning with LangGraph.",
+    category: "ai-engineering",
+    icon: <Workflow className="w-4 h-4" />,
+    installs: 6543,
+    tags: ["LangGraph", "Workflows", "Agents"],
+    skillMd: `---
+name: langgraph-workflows
+description: Complex workflows with LangGraph.
+---
+# LangGraph`,
+  },
+  {
+    id: "crewai-multi-agent",
+    name: "crewai-multi-agent",
+    displayName: "CrewAI Multi-Agent Systems",
+    description: "Build autonomous multi-agent teams with CrewAI for complex problem-solving.",
+    category: "ai-engineering",
+    icon: <Users className="w-4 h-4" />,
+    installs: 5432,
+    tags: ["CrewAI", "Agents", "Multi-Agent"],
+    skillMd: `---
+name: crewai-multi-agent
+description: Multi-agent systems with CrewAI.
+---
+# CrewAI`,
+  },
+  {
+    id: "autogen-framework",
+    name: "autogen-framework",
+    displayName: "Microsoft AutoGen Framework",
+    description: "AutoGen for building conversational agents with role-based conversations.",
+    category: "ai-engineering",
+    icon: <MessageSquare className="w-4 h-4" />,
+    installs: 4321,
+    tags: ["AutoGen", "Agents", "Conversational"],
+    skillMd: `---
+name: autogen-framework
+description: Conversational agents with AutoGen.
+---
+# AutoGen`,
+  },
+  {
+    id: "mcp-protocol-servers",
+    name: "mcp-protocol-servers",
+    displayName: "Model Context Protocol (MCP)",
+    description: "Build MCP servers for connecting AI models to external tools and data sources.",
+    category: "ai-engineering",
+    icon: <Radio className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["MCP", "Servers", "Integration"],
+    skillMd: `---
+name: mcp-protocol-servers
+description: Model Context Protocol servers.
+---
+# MCP`,
+  },
+  {
+    id: "api-security-auth",
+    name: "api-security-auth",
+    displayName: "API Security & Authentication",
+    description: "OAuth 2.0, JWT, SAML, CORS, and API authentication best practices.",
+    category: "security",
+    icon: <Lock className="w-4 h-4" />,
+    installs: 8234,
+    tags: ["Security", "Auth", "OAuth"],
+    skillMd: `---
+name: api-security-auth
+description: API security and authentication.
+---
+# API Security`,
+  },
+  {
+    id: "cryptography-encryption",
+    name: "cryptography-encryption",
+    displayName: "Cryptography & Encryption",
+    description: "AES, RSA, hashing, and encryption best practices for application security.",
+    category: "security",
+    icon: <Lock className="w-4 h-4" />,
+    installs: 6234,
+    tags: ["Crypto", "Security", "Encryption"],
+    skillMd: `---
+name: cryptography-encryption
+description: Cryptography and encryption.
+---
+# Crypto`,
+  },
+  {
+    id: "penetration-testing",
+    name: "penetration-testing",
+    displayName: "Penetration Testing & Ethical Hacking",
+    description: "Vulnerability assessment, penetration testing, and security auditing methodologies.",
+    category: "security",
+    icon: <Shield className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Security", "Penetration", "Testing"],
+    skillMd: `---
+name: penetration-testing
+description: Penetration testing and ethical hacking.
+---
+# Pen Testing`,
+  },
+  {
+    id: "owasp-compliance",
+    name: "owasp-compliance",
+    displayName: "OWASP & Security Compliance",
+    description: "OWASP Top 10, HIPAA, GDPR, and security compliance frameworks.",
+    category: "security",
+    icon: <Shield className="w-4 h-4" />,
+    installs: 5678,
+    tags: ["Compliance", "OWASP", "Security"],
+    skillMd: `---
+name: owasp-compliance
+description: OWASP and security compliance.
+---
+# OWASP`,
+  },
+  {
+    id: "document-parsing-ai",
+    name: "document-parsing-ai",
+    displayName: "Document Parsing with AI",
+    description: "Extract data from PDFs, images, and documents using OCR and vision models.",
+    category: "ai-engineering",
+    icon: <FileCode className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["Document", "OCR", "Vision"],
+    skillMd: `---
+name: document-parsing-ai
+description: AI-powered document parsing.
+---
+# Document AI`,
+  },
+  {
+    id: "semantic-search",
+    name: "semantic-search",
+    displayName: "Semantic Search & Embeddings",
+    description: "Semantic search implementation, embedding models, and similarity matching.",
+    category: "ai-engineering",
+    icon: <Search className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Search", "Embeddings", "Semantic"],
+    skillMd: `---
+name: semantic-search
+description: Semantic search and embeddings.
+---
+# Semantic Search`,
+  },
+  {
+    id: "real-time-databases",
+    name: "real-time-databases",
+    displayName: "Real-Time Databases (Firebase, Supabase)",
+    description: "Real-time data synchronization, subscriptions, and collaborative features.",
+    category: "data",
+    icon: <Database className="w-4 h-4" />,
+    installs: 7654,
+    tags: ["Firebase", "Supabase", "Real-time"],
+    skillMd: `---
+name: real-time-databases
+description: Real-time database systems.
+---
+# Real-Time DB`,
+  },
+  {
+    id: "redis-caching",
+    name: "redis-caching",
+    displayName: "Redis Caching & Pub/Sub",
+    description: "Redis for caching, session management, and real-time messaging.",
+    category: "data",
+    icon: <Rocket className="w-4 h-4" />,
+    installs: 8765,
+    tags: ["Redis", "Cache", "Pub/Sub"],
+    skillMd: `---
+name: redis-caching
+description: Redis caching and messaging.
+---
+# Redis`,
+  },
+  {
+    id: "mongodb-nosql",
+    name: "mongodb-nosql",
+    displayName: "MongoDB & NoSQL Design",
+    description: "Document databases, schema design, indexing, and NoSQL optimization.",
+    category: "data",
+    icon: <Database className="w-4 h-4" />,
+    installs: 9234,
+    tags: ["MongoDB", "NoSQL", "Database"],
+    skillMd: `---
+name: mongodb-nosql
+description: MongoDB and NoSQL design.
+---
+# MongoDB`,
+  },
+  {
+    id: "elasticsearch-search",
+    name: "elasticsearch-search",
+    displayName: "Elasticsearch & Full-Text Search",
+    description: "Full-text search, analytics, and large-scale search infrastructure.",
+    category: "data",
+    icon: <Search className="w-4 h-4" />,
+    installs: 6543,
+    tags: ["Elasticsearch", "Search", "Analytics"],
+    skillMd: `---
+name: elasticsearch-search
+description: Elasticsearch and full-text search.
+---
+# Elasticsearch`,
+  },
+  {
+    id: "headless-cms-dev",
+    name: "headless-cms-dev",
+    displayName: "Headless CMS Development",
+    description: "Strapi, Contentful, Sanity, and headless content management.",
+    category: "web-development",
+    icon: <Monitor className="w-4 h-4" />,
+    installs: 5432,
+    tags: ["CMS", "Headless", "Content"],
+    skillMd: `---
+name: headless-cms-dev
+description: Headless CMS platforms.
+---
+# Headless CMS`,
+  },
+  {
+    id: "e-commerce-platforms",
+    name: "e-commerce-platforms",
+    displayName: "E-Commerce Platform Development",
+    description: "Shopify, WooCommerce, custom e-commerce solutions, and payment integration.",
+    category: "business",
+    icon: <Globe className="w-4 h-4" />,
+    installs: 4321,
+    tags: ["E-Commerce", "Shopify", "Payment"],
+    skillMd: `---
+name: e-commerce-platforms
+description: E-commerce platform development.
+---
+# E-Commerce`,
+  },
+  {
+    id: "analytics-tracking",
+    name: "analytics-tracking",
+    displayName: "Analytics & Event Tracking",
+    description: "Google Analytics 4, Amplitude, Mixpanel, and event-driven analytics.",
+    category: "business",
+    icon: <BarChart2 className="w-4 h-4" />,
+    installs: 6789,
+    tags: ["Analytics", "Tracking", "Events"],
+    skillMd: `---
+name: analytics-tracking
+description: Analytics and event tracking.
+---
+# Analytics`,
+  },
+  {
+    id: "email-delivery",
+    name: "email-delivery",
+    displayName: "Email Delivery & Marketing",
+    description: "SendGrid, Mailgun, Resend, email template design, and newsletter automation.",
+    category: "business",
+    icon: <MessageSquare className="w-4 h-4" />,
+    installs: 5678,
+    tags: ["Email", "SendGrid", "Marketing"],
+    skillMd: `---
+name: email-delivery
+description: Email delivery systems.
+---
+# Email`,
+  },
+  {
+    id: "payment-processing",
+    name: "payment-processing",
+    displayName: "Payment Processing & Billing",
+    description: "Stripe, PayPal, billing automation, and subscription management.",
+    category: "business",
+    icon: <TrendingUp className="w-4 h-4" />,
+    installs: 7234,
+    tags: ["Payment", "Stripe", "Billing"],
+    skillMd: `---
+name: payment-processing
+description: Payment processing systems.
+---
+# Payments`,
+  },
+  {
+    id: "notification-systems",
+    name: "notification-systems",
+    displayName: "Notification Systems & Alerts",
+    description: "Push notifications, SMS, webhooks, and real-time alerting.",
+    category: "business",
+    icon: <MessageSquare className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Notifications", "Alerts", "Webhooks"],
+    skillMd: `---
+name: notification-systems
+description: Notification systems.
+---
+# Notifications`,
+  },
+  {
+    id: "internationalization-i18n",
+    name: "internationalization-i18n",
+    displayName: "Internationalization (i18n)",
+    description: "Multi-language support, localization, and global app deployment.",
+    category: "web-development",
+    icon: <Globe className="w-4 h-4" />,
+    installs: 5432,
+    tags: ["i18n", "Localization", "Languages"],
+    skillMd: `---
+name: internationalization-i18n
+description: Internationalization and localization.
+---
+# i18n`,
+  },
+  {
+    id: "seo-technical",
+    name: "seo-technical",
+    displayName: "Technical SEO & Core Web Vitals",
+    description: "Core Web Vitals, schema markup, crawlability, and SEO optimization.",
+    category: "web-development",
+    icon: <TrendingUp className="w-4 h-4" />,
+    installs: 6234,
+    tags: ["SEO", "Performance", "Vitals"],
+    skillMd: `---
+name: seo-technical
+description: Technical SEO optimization.
+---
+# SEO`,
+  },
+  {
+    id: "server-side-rendering",
+    name: "server-side-rendering",
+    displayName: "Server-Side Rendering (SSR)",
+    description: "Next.js, Nuxt, and server-side rendering for performance and SEO.",
+    category: "web-development",
+    icon: <Server className="w-4 h-4" />,
+    installs: 7654,
+    tags: ["SSR", "Next.js", "Performance"],
+    skillMd: `---
+name: server-side-rendering
+description: Server-side rendering optimization.
+---
+# SSR`,
+  },
+  {
+    id: "static-site-generation",
+    name: "static-site-generation",
+    displayName: "Static Site Generation (SSG)",
+    description: "Next.js, Hugo, Gatsby for fast, secure static sites.",
+    category: "web-development",
+    icon: <Globe className="w-4 h-4" />,
+    installs: 5234,
+    tags: ["SSG", "Static", "Performance"],
+    skillMd: `---
+name: static-site-generation
+description: Static site generation.
+---
+# SSG`,
+  },
+  {
+    id: "jamstack-architecture",
+    name: "jamstack-architecture",
+    displayName: "JAMStack Architecture",
+    description: "JavaScript, APIs, Markup for high-performance, secure web apps.",
+    category: "web-development",
+    icon: <Rocket className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["JAMStack", "Architecture", "Static"],
+    skillMd: `---
+name: jamstack-architecture
+description: JAMStack architecture patterns.
+---
+# JAMStack`,
+  },
+  {
+    id: "web-workers-threading",
+    name: "web-workers-threading",
+    displayName: "Web Workers & Threading",
+    description: "Offload compute to web workers for better performance.",
+    category: "web-development",
+    icon: <Cpu className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["Web Workers", "Performance", "Threading"],
+    skillMd: `---
+name: web-workers-threading
+description: Web workers for threading.
+---
+# Web Workers`,
+  },
+  {
+    id: "progressive-web-apps",
+    name: "progressive-web-apps",
+    displayName: "Progressive Web Apps (PWA)",
+    description: "Service workers, offline support, and app-like experiences on web.",
+    category: "web-development",
+    icon: <Smartphone className="w-4 h-4" />,
+    installs: 6543,
+    tags: ["PWA", "Offline", "Service Workers"],
+    skillMd: `---
+name: progressive-web-apps
+description: Progressive web apps.
+---
+# PWA`,
+  },
+  {
+    id: "design-systems",
+    name: "design-systems",
+    displayName: "Design Systems & Component Libraries",
+    description: "Storybook, Figma, and scalable design systems.",
+    category: "creative-design",
+    icon: <Palette className="w-4 h-4" />,
+    installs: 7234,
+    tags: ["Design Systems", "Components", "Storybook"],
+    skillMd: `---
+name: design-systems
+description: Design systems and component libraries.
+---
+# Design Systems`,
+  },
+  {
+    id: "figma-automation",
+    name: "figma-automation",
+    displayName: "Figma Plugins & Automation",
+    description: "Figma API, plugins, and design automation workflows.",
+    category: "creative-design",
+    icon: <Wand2 className="w-4 h-4" />,
+    installs: 4321,
+    tags: ["Figma", "Design", "Automation"],
+    skillMd: `---
+name: figma-automation
+description: Figma plugins and automation.
+---
+# Figma`,
+  },
+  {
+    id: "framer-motion",
+    name: "framer-motion",
+    displayName: "Framer Motion & Animations",
+    description: "Complex animations, gesture handling, and motion design.",
+    category: "creative-design",
+    icon: <Sparkles className="w-4 h-4" />,
+    installs: 6789,
+    tags: ["Framer Motion", "Animations", "Motion"],
+    skillMd: `---
+name: framer-motion
+description: Framer Motion animations.
+---
+# Framer Motion`,
+  },
+  {
+    id: "three-js-3d",
+    name: "three-js-3d",
+    displayName: "Three.js & 3D Web Graphics",
+    description: "3D graphics, WebGL, and interactive 3D experiences on web.",
+    category: "creative-design",
+    icon: <Gamepad2 className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["Three.js", "3D", "WebGL"],
+    skillMd: `---
+name: three-js-3d
+description: 3D graphics with Three.js.
+---
+# Three.js`,
+  },
+  {
+    id: "canvas-webgl",
+    name: "canvas-webgl",
+    displayName: "Canvas & WebGL Graphics",
+    description: "Low-level canvas drawing, WebGL shaders, and custom graphics.",
+    category: "creative-design",
+    icon: <Palette className="w-4 h-4" />,
+    installs: 2890,
+    tags: ["Canvas", "WebGL", "Graphics"],
+    skillMd: `---
+name: canvas-webgl
+description: Canvas and WebGL.
+---
+# Canvas`,
+  },
+  {
+    id: "audio-synthesis",
+    name: "audio-synthesis",
+    displayName: "Audio Synthesis & Web Audio API",
+    description: "Web Audio API, sound design, and interactive audio.",
+    category: "creative-design",
+    icon: <Music className="w-4 h-4" />,
+    installs: 2345,
+    tags: ["Audio", "Web Audio", "Synthesis"],
+    skillMd: `---
+name: audio-synthesis
+description: Web Audio API and synthesis.
+---
+# Audio`,
+  },
+  {
+    id: "game-development",
+    name: "game-development",
+    displayName: "Web Game Development",
+    description: "Phaser, Babylon.js, and web-based game development.",
+    category: "creative-design",
+    icon: <Gamepad2 className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["Games", "Phaser", "Development"],
+    skillMd: `---
+name: game-development
+description: Web game development.
+---
+# Game Dev`,
+  },
+  {
+    id: "data-visualization",
+    name: "data-visualization",
+    displayName: "Data Visualization (D3, Recharts)",
+    description: "D3.js, Recharts, and custom data visualization.",
+    category: "creative-design",
+    icon: <BarChart2 className="w-4 h-4" />,
+    installs: 5678,
+    tags: ["Data Viz", "D3", "Recharts"],
+    skillMd: `---
+name: data-visualization
+description: Data visualization libraries.
+---
+# Data Viz`,
+  },
+  {
+    id: "documentation-gen",
+    name: "documentation-gen",
+    displayName: "Automated Documentation Generation",
+    description: "TypeDoc, JSDoc, Swagger/OpenAPI, and API documentation.",
+    category: "productivity",
+    icon: <FileCode className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Documentation", "TypeDoc", "OpenAPI"],
+    skillMd: `---
+name: documentation-gen
+description: Automated documentation generation.
+---
+# Documentation`,
+  },
+  {
+    id: "code-generation",
+    name: "code-generation",
+    displayName: "Code Generation & Scaffolding",
+    description: "Plop, Yeoman, and automated code generation templates.",
+    category: "productivity",
+    icon: <Code2 className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["Code Gen", "Scaffolding", "Templates"],
+    skillMd: `---
+name: code-generation
+description: Code generation and scaffolding.
+---
+# Code Gen`,
+  },
+  {
+    id: "git-workflows",
+    name: "git-workflows",
+    displayName: "Advanced Git Workflows",
+    description: "Git flow, rebasing, advanced branching, and collaboration patterns.",
+    category: "productivity",
+    icon: <GitBranch className="w-4 h-4" />,
+    installs: 5678,
+    tags: ["Git", "Workflows", "Version Control"],
+    skillMd: `---
+name: git-workflows
+description: Advanced Git workflows.
+---
+# Git`,
+  },
+  {
+    id: "issue-tracking",
+    name: "issue-tracking",
+    displayName: "Issue Tracking & Project Management",
+    description: "Jira, Linear, GitHub Issues, and agile project management.",
+    category: "productivity",
+    icon: <BarChart2 className="w-4 h-4" />,
+    installs: 4321,
+    tags: ["Jira", "Linear", "Project Management"],
+    skillMd: `---
+name: issue-tracking
+description: Issue tracking and project management.
+---
+# Issue Tracking`,
+  },
+  {
+    id: "logging-debugging",
+    name: "logging-debugging",
+    displayName: "Logging & Advanced Debugging",
+    description: "Winston, Bunyan, error tracking, and debugging strategies.",
+    category: "development",
+    icon: <Bug className="w-4 h-4" />,
+    installs: 5234,
+    tags: ["Logging", "Debugging", "Sentry"],
+    skillMd: `---
+name: logging-debugging
+description: Logging and debugging.
+---
+# Logging`,
+  },
+  {
+    id: "code-quality-linting",
+    name: "code-quality-linting",
+    displayName: "Code Quality & Linting",
+    description: "ESLint, Prettier, SonarQube, and code quality standards.",
+    category: "development",
+    icon: <Sparkles className="w-4 h-4" />,
+    installs: 6789,
+    tags: ["ESLint", "Prettier", "Quality"],
+    skillMd: `---
+name: code-quality-linting
+description: Code quality and linting.
+---
+# Linting`,
+  },
+  {
+    id: "dependency-management",
+    name: "dependency-management",
+    displayName: "Dependency Management & Security",
+    description: "NPM, Yarn, Pnpm, and dependency vulnerability scanning.",
+    category: "development",
+    icon: <Package className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Dependencies", "NPM", "Security"],
+    skillMd: `---
+name: dependency-management
+description: Dependency management and security.
+---
+# Dependencies`,
+  },
+  {
+    id: "bundle-analysis",
+    name: "bundle-analysis",
+    displayName: "Bundle Analysis & Optimization",
+    description: "Webpack, Rollup, Vite, and bundle size optimization.",
+    category: "development",
+    icon: <Cpu className="w-4 h-4" />,
+    installs: 5678,
+    tags: ["Webpack", "Bundlers", "Optimization"],
+    skillMd: `---
+name: bundle-analysis
+description: Bundle analysis and optimization.
+---
+# Bundlers`,
+  },
+  {
+    id: "monorepo-management",
+    name: "monorepo-management",
+    displayName: "Monorepo Management (Nx, Turbo)",
+    description: "Nx, Turborepo, and monorepo architecture patterns.",
+    category: "development",
+    icon: <Layers className="w-4 h-4" />,
+    installs: 4789,
+    tags: ["Monorepo", "Nx", "Turborepo"],
+    skillMd: `---
+name: monorepo-management
+description: Monorepo management tools.
+---
+# Monorepo`,
+  },
+  {
+    id: "swagger-openapi",
+    name: "swagger-openapi",
+    displayName: "Swagger & OpenAPI Standards",
+    description: "OpenAPI specification and Swagger documentation.",
+    category: "development",
+    icon: <FileCode className="w-4 h-4" />,
+    installs: 4234,
+    tags: ["OpenAPI", "Swagger", "API Docs"],
+    skillMd: `---
+name: swagger-openapi
+description: OpenAPI and Swagger.
+---
+# OpenAPI`,
+  },
+  {
+    id: "streaming-real-time",
+    name: "streaming-real-time",
+    displayName: "Streaming & Real-Time Architecture",
+    description: "WebSockets, Server-Sent Events, and real-time streaming.",
+    category: "development",
+    icon: <Radio className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["Streaming", "WebSocket", "Real-time"],
+    skillMd: `---
+name: streaming-real-time
+description: Real-time streaming architecture.
+---
+# Streaming`,
+  },
+  {
+    id: "api-rate-limiting",
+    name: "api-rate-limiting",
+    displayName: "API Rate Limiting & Throttling",
+    description: "Rate limiting strategies, token buckets, and throttling.",
+    category: "development",
+    icon: <Zap className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["Rate Limit", "API", "Performance"],
+    skillMd: `---
+name: api-rate-limiting
+description: Rate limiting strategies.
+---
+# Rate Limiting`,
+  },
+  {
+    id: "caching-strategies",
+    name: "caching-strategies",
+    displayName: "Caching Strategies & CDN",
+    description: "HTTP caching, browser caching, and CDN optimization.",
+    category: "development",
+    icon: <Rocket className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Caching", "CDN", "Performance"],
+    skillMd: `---
+name: caching-strategies
+description: Caching strategies and CDN.
+---
+# Caching`,
+  },
+  {
+    id: "load-balancing",
+    name: "load-balancing",
+    displayName: "Load Balancing & Scalability",
+    description: "Load balancing algorithms, horizontal scaling, and infrastructure design.",
+    category: "devops",
+    icon: <Network className="w-4 h-4" />,
+    installs: 3234,
+    tags: ["Load Balancing", "Scaling", "Infrastructure"],
+    skillMd: `---
+name: load-balancing
+description: Load balancing and scalability.
+---
+# Load Balancing`,
+  },
+  {
+    id: "disaster-recovery",
+    name: "disaster-recovery",
+    displayName: "Disaster Recovery & Backup",
+    description: "Backup strategies, failover, and disaster recovery planning.",
+    category: "devops",
+    icon: <Server className="w-4 h-4" />,
+    installs: 2567,
+    tags: ["Disaster Recovery", "Backup", "HA"],
+    skillMd: `---
+name: disaster-recovery
+description: Disaster recovery planning.
+---
+# DR`,
+  },
+  {
+    id: "infrastructure-provisioning",
+    name: "infrastructure-provisioning",
+    displayName: "Infrastructure Provisioning",
+    description: "Terraform, Ansible, and cloud infrastructure automation.",
+    category: "devops",
+    icon: <Cloud className="w-4 h-4" />,
+    installs: 5234,
+    tags: ["Terraform", "Ansible", "IaC"],
+    skillMd: `---
+name: infrastructure-provisioning
+description: Infrastructure provisioning.
+---
+# Provisioning`,
+  },
+  {
+    id: "secrets-management",
+    name: "secrets-management",
+    displayName: "Secrets Management & Vaults",
+    description: "Vault, environment variables, and secure secret storage.",
+    category: "security",
+    icon: <Lock className="w-4 h-4" />,
+    installs: 4678,
+    tags: ["Secrets", "Vault", "Security"],
+    skillMd: `---
+name: secrets-management
+description: Secrets management.
+---
+# Secrets`,
+  },
+  {
+    id: "network-security",
+    name: "network-security",
+    displayName: "Network Security & Firewalls",
+    description: "Firewalls, VPNs, WAF, and network architecture security.",
+    category: "security",
+    icon: <Shield className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["Network", "Firewall", "Security"],
+    skillMd: `---
+name: network-security
+description: Network security.
+---
+# Network Security`,
+  },
+  {
+    id: "content-security-policy",
+    name: "content-security-policy",
+    displayName: "Content Security Policy (CSP)",
+    description: "CSP implementation, XSS prevention, and browser security headers.",
+    category: "security",
+    icon: <Shield className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["CSP", "Security", "XSS"],
+    skillMd: `---
+name: content-security-policy
+description: Content Security Policy.
+---
+# CSP`,
+  },
+  {
+    id: "dependency-injection",
+    name: "dependency-injection",
+    displayName: "Dependency Injection Patterns",
+    description: "DI containers, service locators, and dependency management.",
+    category: "development",
+    icon: <Layers className="w-4 h-4" />,
+    installs: 3234,
+    tags: ["Design Patterns", "DI", "Architecture"],
+    skillMd: `---
+name: dependency-injection
+description: Dependency injection patterns.
+---
+# DI`,
+  },
+  {
+    id: "state-management-complex",
+    name: "state-management-complex",
+    displayName: "Advanced State Management",
+    description: "Redux, Zustand, Recoil, and complex state patterns.",
+    category: "development",
+    icon: <Brain className="w-4 h-4" />,
+    installs: 5678,
+    tags: ["State", "Redux", "Zustand"],
+    skillMd: `---
+name: state-management-complex
+description: Advanced state management.
+---
+# State Management`,
+  },
+  {
+    id: "design-patterns",
+    name: "design-patterns",
+    displayName: "Software Design Patterns",
+    description: "Factory, Observer, Strategy, and classic design patterns.",
+    category: "development",
+    icon: <Sparkles className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["Design Patterns", "Architecture"],
+    skillMd: `---
+name: design-patterns
+description: Software design patterns.
+---
+# Design Patterns`,
+  },
+  {
+    id: "clean-architecture",
+    name: "clean-architecture",
+    displayName: "Clean Architecture & SOLID",
+    description: "Clean architecture principles, SOLID, and code organization.",
+    category: "development",
+    icon: <Code2 className="w-4 h-4" />,
+    installs: 5234,
+    tags: ["Architecture", "SOLID", "Clean Code"],
+    skillMd: `---
+name: clean-architecture
+description: Clean architecture principles.
+---
+# Clean Architecture`,
+  },
+  {
+    id: "event-driven-architecture",
+    name: "event-driven-architecture",
+    displayName: "Event-Driven Architecture",
+    description: "Event sourcing, CQRS, and event-driven systems.",
+    category: "development",
+    icon: <Radio className="w-4 h-4" />,
+    installs: 4123,
+    tags: ["Events", "CQRS", "Architecture"],
+    skillMd: `---
+name: event-driven-architecture
+description: Event-driven architecture.
+---
+# Event-Driven`,
+  },
+  {
+    id: "microservices-patterns",
+    name: "microservices-patterns",
+    displayName: "Microservices Architecture Patterns",
+    description: "Service mesh, API gateway, and microservices design patterns.",
+    category: "development",
+    icon: <Network className="w-4 h-4" />,
+    installs: 5789,
+    tags: ["Microservices", "Architecture", "API Gateway"],
+    skillMd: `---
+name: microservices-patterns
+description: Microservices patterns.
+---
+# Microservices`,
+  },
+  {
+    id: "api-versioning",
+    name: "api-versioning",
+    displayName: "API Versioning & Evolution",
+    description: "API versioning strategies and backward compatibility.",
+    category: "development",
+    icon: <GitBranch className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["API", "Versioning", "Evolution"],
+    skillMd: `---
+name: api-versioning
+description: API versioning strategies.
+---
+# API Versioning`,
+  },
+  {
+    id: "database-sharding",
+    name: "database-sharding",
+    displayName: "Database Sharding & Replication",
+    description: "Database sharding, replication, and distributed data.",
+    category: "data",
+    icon: <Database className="w-4 h-4" />,
+    installs: 3234,
+    tags: ["Database", "Sharding", "Replication"],
+    skillMd: `---
+name: database-sharding
+description: Database sharding and replication.
+---
+# Sharding`,
+  },
+  {
+    id: "search-optimization",
+    name: "search-optimization",
+    displayName: "Search & Query Optimization",
+    description: "Query optimization, index strategies, and search performance.",
+    category: "data",
+    icon: <Zap className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["Search", "Optimization", "Queries"],
+    skillMd: `---
+name: search-optimization
+description: Search and query optimization.
+---
+# Search Optimization`,
+  },
+  {
+    id: "data-pipeline-etl",
+    name: "data-pipeline-etl",
+    displayName: "Data Pipelines & ETL",
+    description: "Data pipelines, ETL processes, and data workflows.",
+    category: "data",
+    icon: <Workflow className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["ETL", "Data Pipeline", "Workflow"],
+    skillMd: `---
+name: data-pipeline-etl
+description: Data pipelines and ETL.
+---
+# ETL`,
+  },
+  {
+    id: "time-series-databases",
+    name: "time-series-databases",
+    displayName: "Time-Series Databases & Analytics",
+    description: "InfluxDB, TimescaleDB, and time-series data analysis.",
+    category: "data",
+    icon: <TrendingUp className="w-4 h-4" />,
+    installs: 3234,
+    tags: ["Time Series", "Analytics", "InfluxDB"],
+    skillMd: `---
+name: time-series-databases
+description: Time-series databases.
+---
+# Time Series`,
+  },
+  {
+    id: "graph-databases",
+    name: "graph-databases",
+    displayName: "Graph Databases & Neo4j",
+    description: "Neo4j, graph queries, and relationship data modeling.",
+    category: "data",
+    icon: <Network className="w-4 h-4" />,
+    installs: 2890,
+    tags: ["Graph DB", "Neo4j", "Relationships"],
+    skillMd: `---
+name: graph-databases
+description: Graph databases.
+---
+# Graph DB`,
+  },
+  {
+    id: "mobile-ios-development",
+    name: "mobile-ios-development",
+    displayName: "iOS Development with Swift",
+    description: "Swift, SwiftUI, and native iOS app development.",
+    category: "mobile",
+    icon: <Smartphone className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["iOS", "Swift", "SwiftUI"],
+    skillMd: `---
+name: mobile-ios-development
+description: iOS development with Swift.
+---
+# iOS`,
+  },
+  {
+    id: "mobile-android-development",
+    name: "mobile-android-development",
+    displayName: "Android Development with Kotlin",
+    description: "Kotlin, Jetpack, and native Android app development.",
+    category: "mobile",
+    icon: <Smartphone className="w-4 h-4" />,
+    installs: 4234,
+    tags: ["Android", "Kotlin", "Jetpack"],
+    skillMd: `---
+name: mobile-android-development
+description: Android development with Kotlin.
+---
+# Android`,
+  },
+  {
+    id: "mobile-cross-platform",
+    name: "mobile-cross-platform",
+    displayName: "Cross-Platform Mobile (Flutter)",
+    description: "Flutter, Dart, and cross-platform mobile development.",
+    category: "mobile",
+    icon: <Smartphone className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["Flutter", "Dart", "Cross-platform"],
+    skillMd: `---
+name: mobile-cross-platform
+description: Cross-platform with Flutter.
+---
+# Flutter`,
+  },
+  {
+    id: "mobile-testing",
+    name: "mobile-testing",
+    displayName: "Mobile App Testing",
+    description: "Mobile testing strategies, Appium, and device testing.",
+    category: "testing",
+    icon: <TestTube className="w-4 h-4" />,
+    installs: 2567,
+    tags: ["Mobile Testing", "Appium", "QA"],
+    skillMd: `---
+name: mobile-testing
+description: Mobile app testing.
+---
+# Mobile Testing`,
+  },
+  {
+    id: "performance-optimization",
+    name: "performance-optimization",
+    displayName: "Performance Optimization & Profiling",
+    description: "Profiling, optimization, and performance debugging.",
+    category: "development",
+    icon: <Rocket className="w-4 h-4" />,
+    installs: 5678,
+    tags: ["Performance", "Profiling", "Optimization"],
+    skillMd: `---
+name: performance-optimization
+description: Performance optimization.
+---
+# Performance`,
+  },
+  {
+    id: "memory-management",
+    name: "memory-management",
+    displayName: "Memory Management & Garbage Collection",
+    description: "Memory leaks, garbage collection, and memory optimization.",
+    category: "development",
+    icon: <Cpu className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["Memory", "GC", "Optimization"],
+    skillMd: `---
+name: memory-management
+description: Memory management.
+---
+# Memory`,
+  },
+  {
+    id: "cpu-optimization",
+    name: "cpu-optimization",
+    displayName: "CPU & Algorithm Optimization",
+    description: "Algorithm optimization, big-O analysis, and CPU profiling.",
+    category: "development",
+    icon: <Zap className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["Algorithms", "Performance", "CPU"],
+    skillMd: `---
+name: cpu-optimization
+description: CPU and algorithm optimization.
+---
+# CPU Optimization`,
+  },
+  {
+    id: "concurrent-programming",
+    name: "concurrent-programming",
+    displayName: "Concurrent & Parallel Programming",
+    description: "Threads, async/await, and concurrent system design.",
+    category: "development",
+    icon: <Layers className="w-4 h-4" />,
+    installs: 4234,
+    tags: ["Concurrency", "Async", "Parallel"],
+    skillMd: `---
+name: concurrent-programming
+description: Concurrent programming patterns.
+---
+# Concurrency`,
+  },
+  {
+    id: "edge-computing",
+    name: "edge-computing",
+    displayName: "Edge Computing & CDN Functions",
+    description: "Cloudflare Workers, Vercel Edge Functions, and edge computing.",
+    category: "devops",
+    icon: <Cloud className="w-4 h-4" />,
+    installs: 3567,
+    tags: ["Edge", "Workers", "Serverless"],
+    skillMd: `---
+name: edge-computing
+description: Edge computing platforms.
+---
+# Edge`,
+  },
+  {
+    id: "serverless-architecture",
+    name: "serverless-architecture",
+    displayName: "Serverless Architecture (AWS Lambda, GCP Functions)",
+    description: "Serverless functions, event-driven computing, and Function-as-a-Service.",
+    category: "devops",
+    icon: <Cloud className="w-4 h-4" />,
+    installs: 5789,
+    tags: ["Serverless", "Lambda", "FaaS"],
+    skillMd: `---
+name: serverless-architecture
+description: Serverless architecture.
+---
+# Serverless`,
+  },
+  {
+    id: "distributed-systems",
+    name: "distributed-systems",
+    displayName: "Distributed Systems Design",
+    description: "Consensus algorithms, distributed transactions, and fault tolerance.",
+    category: "development",
+    icon: <Network className="w-4 h-4" />,
+    installs: 2890,
+    tags: ["Distributed", "Systems", "Consensus"],
+    skillMd: `---
+name: distributed-systems
+description: Distributed systems design.
+---
+# Distributed Systems`,
+  },
+  {
+    id: "consistency-models",
+    name: "consistency-models",
+    displayName: "Consistency Models & CAP Theorem",
+    description: "CAP theorem, eventual consistency, and consistency guarantees.",
+    category: "development",
+    icon: <Brain className="w-4 h-4" />,
+    installs: 2345,
+    tags: ["Consistency", "CAP", "Theory"],
+    skillMd: `---
+name: consistency-models
+description: Consistency models.
+---
+# Consistency`,
+  },
+  {
+    id: "financial-software",
+    name: "financial-software",
+    displayName: "Financial Software & Compliance",
+    description: "FinTech, compliance, PCI-DSS, and financial data handling.",
+    category: "business",
+    icon: <TrendingUp className="w-4 h-4" />,
+    installs: 2345,
+    tags: ["FinTech", "Compliance", "Banking"],
+    skillMd: `---
+name: financial-software
+description: Financial software development.
+---
+# FinTech`,
+  },
+  {
+    id: "healthcare-compliance",
+    name: "healthcare-compliance",
+    displayName: "Healthcare Software & HIPAA",
+    description: "HIPAA compliance, PHI handling, and healthcare data security.",
+    category: "business",
+    icon: <Shield className="w-4 h-4" />,
+    installs: 1890,
+    tags: ["Healthcare", "HIPAA", "Compliance"],
+    skillMd: `---
+name: healthcare-compliance
+description: Healthcare compliance.
+---
+# Healthcare`,
+  },
+  {
+    id: "saas-architecture",
+    name: "saas-architecture",
+    displayName: "SaaS Architecture & Multi-Tenancy",
+    description: "Multi-tenant systems, subscription management, and SaaS design.",
+    category: "business",
+    icon: <Layers className="w-4 h-4" />,
+    installs: 4567,
+    tags: ["SaaS", "Multi-tenant", "Subscriptions"],
+    skillMd: `---
+name: saas-architecture
+description: SaaS architecture.
+---
+# SaaS`,
+  },
+  {
+    id: "growth-analytics",
+    name: "growth-analytics",
+    displayName: "Growth Analytics & Product Metrics",
+    description: "Cohort analysis, retention, funnel analysis, and product metrics.",
+    category: "business",
+    icon: <BarChart2 className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["Analytics", "Growth", "Metrics"],
+    skillMd: `---
+name: growth-analytics
+description: Growth analytics.
+---
+# Growth`,
+  },
+  {
+    id: "ab-testing",
+    name: "ab-testing",
+    displayName: "A/B Testing & Experimentation",
+    description: "Statistical testing, experiment design, and A/B testing frameworks.",
+    category: "business",
+    icon: <FlaskConical className="w-4 h-4" />,
+    installs: 3789,
+    tags: ["A/B Testing", "Experiments", "Statistics"],
+    skillMd: `---
+name: ab-testing
+description: A/B testing and experimentation.
+---
+# A/B Testing`,
+  },
+  {
+    id: "user-research",
+    name: "user-research",
+    displayName: "User Research & User Testing",
+    description: "User interviews, usability testing, and qualitative research.",
+    category: "business",
+    icon: <Users className="w-4 h-4" />,
+    installs: 2567,
+    tags: ["UX Research", "User Testing", "Interviews"],
+    skillMd: `---
+name: user-research
+description: User research methods.
+---
+# User Research`,
+  },
+  {
+    id: "conversion-optimization",
+    name: "conversion-optimization",
+    displayName: "Conversion Rate Optimization",
+    description: "CRO, funnel optimization, and conversion rate strategies.",
+    category: "business",
+    icon: <TrendingUp className="w-4 h-4" />,
+    installs: 3234,
+    tags: ["CRO", "Optimization", "Conversion"],
+    skillMd: `---
+name: conversion-optimization
+description: Conversion rate optimization.
+---
+# CRO`,
+  },
+  {
+    id: "product-strategy",
+    name: "product-strategy",
+    displayName: "Product Strategy & Roadmapping",
+    description: "Product management, roadmapping, and strategic planning.",
+    category: "business",
+    icon: <BarChart2 className="w-4 h-4" />,
+    installs: 2890,
+    tags: ["Product", "Strategy", "Roadmap"],
+    skillMd: `---
+name: product-strategy
+description: Product strategy.
+---
+# Product Strategy`,
+  },
+  {
+    id: "team-leadership",
+    name: "team-leadership",
+    displayName: "Technical Team Leadership",
+    description: "Team management, mentoring, and technical leadership.",
+    category: "business",
+    icon: <Users className="w-4 h-4" />,
+    installs: 2345,
+    tags: ["Leadership", "Team", "Management"],
+    skillMd: `---
+name: team-leadership
+description: Technical leadership.
+---
+# Leadership`,
+  },
+  {
+    id: "open-source-contrib",
+    name: "open-source-contrib",
+    displayName: "Open Source Contribution",
+    description: "Contributing to open source projects and community engagement.",
+    category: "productivity",
+    icon: <GitBranch className="w-4 h-4" />,
+    installs: 2567,
+    tags: ["Open Source", "Community", "Contributing"],
+    skillMd: `---
+name: open-source-contrib
+description: Open source contribution.
+---
+# Open Source`,
+  },
+  {
+    id: "writing-technical",
+    name: "writing-technical",
+    displayName: "Technical Writing & Blogging",
+    description: "Technical documentation, blog writing, and knowledge sharing.",
+    category: "productivity",
+    icon: <FileCode className="w-4 h-4" />,
+    installs: 2890,
+    tags: ["Writing", "Blog", "Documentation"],
+    skillMd: `---
+name: writing-technical
+description: Technical writing.
+---
+# Writing`,
+  },
+  {
+    id: "public-speaking",
+    name: "public-speaking",
+    displayName: "Public Speaking & Presentations",
+    description: "Conference talks, technical presentations, and public communication.",
+    category: "productivity",
+    icon: <MessageSquare className="w-4 h-4" />,
+    installs: 1890,
+    tags: ["Speaking", "Presentations", "Communication"],
+    skillMd: `---
+name: public-speaking
+description: Public speaking skills.
+---
+# Speaking`,
+  },
+  {
+    id: "code-archaeology",
+    name: "code-archaeology",
+    displayName: "Code Archaeology & Refactoring",
+    description: "Understanding legacy code, refactoring, and code modernization.",
+    category: "productivity",
+    icon: <Bug className="w-4 h-4" />,
+    installs: 2234,
+    tags: ["Refactoring", "Legacy Code", "Modernization"],
+    skillMd: `---
+name: code-archaeology
+description: Code archaeology and refactoring.
+---
+# Archaeology`,
+  },
+  {
+    id: "system-design-interview",
+    name: "system-design-interview",
+    displayName: "System Design Interview Prep",
+    description: "System design interview patterns, case studies, and preparation.",
+    category: "productivity",
+    icon: <Brain className="w-4 h-4" />,
+    installs: 3567,
+    tags: ["Interview", "System Design", "Prep"],
+    skillMd: `---
+name: system-design-interview
+description: System design interviews.
+---
+# System Design`,
+  },
+  {
+    id: "leetcode-dsa",
+    name: "leetcode-dsa",
+    displayName: "Data Structures & Algorithms",
+    description: "DSA fundamentals, problem-solving, and algorithmic thinking.",
+    category: "development",
+    icon: <Code2 className="w-4 h-4" />,
+    installs: 4234,
+    tags: ["DSA", "Algorithms", "Data Structures"],
+    skillMd: `---
+name: leetcode-dsa
+description: Data structures and algorithms.
+---
+# DSA`,
+  },
+  {
+    id: "quantum-computing",
+    name: "quantum-computing",
+    displayName: "Quantum Computing Fundamentals",
+    description: "Quantum computing basics, quantum gates, and QVM programming.",
+    category: "development",
+    icon: <Cpu className="w-4 h-4" />,
+    installs: 567,
+    tags: ["Quantum", "Computing", "QVM"],
+    skillMd: `---
+name: quantum-computing
+description: Quantum computing fundamentals.
+---
+# Quantum`,
+  },
+  {
+    id: "hardware-iot",
+    name: "hardware-iot",
+    displayName: "Hardware & IoT Development",
+    description: "Arduino, Raspberry Pi, and Internet of Things development.",
+    category: "development",
+    icon: <Smartphone className="w-4 h-4" />,
+    installs: 1234,
+    tags: ["IoT", "Hardware", "Arduino"],
+    skillMd: `---
+name: hardware-iot
+description: IoT and hardware development.
+---
+# IoT`,
+  },
+  {
+    id: "robotics-programming",
+    name: "robotics-programming",
+    displayName: "Robotics Programming",
+    description: "ROS, robot control, and robotics system design.",
+    category: "development",
+    icon: <Bot className="w-4 h-4" />,
+    installs: 890,
+    tags: ["Robotics", "ROS", "Control"],
+    skillMd: `---
+name: robotics-programming
+description: Robotics programming.
+---
+# Robotics`,
+  },
+  {
+    id: "satellite-imagery",
+    name: "satellite-imagery",
+    displayName: "Satellite Imagery & Geospatial",
+    description: "Geospatial analysis, satellite data, and mapping.",
+    category: "data",
+    icon: <Globe className="w-4 h-4" />,
+    installs: 567,
+    tags: ["Geospatial", "Satellite", "Mapping"],
+    skillMd: `---
+name: satellite-imagery
+description: Geospatial analysis.
+---
+# Geospatial`,
+  },
+  {
+    id: "bioinformatics",
+    name: "bioinformatics",
+    displayName: "Bioinformatics & Computational Biology",
+    description: "DNA analysis, sequence alignment, and computational biology.",
+    category: "data",
+    icon: <Microscope className="w-4 h-4" />,
+    installs: 345,
+    tags: ["Bioinformatics", "Biology", "DNA"],
+    skillMd: `---
+name: bioinformatics
+description: Bioinformatics.
+---
+# Bioinformatics`,
+  },
+  {
+    id: "neuroscience-ai",
+    name: "neuroscience-ai",
+    displayName: "Neuroscience & AI/ML",
+    description: "Brain-inspired AI, neural networks, and neuroscience.",
+    category: "ai-engineering",
+    icon: <Brain className="w-4 h-4" />,
+    installs: 234,
+    tags: ["Neuroscience", "AI", "Neural Networks"],
+    skillMd: `---
+name: neuroscience-ai
+description: Neuroscience and AI.
+---
+# Neuroscience`,
+  },
+  {
+    id: "physics-simulation",
+    name: "physics-simulation",
+    displayName: "Physics Simulation & Modeling",
+    description: "Physics engines, particle systems, and scientific simulation.",
+    category: "development",
+    icon: <Zap className="w-4 h-4" />,
+    installs: 456,
+    tags: ["Physics", "Simulation", "Modeling"],
+    skillMd: `---
+name: physics-simulation
+description: Physics simulation.
+---
+# Physics`,
+  },
+  {
+    id: "climate-modeling",
+    name: "climate-modeling",
+    displayName: "Climate Modeling & Environmental Data",
+    description: "Climate data analysis, environmental modeling, and sustainability.",
+    category: "data",
+    icon: <Globe className="w-4 h-4" />,
+    installs: 123,
+    tags: ["Climate", "Environmental", "Data"],
+    skillMd: `---
+name: climate-modeling
+description: Climate modeling.
+---
+# Climate`,
+  },
+  {
+    id: "causal-inference",
+    name: "causal-inference",
+    displayName: "Causal Inference & Statistics",
+    description: "Causal graphs, statistical inference, and experimental design.",
+    category: "data",
+    icon: <Brain className="w-4 h-4" />,
+    installs: 234,
+    tags: ["Causal", "Statistics", "Inference"],
+    skillMd: `---
+name: causal-inference
+description: Causal inference.
+---
+# Causal Inference`,
+  },
+  {
+    id: "recommendation-systems",
+    name: "recommendation-systems",
+    displayName: "Recommendation Systems & Personalization",
+    description: "Collaborative filtering, content-based recommendations, and personalization.",
+    category: "ai-engineering",
+    icon: <Sparkles className="w-4 h-4" />,
+    installs: 2345,
+    tags: ["Recommendations", "Personalization", "ML"],
+    skillMd: `---
+name: recommendation-systems
+description: Recommendation systems.
+---
+# Recommendations`,
+  },
+  {
+    id: "anomaly-detection",
+    name: "anomaly-detection",
+    displayName: "Anomaly Detection & Outlier Analysis",
+    description: "Outlier detection, anomaly detection algorithms, and monitoring.",
+    category: "ai-engineering",
+    icon: <TestTube className="w-4 h-4" />,
+    installs: 1567,
+    tags: ["Anomaly", "Outlier", "Monitoring"],
+    skillMd: `---
+name: anomaly-detection
+description: Anomaly detection.
+---
+# Anomaly Detection`,
+  },
+  {
+    id: "natural-language-processing",
+    name: "natural-language-processing",
+    displayName: "Natural Language Processing (NLP)",
+    description: "NLP, text analysis, sentiment analysis, and language models.",
+    category: "ai-engineering",
+    icon: <MessageSquare className="w-4 h-4" />,
+    installs: 3456,
+    tags: ["NLP", "Text", "Language"],
+    skillMd: `---
+name: natural-language-processing
+description: Natural language processing.
+---
+# NLP`,
+  },
+  {
+    id: "computer-vision",
+    name: "computer-vision",
+    displayName: "Computer Vision & Image Processing",
+    description: "Computer vision, object detection, image classification, and segmentation.",
+    category: "ai-engineering",
+    icon: <Camera className="w-4 h-4" />,
+    installs: 2890,
+    tags: ["Vision", "CV", "Detection"],
+    skillMd: `---
+name: computer-vision
+description: Computer vision.
+---
+# CV`,
+  },
 ];
+
+// ── Install instructions component ────────────────────────────────────────────
 
 // ── Install instructions component ────────────────────────────────────────────
 function InstallSteps({ skillName }: { skillName: string }) {
