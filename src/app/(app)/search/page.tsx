@@ -286,7 +286,7 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
                   <span className="ai-gradient-text">AIHub</span> Intelligence Agent
                 </h1>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Powered by {isOllamaAvailable ? `Ollama (${ollamaModels[0]})` : "OpenRouter free models"}.
+                  Powered by {isOllamaAvailable ? `Ollama (${ollamaModels[0]})` : "AIHUB"}.
                   Ask anything about AI — news, models, research, code.
                 </p>
               </div>
