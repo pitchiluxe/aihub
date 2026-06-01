@@ -13,7 +13,7 @@ import { formatDate, getColorForCategory, truncate } from "@/lib/utils";
 import { useStore } from "@/store";
 import {
   Search, Bookmark, BookmarkCheck, ExternalLink, Clock, RefreshCw,
-  Newspaper, Archive, Network, Brain, Plus, CheckCircle,
+  Newspaper, Archive, Network, Brain, Plus, CheckCircle, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -47,6 +47,7 @@ export default function NewsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch]         = useState("");
   const [addedToLM, setAddedToLM]   = useState<Set<string>>(new Set());
+  const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
 
   const { newsCategory, setNewsCategory, saveArticle, unsaveArticle, isArticleSaved } = useStore();
 
@@ -80,7 +81,22 @@ export default function NewsPage() {
   const archived = filterArticles(articles.filter((a) => isArchived(a.publishedAt)));
 
   function addToObsidian(article: NewsArticle) {
-    toast.success("Article added to Obsidian graph as a news node", { icon: "🕸️" });
+    // Store article in sessionStorage for graph to pick up
+    const existing = JSON.parse(sessionStorage.getItem("graph_articles") ?? "[]");
+    const articleNode = {
+      id: `article-${article.id}`,
+      title: article.title.substring(0, 40) + (article.title.length > 40 ? "..." : ""),
+      url: article.url,
+      source: article.source,
+      summary: article.summary,
+      category: article.category,
+      addedAt: new Date().toISOString(),
+    };
+    sessionStorage.setItem("graph_articles", JSON.stringify([
+      ...existing.filter((a: any) => a.id !== articleNode.id),
+      articleNode,
+    ]));
+    toast.success("Article added to Obsidian graph — open the graph to see it", { icon: "🕸️" });
   }
 
   function addToAIHubLM(article: NewsArticle) {
@@ -176,6 +192,7 @@ export default function NewsPage() {
                       article={article}
                       isSaved={isArticleSaved(article.id)}
                       addedToLM={addedToLM.has(article.id)}
+                      onSelect={() => setSelectedArticle(article)}
                       onSave={() => {
                         if (isArticleSaved(article.id)) { unsaveArticle(article.id); toast.success("Removed from saved"); }
                         else { saveArticle(article); toast.success("Article saved"); }
@@ -227,16 +244,152 @@ export default function NewsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Article Modal */}
+      {selectedArticle && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedArticle(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setSelectedArticle(null)}
+              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground z-10"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Article Image */}
+            {selectedArticle.imageUrl && (
+              <div className="h-64 overflow-hidden bg-muted">
+                <img
+                  src={selectedArticle.imageUrl}
+                  alt={selectedArticle.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+            )}
+
+            {/* Article Content */}
+            <div className="p-6 space-y-4">
+              {/* Header */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-white"
+                    style={{ backgroundColor: getColorForCategory(selectedArticle.category) }}
+                  >
+                    {selectedArticle.tags.includes("📺 Video") && "🎬 "}
+                    {selectedArticle.source}
+                  </div>
+                  {selectedArticle.isBreaking && (
+                    <Badge variant="destructive" className="text-xs">Breaking</Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs">{selectedArticle.category}</Badge>
+                </div>
+
+                <h1 className="text-2xl font-bold leading-tight">{selectedArticle.title}</h1>
+
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    {formatDate(selectedArticle.publishedAt)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary/Content */}
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <p className="text-base leading-relaxed text-foreground/90">{selectedArticle.summary}</p>
+              </div>
+
+              {/* Tags */}
+              {selectedArticle.tags.filter(t => t !== "📺 Video").length > 0 && (
+                <div className="flex gap-2 flex-wrap pt-2 border-t border-border">
+                  {selectedArticle.tags.filter(t => t !== "📺 Video").map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t border-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (isArticleSaved(selectedArticle.id)) {
+                      unsaveArticle(selectedArticle.id);
+                      toast.success("Removed from saved");
+                    } else {
+                      saveArticle(selectedArticle);
+                      toast.success("Article saved");
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  {isArticleSaved(selectedArticle.id) ? (
+                    <>
+                      <BookmarkCheck className="h-4 w-4" />
+                      Saved
+                    </>
+                  ) : (
+                    <>
+                      <Bookmark className="h-4 w-4" />
+                      Save
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addToObsidian(selectedArticle)}
+                  className="gap-2"
+                >
+                  <Network className="h-4 w-4" />
+                  Add to Graph
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addToAIHubLM(selectedArticle)}
+                  className="gap-2"
+                >
+                  <Brain className="h-4 w-4" />
+                  {addedToLM.has(selectedArticle.id) ? "Added to LM" : "Add to LM"}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => window.open(selectedArticle.url, "_blank")}
+                  className="gap-2 ml-auto"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Read on Web
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
 
 function ArticleCard({
-  article, isSaved, addedToLM, onSave, onObsidian, onAIHubLM,
+  article, isSaved, addedToLM, onSelect, onSave, onObsidian, onAIHubLM,
 }: {
   article: NewsArticle;
   isSaved: boolean;
   addedToLM: boolean;
+  onSelect: () => void;
   onSave: () => void;
   onObsidian: () => void;
   onAIHubLM: () => void;
@@ -246,7 +399,7 @@ function ArticleCard({
 
   return (
     <motion.div variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 280, damping: 22 } } }}>
-      <Card className="group h-full flex flex-col hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden">
+      <Card className="group h-full flex flex-col hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden cursor-pointer">
         {article.imageUrl && (
           <div className="h-36 overflow-hidden bg-muted flex-shrink-0">
             <img
@@ -266,11 +419,11 @@ function ArticleCard({
           </div>
 
           <div className="flex-1">
-            <a href={article.url} target="_blank" rel="noopener noreferrer">
+            <button onClick={onSelect} className="text-left w-full">
               <h3 className="text-sm font-semibold leading-snug line-clamp-3 hover:text-primary transition-colors">
                 {article.title}
               </h3>
-            </a>
+            </button>
             <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{truncate(article.summary, 160)}</p>
           </div>
 
@@ -297,9 +450,9 @@ function ArticleCard({
               <button onClick={onSave} className="p-1 rounded hover:bg-accent transition-colors">
                 {isSaved ? <BookmarkCheck className="h-3.5 w-3.5 text-primary" /> : <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />}
               </button>
-              <a href={article.url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-accent transition-colors">
+              <button onClick={onSelect} className="p-1 rounded hover:bg-accent transition-colors">
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-              </a>
+              </button>
             </div>
           </div>
         </CardContent>

@@ -23,10 +23,11 @@ const NODE_COLORS: Record<string, string> = {
   framework: "#f59e0b",
   concept:   "#06b6d4",
   tool:      "#ef4444",
+  news:      "#ec4899",
 };
 const NODE_TYPE_LABELS: Record<string, string> = {
   model: "Models", company: "Companies", research: "Research",
-  framework: "Frameworks", concept: "Concepts", tool: "Tools",
+  framework: "Frameworks", concept: "Concepts", tool: "Tools", news: "News",
 };
 const MIN_ZOOM = 0.08;
 const MAX_ZOOM = 10;
@@ -46,7 +47,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 function typeEmoji(type: string): string {
-  return ({ model: "🧠", company: "🏢", research: "📄", framework: "⚙️", concept: "💡", tool: "🔧" } as Record<string,string>)[type] ?? "●";
+  return ({ model: "🧠", company: "🏢", research: "📄", framework: "⚙️", concept: "💡", tool: "🔧", news: "📰" } as Record<string,string>)[type] ?? "●";
 }
 
 interface ExtNode extends GraphNode, d3.SimulationNodeDatum {
@@ -80,11 +81,29 @@ export default function GraphPage() {
   const [search,       setSearch]       = useState("");
   const [foldersOpen,  setFoldersOpen]  = useState(true);
   const [fullscreen,   setFullscreen]   = useState(false);
+  const [graphArticles, setGraphArticles] = useState<any[]>([]);
+
+  // ── Load articles from sessionStorage ──────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const articles = JSON.parse(sessionStorage.getItem("graph_articles") ?? "[]");
+      if (Array.isArray(articles)) {
+        setGraphArticles(articles);
+      }
+    } catch (error) {
+      console.error("Failed to load articles:", error);
+    }
+  }, []);
 
   useEffect(() => { selectedIdRef.current = selectedNode?.id ?? null; }, [selectedNode]);
 
   const typeCounts = Object.keys(NODE_COLORS).reduce<Record<string, number>>((acc, t) => {
-    acc[t] = INITIAL_GRAPH_DATA.nodes.filter(n => n.type === t).length;
+    if (t === "news") {
+      acc[t] = graphArticles.length;
+    } else {
+      acc[t] = INITIAL_GRAPH_DATA.nodes.filter(n => n.type === t).length;
+    }
     return acc;
   }, {});
 
@@ -272,11 +291,45 @@ export default function GraphPage() {
     canvas.width  = W;
     canvas.height = H;
 
-    const visNodes: ExtNode[] = INITIAL_GRAPH_DATA.nodes
+    // ── Add article nodes ──────────────────────────────────────────────────
+    let allNodes = [...INITIAL_GRAPH_DATA.nodes];
+    let allLinks = [...INITIAL_GRAPH_DATA.links];
+    
+    if (graphArticles.length > 0) {
+      const newsType = "news";
+      const newsColor = "#ec4899";
+      allNodes = allNodes.filter(n => n.type !== newsType); // Remove old news nodes
+      
+      graphArticles.forEach((article, idx) => {
+        allNodes.push({
+          id: article.id,
+          label: article.title,
+          type: newsType,
+          description: article.summary,
+          size: 18,
+          color: newsColor,
+        });
+        
+        // Link article to relevant company/model if keywords match
+        const keywords = article.source.toLowerCase();
+        const relevantNode = allNodes.find(n => 
+          n.type === "company" && n.label.toLowerCase().includes(keywords.split(" ")[0])
+        );
+        if (relevantNode) {
+          allLinks.push({
+            source: article.id,
+            target: relevantNode.id,
+            label: "mentions",
+          });
+        }
+      });
+    }
+
+    const visNodes: ExtNode[] = allNodes
       .filter(n => activeTypes.has(n.type))
       .map(n => ({ ...n }));
     const visIds   = new Set(visNodes.map(n => n.id));
-    const visLinks = INITIAL_GRAPH_DATA.links
+    const visLinks = allLinks
       .filter(l => visIds.has(String(l.source)) && visIds.has(String(l.target)))
       .map(l => ({ ...l }));
 
@@ -479,7 +532,7 @@ export default function GraphPage() {
       canvas.removeEventListener("touchmove",  onTouchMove);
       canvas.removeEventListener("touchend",   onTouchEnd);
     };
-  }, [activeTypes, getNodeAt, startLoop, stopLoop]);
+  }, [activeTypes, getNodeAt, startLoop, stopLoop, graphArticles]);
 
   useEffect(() => {
     const cleanup = buildGraph();

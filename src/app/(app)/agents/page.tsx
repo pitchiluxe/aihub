@@ -12,7 +12,7 @@ import { AgentProfile, AgentMessage } from "@/types";
 import { useStore } from "@/store";
 import {
   Send, Bot, Sparkles, ChevronLeft, Trash2, Copy, Check,
-  Zap, Brain, Pen, Code, Microscope, Newspaper, RotateCcw,
+  Zap, Brain, Pen, Code, Microscope, Newspaper, RotateCcw, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -27,6 +27,8 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(false);
   const [localMessages, setLocalMessages] = useState<AgentMessage[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showOllamaHelp, setShowOllamaHelp] = useState(false);
+  const [ollamaHelpMessage, setOllamaHelpMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { createConversation, addMessage } = useStore();
@@ -84,7 +86,12 @@ export default function AgentsPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Chat request failed");
+      if (!res.ok) {
+        const errData = await res.json();
+        const errorMsg = errData.error || "Failed to get response";
+        const suggestion = errData.suggestion || "";
+        throw new Error(`${errorMsg}${suggestion ? ` - ${suggestion}` : ""}`);
+      }
       const data = await res.json();
 
       const assistantMsg: AgentMessage = {
@@ -98,7 +105,26 @@ export default function AgentsPage() {
       setLocalMessages((prev) => [...prev, assistantMsg]);
       if (conversationId) addMessage(conversationId, assistantMsg);
     } catch (err) {
-      toast.error("Failed to get response. Please try again.");
+      const errorText = String(err);
+      
+      // Check if this is an Ollama-related error
+      if (
+        errorText.includes("Ollama") ||
+        errorText.includes("ollama") ||
+        errorText.includes("serve") ||
+        errorText.includes("connection refused") ||
+        errorText.includes("not reachable")
+      ) {
+        setOllamaHelpMessage(errorText);
+        setShowOllamaHelp(true);
+        toast.error("Ollama not available — showing setup help");
+      } else if (errorText.includes("API key")) {
+        toast.error("OpenRouter API key not configured. Please set OPENROUTER_API_KEY in .env.local");
+      } else if (errorText.includes("rate-limited") || errorText.includes("502")) {
+        toast.error("API temporarily unavailable. Try again in a minute.");
+      } else {
+        toast.error(errorText.slice(0, 120) || "Failed to get response. Please try again.");
+      }
     } finally {
       setLoading(false);
       inputRef.current?.focus();
@@ -303,6 +329,64 @@ export default function AgentsPage() {
             </div>
           </div>
         </div>
+
+        {/* Ollama Help Modal */}
+        {showOllamaHelp && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            >
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-amber-500" />
+                    Ollama Setup
+                  </h3>
+                  <button onClick={() => setShowOllamaHelp(false)} className="text-muted-foreground hover:text-foreground p-1">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <p className="text-xs font-semibold text-destructive mb-1">⚠ Error</p>
+                  <p className="text-xs text-destructive/90 line-clamp-3">{ollamaHelpMessage}</p>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="font-semibold mb-2">1. Download Ollama</p>
+                    <a href="https://ollama.ai/download" target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" size="sm" className="w-full">
+                        📥 Visit ollama.ai/download
+                      </Button>
+                    </a>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold mb-2">2. Start Server</p>
+                    <code className="block bg-muted rounded px-3 py-2 text-xs font-mono">ollama serve</code>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold mb-2">3. Pull a Model</p>
+                    <code className="block bg-muted rounded px-3 py-2 text-xs font-mono">ollama pull llama2</code>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button variant="outline" onClick={() => setShowOllamaHelp(false)} className="flex-1">
+                    Close
+                  </Button>
+                  <Button onClick={() => window.open("https://ollama.ai/download", "_blank")} className="flex-1">
+                    Install
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     );
   }

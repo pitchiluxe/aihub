@@ -8,11 +8,12 @@ export const maxDuration = 300;
 const FREE_FALLBACKS = [
   "meta-llama/llama-3.2-3b-instruct:free",
   "meta-llama/llama-3.1-8b-instruct:free",
-  "deepseek/deepseek-chat-v3-0324:free",
   "google/gemma-2-9b-it:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
   "qwen/qwen3-14b:free",
   "microsoft/phi-4:free",
+  "deepseek/deepseek-chat-v3-0324:free",
+  "nvidia/llama-3.1-nemotron-70b-instruct:free",
 ];
 
 export async function POST(req: NextRequest) {
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
         if (res.ok) {
           const data = await res.json();
           const content = data.choices?.[0]?.message?.content ?? "";
-          if (content) {
+          if (content && content.trim()) {
             return NextResponse.json({ content, model: tryModel, provider: "openrouter", usage: data.usage });
           }
         }
@@ -127,8 +128,9 @@ export async function POST(req: NextRequest) {
 
     // All OpenRouter models failed — try local Ollama as last resort
     const ollamaUrl = process.env.NEXT_PUBLIC_OLLAMA_BASE_URL ?? "http://localhost:11434";
+    let ollamaError = "";
     try {
-      const ping = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
+      const ping = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
       if (ping.ok) {
         const tagsData = await ping.json();
         const localModels: string[] = (tagsData.models ?? []).map((m: { name: string }) => m.name);
@@ -147,11 +149,29 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ content, model: fallbackModel, provider: "ollama", fallback: true });
           }
         }
+      } else {
+        ollamaError = "Ollama responded but no models available";
       }
-    } catch { /* Ollama not available either */ }
+    } catch (err) {
+      const errStr = String(err);
+      if (errStr.includes("AbortError") || errStr.includes("timeout")) {
+        ollamaError = "Ollama timeout — is it running? Start with: ollama serve";
+      } else if (errStr.includes("ERR_CONNECTION_REFUSED") || errStr.includes("ECONNREFUSED")) {
+        ollamaError = "Ollama connection refused — not running. Start with: ollama serve";
+      } else {
+        ollamaError = "Ollama not reachable";
+      }
+    }
 
+    // Return helpful error message with installation info
     return NextResponse.json(
-      { error: "All models failed. OpenRouter models are rate-limited — please try again in a minute, or use a local Ollama model." },
+      { 
+        error: "All models failed. OpenRouter models are rate-limited. Ollama fallback also unavailable.",
+        details: ollamaError || "Ollama not accessible",
+        suggestion: "(1) Wait 1 minute and retry, (2) Install Ollama: https://ollama.ai/download, (3) Start Ollama: ollama serve, or (4) Verify OPENROUTER_API_KEY in .env.local",
+        installUrl: "https://ollama.ai/download",
+        startCommand: "ollama serve",
+      },
       { status: 502 }
     );
   } catch (err) {

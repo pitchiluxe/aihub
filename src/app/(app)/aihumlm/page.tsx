@@ -57,6 +57,37 @@ export default function AIHubLMPage() {
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // ── Load from sessionStorage queue on mount ────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const queue = sessionStorage.getItem("aihumlm_queue");
+      if (queue) {
+        const items = JSON.parse(queue);
+        if (Array.isArray(items) && items.length > 0) {
+          const newSources: Source[] = items.map((item: any) => ({
+            id: `src-${item.id || Date.now()}`,
+            type: "url",
+            title: item.title || new URL(item.url).hostname.replace("www.", ""),
+            content: item.url,
+            summary: item.content || `Article from ${item.title}`,
+            keyPoints: [],
+            wordCount: 0,
+            addedAt: new Date(),
+          }));
+          setSources(prev => {
+            const ids = new Set(prev.map(s => s.id));
+            return [...prev, ...newSources.filter(s => !ids.has(s.id))];
+          });
+          sessionStorage.removeItem("aihumlm_queue");
+          toast.success(`${newSources.length} article(s) loaded for analysis`);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load from queue:", error);
+    }
+  }, []);
+
   // ── Add URL source ─────────────────────────────────────────────────────
   async function addUrlSource() {
     if (!urlInput.trim()) return;

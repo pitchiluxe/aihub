@@ -147,7 +147,7 @@ export interface AgentConversation {
 export interface GraphNode {
   id: string;
   label: string;
-  type: "model" | "company" | "research" | "framework" | "concept" | "tool";
+  type: "model" | "company" | "research" | "framework" | "concept" | "tool" | "news";
   description?: string;
   url?: string;
   size?: number;

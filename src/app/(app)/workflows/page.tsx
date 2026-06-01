@@ -3,124 +3,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Zap, ArrowRight, Play, Download, Search,
-  Bot, Mail, FileText, Globe, Database, Code,
-  GitBranch, Sparkles, Clock,
+  Copy, Search, X, ArrowRight, ExternalLink, Clock,
 } from "lucide-react";
-
-const WORKFLOWS = [
-  {
-    id: "1",
-    title: "AI Email Responder",
-    description: "Automatically draft intelligent email responses using AI. Reads incoming emails, generates context-aware replies.",
-    category: "Business Automation",
-    difficulty: "simple",
-    tools: ["Gmail", "Claude API", "OpenRouter"],
-    estimatedTime: "30 min setup",
-    steps: [
-      { id: "1", title: "Email Trigger", type: "trigger", description: "New email received in Gmail", icon: Mail },
-      { id: "2", title: "Extract Context", type: "ai", description: "AI extracts key info from email", icon: Bot },
-      { id: "3", title: "Generate Reply", type: "ai", description: "Claude drafts a professional response", icon: Sparkles },
-      { id: "4", title: "Review & Send", type: "output", description: "Save as draft or auto-send", icon: Mail },
-    ],
-    tags: ["email", "automation", "business"],
-    color: "from-blue-500 to-indigo-600",
-  },
-  {
-    id: "2",
-    title: "Research Paper Summarizer",
-    description: "Automatically fetch AI papers from arXiv, generate summaries, and post to Notion or Slack.",
-    category: "Research Intelligence",
-    difficulty: "intermediate",
-    tools: ["arXiv API", "GPT-4", "Notion", "Slack"],
-    estimatedTime: "1 hour setup",
-    steps: [
-      { id: "1", title: "arXiv Fetch", type: "trigger", description: "New papers matching your keywords", icon: Database },
-      { id: "2", title: "Download PDF", type: "action", description: "Fetch full paper content", icon: FileText },
-      { id: "3", title: "AI Summary", type: "ai", description: "Generate 3-bullet TL;DR summary", icon: Bot },
-      { id: "4", title: "Store in Notion", type: "output", description: "Save to research database", icon: Database },
-      { id: "5", title: "Slack Alert", type: "output", description: "Post digest to #ai-research channel", icon: Globe },
-    ],
-    tags: ["research", "knowledge", "automation"],
-    color: "from-green-500 to-emerald-600",
-  },
-  {
-    id: "3",
-    title: "AI Content Generator",
-    description: "Transform news articles into social media posts, blog summaries, and newsletters using AI.",
-    category: "Content Creation",
-    difficulty: "simple",
-    tools: ["RSS Feeds", "Claude", "Buffer", "Mailchimp"],
-    estimatedTime: "45 min setup",
-    steps: [
-      { id: "1", title: "RSS Monitor", type: "trigger", description: "Watch AI news feeds for new articles", icon: Globe },
-      { id: "2", title: "Relevance Check", type: "condition", description: "AI scores relevance (threshold: 7/10)", icon: Bot },
-      { id: "3", title: "Generate Content", type: "ai", description: "Write tweet, LinkedIn post, newsletter blurb", icon: Sparkles },
-      { id: "4", title: "Schedule Posts", type: "output", description: "Queue in Buffer for optimal timing", icon: Clock },
-    ],
-    tags: ["content", "social media", "marketing"],
-    color: "from-pink-500 to-rose-600",
-  },
-  {
-    id: "4",
-    title: "Code Review Agent",
-    description: "Automatically review pull requests with AI. Check for bugs, security issues, and code quality.",
-    category: "Developer Tools",
-    difficulty: "complex",
-    tools: ["GitHub API", "Claude", "Slack"],
-    estimatedTime: "2 hours setup",
-    steps: [
-      { id: "1", title: "PR Webhook", type: "trigger", description: "New PR opened on GitHub", icon: GitBranch },
-      { id: "2", title: "Fetch Diff", type: "action", description: "Get changed files and context", icon: Code },
-      { id: "3", title: "AI Review", type: "ai", description: "Claude reviews for bugs, security, style", icon: Bot },
-      { id: "4", title: "Post Comments", type: "output", description: "Inline PR comments with suggestions", icon: GitBranch },
-      { id: "5", title: "Slack Summary", type: "output", description: "Post review summary to team channel", icon: Globe },
-    ],
-    tags: ["development", "GitHub", "code quality"],
-    color: "from-gray-700 to-slate-800",
-  },
-  {
-    id: "5",
-    title: "Competitor Intelligence Monitor",
-    description: "Track competitor announcements, product launches, and blog posts. Get daily AI-summarized briefings.",
-    category: "Business Intelligence",
-    difficulty: "intermediate",
-    tools: ["Web Scraper", "GPT-4", "Email", "Notion"],
-    estimatedTime: "1.5 hours setup",
-    steps: [
-      { id: "1", title: "Daily Trigger", type: "trigger", description: "Run at 7 AM daily", icon: Clock },
-      { id: "2", title: "Web Scrape", type: "action", description: "Fetch competitor blog/news pages", icon: Globe },
-      { id: "3", title: "Change Detection", type: "condition", description: "Compare with yesterday's content", icon: GitBranch },
-      { id: "4", title: "AI Analysis", type: "ai", description: "Summarize key updates and implications", icon: Bot },
-      { id: "5", title: "Email Digest", type: "output", description: "Send briefing to stakeholders", icon: Mail },
-    ],
-    tags: ["intelligence", "monitoring", "business"],
-    color: "from-amber-500 to-orange-600",
-  },
-  {
-    id: "6",
-    title: "RAG Document Q&A System",
-    description: "Build a production RAG system that lets users query your document library with natural language.",
-    category: "AI Infrastructure",
-    difficulty: "complex",
-    tools: ["Pinecone", "OpenAI Embeddings", "FastAPI", "Next.js"],
-    estimatedTime: "4 hours setup",
-    steps: [
-      { id: "1", title: "Document Ingestion", type: "trigger", description: "Upload documents via API", icon: FileText },
-      { id: "2", title: "Chunk & Embed", type: "action", description: "Split into chunks, generate embeddings", icon: Database },
-      { id: "3", title: "Store in Pinecone", type: "action", description: "Index vectors with metadata", icon: Database },
-      { id: "4", title: "Query Processing", type: "ai", description: "Semantic search + context assembly", icon: Search },
-      { id: "5", title: "LLM Response", type: "ai", description: "Generate answer with citations", icon: Bot },
-      { id: "6", title: "Stream Output", type: "output", description: "Return streaming response to UI", icon: Globe },
-    ],
-    tags: ["RAG", "embeddings", "vector DB"],
-    color: "from-violet-500 to-purple-700",
-  },
-];
+import toast from "react-hot-toast";
+import { WORKFLOWS, Workflow } from "@/lib/workflows";
 
 const STEP_COLORS: Record<string, string> = {
   trigger: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -139,14 +29,27 @@ const DIFFICULTY_BADGES: Record<string, "success" | "info" | "warning"> = {
 export default function WorkflowsPage() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [showCloneGuide, setShowCloneGuide] = useState(false);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
 
   const filtered = WORKFLOWS.filter(
     (w) =>
       !search.trim() ||
       w.title.toLowerCase().includes(search.toLowerCase()) ||
       w.description.toLowerCase().includes(search.toLowerCase()) ||
+      w.category.toLowerCase().includes(search.toLowerCase()) ||
       w.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
   );
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard!");
+  }
+
+  function handleClone(workflow: Workflow) {
+    setSelectedWorkflow(workflow);
+    setShowCloneGuide(true);
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -163,7 +66,7 @@ export default function WorkflowsPage() {
               className="w-full pl-9 h-9 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <Badge variant="secondary" className="text-xs">{filtered.length} workflows</Badge>
+          <Badge variant="secondary" className="text-xs">{filtered.length} results</Badge>
         </div>
 
         <div className="space-y-4">
@@ -209,8 +112,12 @@ export default function WorkflowsPage() {
                       >
                         {expanded === workflow.id ? "Hide" : "View"} Flow
                       </Button>
-                      <Button size="sm" className="text-xs gap-1">
-                        <Download className="h-3 w-3" />
+                      <Button
+                        size="sm"
+                        onClick={() => handleClone(workflow)}
+                        className="text-xs gap-1"
+                      >
+                        <Copy className="h-3 w-3" />
                         Clone
                       </Button>
                     </div>
@@ -258,6 +165,147 @@ export default function WorkflowsPage() {
           ))}
         </div>
       </div>
+
+      {/* Clone Guide Modal */}
+      {showCloneGuide && selectedWorkflow && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="p-6 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold">{selectedWorkflow.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{selectedWorkflow.description}</p>
+                </div>
+                <button
+                  onClick={() => setShowCloneGuide(false)}
+                  className="text-muted-foreground hover:text-foreground p-1"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Prerequisites */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      1
+                    </div>
+                    <p className="font-semibold text-sm">Prerequisites</p>
+                  </div>
+                  <div className="pl-11 space-y-1.5">
+                    {selectedWorkflow.tools.map((tool) => (
+                      <div key={tool} className="text-xs flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                        <span>{tool} account</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Setup Steps */}
+                {selectedWorkflow.setupGuide && (
+                  <div className="space-y-2 pt-3 border-t">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold flex-shrink-0">
+                        2
+                      </div>
+                      <p className="font-semibold text-sm">Setup Instructions</p>
+                    </div>
+                    <div className="pl-11 space-y-2">
+                      {selectedWorkflow.setupGuide.split("\n").map((step, i) => (
+                        <div key={i} className="text-xs text-muted-foreground flex gap-2">
+                          <span className="font-semibold text-primary flex-shrink-0 min-w-fit">{i + 1}.</span>
+                          <span>{step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Workflow Flow */}
+                <div className="space-y-2 pt-3 border-t">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      3
+                    </div>
+                    <p className="font-semibold text-sm">Workflow Flow</p>
+                  </div>
+                  <div className="pl-11 space-y-1">
+                    {selectedWorkflow.steps.map((step, idx) => {
+                      const StepIcon = step.icon;
+                      return (
+                        <div key={step.id}>
+                          <div className={`flex items-center gap-2 px-3 py-2 rounded text-xs ${STEP_COLORS[step.type]}`}>
+                            <StepIcon className="h-3 w-3 flex-shrink-0" />
+                            <div>
+                              <p className="font-semibold">{step.title}</p>
+                              <p className="opacity-75 text-xs">{step.description}</p>
+                            </div>
+                          </div>
+                          {idx < selectedWorkflow.steps.length - 1 && (
+                            <div className="h-3 border-l border-border ml-5 my-0.5" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Getting Started */}
+                <div className="space-y-2 pt-3 border-t bg-muted/50 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      4
+                    </div>
+                    <p className="font-semibold text-sm">Getting Started</p>
+                  </div>
+                  <div className="pl-11 space-y-1.5 text-xs text-muted-foreground">
+                    <p>✓ Create an account on n8n or use your preferred workflow platform</p>
+                    <p>✓ Create a new workflow and add nodes matching the flow above</p>
+                    <p>✓ Connect each node's credentials (APIs, tokens, webhooks)</p>
+                    <p>✓ Set up triggers and test the workflow</p>
+                    <p>✓ Activate and monitor in real-time</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCloneGuide(false)}
+                  className="flex-1"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    copyToClipboard(JSON.stringify(selectedWorkflow, null, 2));
+                    toast.success("Workflow config copied to clipboard!");
+                  }}
+                  className="flex-1 gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy Config
+                </Button>
+                <Button
+                  onClick={() => {
+                    window.open("https://n8n.io/workflows", "_blank");
+                  }}
+                  className="flex-1 gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open n8n
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
