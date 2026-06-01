@@ -324,7 +324,12 @@ Keep each section to 2-4 sentences. Be specific, not vague.`,
                       {selected.publishedAt && (
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(selected.publishedAt).getFullYear()}
+                          {new Date(selected.publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                        </span>
+                      )}
+                      {selected.source && (
+                        <span className={`flex items-center gap-1 font-medium ${selected.isHot ? "text-orange-600 dark:text-orange-400" : ""}`}>
+                          {selected.isHot ? "🔥 " : ""}{selected.source}
                         </span>
                       )}
                       {(selected.citations ?? 0) > 0 && (
@@ -435,7 +440,11 @@ function PaperCard({
   onSendToLM: () => void;
 }) {
   const year = paper.publishedAt ? new Date(paper.publishedAt).getFullYear() : null;
-  const source = paper.id.startsWith("arxiv") ? "arXiv" : "S2";
+  const pubDate = paper.publishedAt ? new Date(paper.publishedAt) : null;
+  const daysAgo = pubDate ? Math.floor((Date.now() - pubDate.getTime()) / 86400000) : null;
+  const isNew = daysAgo !== null && daysAgo <= 3;
+  const source = paper.source ?? (paper.id.startsWith("hf") ? "HF Daily" : paper.id.startsWith("arxiv") ? "arXiv" : "S2");
+  const accentColor = paper.id.startsWith("hf") ? "bg-orange-500" : paper.id.startsWith("arxiv") ? "bg-blue-500" : "bg-emerald-500";
 
   if (viewMode === "list") {
     return (
@@ -445,7 +454,10 @@ function PaperCard({
           <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">{source}</Badge>
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono ${paper.isHot ? "border-orange-400 text-orange-600" : ""}`}>
+                  {paper.isHot ? "🔥 " : ""}{source}
+                </Badge>
+                {isNew && <span className="text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-950/40 px-1.5 py-0.5 rounded-full border border-green-200 dark:border-green-800">NEW</span>}
                 {year && <span className="text-xs text-muted-foreground">{year}</span>}
                 {(paper.citations ?? 0) > 0 && (
                   <span className="text-xs text-muted-foreground flex items-center gap-0.5">
@@ -482,13 +494,16 @@ function PaperCard({
         className={`group h-64 rounded-xl border overflow-hidden flex flex-col cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 ${isSelected ? "border-primary/60 shadow-md bg-primary/5" : "border-border bg-card hover:border-primary/30"}`}>
 
         {/* Top accent */}
-        <div className={`h-1 w-full flex-shrink-0 ${paper.id.startsWith("arxiv") ? "bg-blue-500" : "bg-emerald-500"}`} />
+        <div className={`h-1 w-full flex-shrink-0 ${accentColor}`} />
 
         <div className="flex-1 p-4 flex flex-col min-h-0">
           {/* Meta row */}
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">{source}</Badge>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-mono ${paper.isHot ? "border-orange-400 text-orange-600 dark:text-orange-400" : ""}`}>
+                {paper.isHot ? "🔥 " : ""}{source}
+              </Badge>
+              {isNew && <span className="text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-950/40 px-1.5 py-0.5 rounded-full border border-green-200 dark:border-green-800">NEW</span>}
               {year && <span className="text-[10px] text-muted-foreground">{year}</span>}
               {paper.tldr && <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">TL;DR ✓</span>}
             </div>

@@ -76,6 +76,8 @@ export interface ResearchPaper {
   keyContributions?: string[];
   codeUrl?: string;
   imageUrl?: string;
+  source?: string;   // "arXiv" | "Semantic Scholar" | "HuggingFace Daily"
+  isHot?: boolean;   // HF daily papers are hand-curated hot picks
 }
 
 // ─── Tutorials ───────────────────────────────────────────────

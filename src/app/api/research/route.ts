@@ -1,46 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ResearchPaper } from "@/types";
 
-export const revalidate = 300; // 5 minutes - research papers update periodically
+// NEVER cache — always fetch live data
+export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("q") ?? "large language models";
-  const limit = parseInt(searchParams.get("limit") ?? "20");
+  const limit = parseInt(searchParams.get("limit") ?? "30");
 
-  try {
-    const [arxivPapers, semanticPapers] = await Promise.allSettled([
-      fetchArxivPapers(query, Math.ceil(limit / 2)),
-      fetchSemanticScholar(query, Math.ceil(limit / 2)),
-    ]);
+  const [arxiv, semantic, hfDaily] = await Promise.allSettled([
+    fetchArxiv(query, Math.ceil(limit * 0.5)),
+    fetchSemanticScholar(query, Math.ceil(limit * 0.3)),
+    fetchHuggingFaceDaily(query),
+  ]);
 
-    const papers: ResearchPaper[] = [];
+  const papers: ResearchPaper[] = [];
 
-    if (arxivPapers.status === "fulfilled") papers.push(...arxivPapers.value);
-    if (semanticPapers.status === "fulfilled") papers.push(...semanticPapers.value);
+  // HuggingFace daily papers first — freshest content
+  if (hfDaily.status === "fulfilled") papers.push(...hfDaily.value);
+  if (arxiv.status === "fulfilled") papers.push(...arxiv.value);
+  if (semantic.status === "fulfilled") papers.push(...semantic.value);
 
-    const seen = new Set<string>();
-    const unique = papers.filter((p) => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    });
+  // Deduplicate by title similarity
+  const seen = new Set<string>();
+  const unique = papers.filter((p) => {
+    const key = p.title.toLowerCase().replace(/\s+/g, " ").slice(0, 60);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-    return NextResponse.json({
-      papers: unique.slice(0, limit),
-      total: unique.length,
-    });
-  } catch (err) {
-    console.error("Research API error:", err);
-    return NextResponse.json({ papers: [], total: 0, error: "Failed to fetch research" }, { status: 500 });
-  }
+  // Sort by date — most recent first
+  unique.sort((a, b) =>
+    new Date(b.publishedAt ?? 0).getTime() - new Date(a.publishedAt ?? 0).getTime()
+  );
+
+  return NextResponse.json(
+    { papers: unique.slice(0, limit), total: unique.length },
+    {
+      headers: {
+        // 2-minute browser cache, always revalidate in background
+        "Cache-Control": "public, max-age=120, stale-while-revalidate=60",
+      },
+    }
+  );
 }
 
-async function fetchArxivPapers(query: string, limit: number): Promise<ResearchPaper[]> {
-  const encoded = encodeURIComponent(`(ti:${query} OR abs:${query}) AND cat:cs.AI`);
-  const url = `https://export.arxiv.org/api/query?search_query=${encoded}&start=0&max_results=${limit}&sortBy=submittedDate&sortOrder=descending`;
+// ── arXiv: last 7 days, all major AI categories ──────────────────────────────
+async function fetchArxiv(query: string, limit: number): Promise<ResearchPaper[]> {
+  // Search across all major AI/ML arXiv categories
+  const cats = "cat:cs.AI OR cat:cs.LG OR cat:cs.CL OR cat:cs.CV OR cat:cs.RO OR cat:stat.ML";
+  const search = encodeURIComponent(`(ti:${query} OR abs:${query}) AND (${cats})`);
+  const url = `https://export.arxiv.org/api/query?search_query=${search}&start=0&max_results=${limit}&sortBy=submittedDate&sortOrder=descending`;
 
-  const res = await fetch(url, { next: { revalidate: 1800 } });
+  const res = await fetch(url, {
+    cache: "no-store",                     // ← always fetch live
+    headers: { "User-Agent": "AIHub/2.0 Research Reader" },
+    signal: AbortSignal.timeout(12000),
+  });
   if (!res.ok) return [];
 
   const xml = await res.text();
@@ -51,54 +70,95 @@ async function fetchArxivPapers(query: string, limit: number): Promise<ResearchP
       entry.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\/${tag}>`))?.[1]?.trim() ?? "";
 
     const authors = [...entry.matchAll(/<name>(.*?)<\/name>/g)].map((m) => m[1]);
-    const arxivId = get("id").split("/abs/").pop() ?? "";
+    const rawId = get("id");
+    const arxivId = rawId.split("/abs/").pop() ?? rawId.split("/pdf/").pop() ?? "";
+    const cats = entry.match(/arxiv:term="([^"]+)"/g)?.map(m => m.match(/"([^"]+)"/)?.[1] ?? "") ?? [];
+    const published = get("published");
 
     return {
       id: `arxiv-${arxivId}`,
-      title: get("title").replace(/\s+/g, " "),
-      authors: authors.slice(0, 5),
-      abstract: get("summary").replace(/\s+/g, " ").slice(0, 500) + "…",
-      url: get("id"),
+      title: get("title").replace(/\s+/g, " ").trim(),
+      authors: authors.slice(0, 6),
+      abstract: get("summary").replace(/\s+/g, " ").trim().slice(0, 600) + "…",
+      url: `https://arxiv.org/abs/${arxivId}`,
       arxivId,
-      publishedAt: get("published"),
-      categories: entry.match(/arxiv:term="([^"]+)"/)?.[1]?.split(" ") ?? ["cs.AI"],
-      tldr: undefined,
+      publishedAt: published,
+      categories: cats.filter(Boolean).slice(0, 4),
+      source: "arXiv",
     };
-  });
+  }).filter(p => p.title && p.arxivId);
 }
 
+// ── Semantic Scholar: sorted by date, recent papers ──────────────────────────
 async function fetchSemanticScholar(query: string, limit: number): Promise<ResearchPaper[]> {
-  const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=${limit}&fields=title,abstract,authors,year,externalIds,citationCount,tldr,openAccessPdf`;
+  const fields = "title,abstract,authors,year,publicationDate,externalIds,citationCount,tldr,openAccessPdf,fieldsOfStudy";
+  const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=${limit}&fields=${fields}&sort=PublicationDate`;
 
   const res = await fetch(url, {
-    headers: { "User-Agent": "AIHub/1.0" },
-    next: { revalidate: 1800 },
+    cache: "no-store",                     // ← always fetch live
+    headers: { "User-Agent": "AIHub/2.0 Research Reader" },
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) return [];
 
   const data = await res.json();
-  return (data.data ?? []).map(
-    (p: {
-      paperId?: string;
-      externalIds?: { ArXiv?: string };
-      title?: string;
-      authors?: Array<{ name?: string }>;
-      abstract?: string;
-      openAccessPdf?: { url?: string };
-      year?: number;
-      citationCount?: number;
-      tldr?: { text?: string };
-    }): ResearchPaper => ({
+  return (data.data ?? [])
+    .filter((p: any) => p.publicationDate || p.year)
+    .map((p: any): ResearchPaper => ({
       id: `ss-${p.paperId ?? Math.random().toString(36).slice(2)}`,
       title: p.title ?? "Untitled",
-      authors: (p.authors ?? []).map((a) => a.name ?? "").slice(0, 5),
-      abstract: (p.abstract?.slice(0, 500) ?? "") + "…",
+      authors: (p.authors ?? []).map((a: any) => a.name ?? "").slice(0, 6),
+      abstract: (p.abstract?.slice(0, 600) ?? "") + "…",
       url: p.openAccessPdf?.url ?? `https://www.semanticscholar.org/paper/${p.paperId}`,
       arxivId: p.externalIds?.ArXiv,
-      publishedAt: p.year ? `${p.year}-01-01` : new Date().toISOString(),
-      categories: ["ai", "ml"],
+      publishedAt: p.publicationDate ? `${p.publicationDate}` : `${p.year ?? ""}-01-01`,
+      categories: (p.fieldsOfStudy ?? ["AI"]).slice(0, 3),
       citations: p.citationCount,
       tldr: p.tldr?.text,
-    })
-  );
+      source: "Semantic Scholar",
+    }));
+}
+
+// ── Hugging Face Daily Papers — real-time hand-curated feed ──────────────────
+async function fetchHuggingFaceDaily(query: string): Promise<ResearchPaper[]> {
+  try {
+    // HF daily papers: ~10 curated AI papers updated every day
+    const res = await fetch("https://huggingface.co/api/daily_papers?limit=20", {
+      cache: "no-store",
+      headers: { "User-Agent": "AIHub/2.0 Research Reader" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const q = query.toLowerCase();
+
+    return (Array.isArray(data) ? data : data.papers ?? [])
+      .filter((p: any) => {
+        if (!p.paper?.title) return false;
+        // Filter by query relevance (title or summary contains keywords)
+        const text = `${p.paper.title} ${p.paper.summary ?? ""}`.toLowerCase();
+        const words = q.split(/\s+/).filter(w => w.length > 3);
+        // Include if any keyword matches OR query is broad
+        return words.length === 0 || words.some(w => text.includes(w)) || q.includes("language") || q.includes("model") || q.includes("ai") || q.includes("llm");
+      })
+      .map((p: any): ResearchPaper => {
+        const paper = p.paper;
+        const arxivId = paper.id ?? "";
+        return {
+          id: `hf-${arxivId}`,
+          title: paper.title ?? "Untitled",
+          authors: (paper.authors ?? []).map((a: any) => a.name ?? a).slice(0, 6),
+          abstract: (paper.summary ?? "").slice(0, 600) + (paper.summary?.length > 600 ? "…" : ""),
+          url: `https://arxiv.org/abs/${arxivId}`,
+          arxivId,
+          publishedAt: p.publishedAt ?? paper.publishedAt ?? new Date().toISOString(),
+          categories: ["AI", "Featured"],
+          source: "HuggingFace Daily",
+          isHot: true,
+        };
+      });
+  } catch {
+    return [];
+  }
 }
