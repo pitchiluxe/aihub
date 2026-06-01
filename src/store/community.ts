@@ -1722,6 +1722,1487 @@ Email to manager:
     author: "ProductEng", avatar: "PE",
     createdAt: D(13), likes: 134, likedByMe: false, views: 1067,
   },
+
+  // ── PREDICTIONS ───────────────────────────────────────────────────────────
+  {
+    id: "seed-71", type: "insight",
+    title: "Prediction: By 2027 agents will have economic identities — wallets, contracts, and legal standing",
+    content: "We're building toward a world where AI agents hold crypto wallets, sign smart contracts, and transact autonomously. An agent negotiates a SaaS subscription, pays for compute, hires another agent as a subcontractor. The missing piece isn't the AI — it's the legal framework. The first company to crack 'agent personhood' wins an entirely new economy. Watch for agent-to-agent (A2A) protocols in 2025-26 as the first signal.",
+    tags: ["agents", "prediction", "future", "economy"],
+    author: "FutureMapper", avatar: "FM",
+    createdAt: H(1), likes: 892, likedByMe: false, views: 7240, pinned: true,
+  },
+  {
+    id: "seed-72", type: "insight",
+    title: "Context engineering will replace prompt engineering — the shift is already happening",
+    content: "Prompt engineering is about what you say. Context engineering is about what you put in the window before you say it. The best AI engineers in 2025 don't write better prompts — they architect better context: what data to retrieve, how to compress it, what to prune, in what order to present it. The prompt is the last 5%. The context pipeline is the 95% that determines quality. Start treating context as infrastructure.",
+    tags: ["prompt", "RAG", "context-window", "engineering"],
+    author: "ContextArch", avatar: "CA",
+    createdAt: H(3), likes: 1043, likedByMe: false, views: 8120,
+  },
+  {
+    id: "seed-73", type: "insight",
+    title: "Prediction: Retrieval will be worth more than generation by 2027",
+    content: "Generation is becoming a commodity — every model can write code, summarize, translate. The scarce resource is knowing WHAT to retrieve and from WHERE. The companies winning AI in 2027 won't have the best models — they'll have the best data pipelines, the most comprehensive knowledge graphs, and the most accurate retrieval systems. Invest in your data infrastructure now while generation is cheap and retrieval is hard.",
+    tags: ["RAG", "prediction", "embedding", "future"],
+    author: "DataStrategist", avatar: "DS",
+    createdAt: H(6), likes: 756, likedByMe: false, views: 5890,
+  },
+  {
+    id: "seed-74", type: "insight",
+    title: "The 'capability elicitation gap' — LLMs know 100x more than we can extract",
+    content: "GPT-4 trained on essentially all human knowledge. We extract maybe 1% of it through prompting. The next 5 years of AI progress won't come from bigger models — it'll come from better elicitation: chain-of-thought, tree-of-thought, scaffolded reasoning, multi-agent debate, constitutional AI. The intelligence is already there. We just don't know how to ask for it yet. Elicitation engineering is the most underrated research direction in AI.",
+    tags: ["reasoning", "agents", "research", "future"],
+    author: "ResearchX", avatar: "RX",
+    createdAt: D(1), likes: 934, likedByMe: false, views: 7230,
+  },
+  {
+    id: "seed-75", type: "insight",
+    title: "Prediction: AI-native file formats will replace JSON, CSV, and PDF by 2028",
+    content: "Current file formats were designed for human readability or machine parsing — not for AI consumption. The next generation of formats will be semantically dense, context-aware, and natively queryable by LLMs. Imagine a '.aix' format that includes not just data but provenance, confidence scores, relationships, and a built-in query interface. The company that designs this format and gets it adopted will control the data layer of the AI economy.",
+    tags: ["future", "prediction", "data", "standards"],
+    author: "FormatFuturist", avatar: "FF",
+    createdAt: D(2), likes: 678, likedByMe: false, views: 5340,
+  },
+  {
+    id: "seed-76", type: "insight",
+    title: "Why most AI products fail: wrong abstraction level",
+    content: "AI products fail at one of three levels: (1) Too low — you built a model wrapper, not a product. Users don't want to prompt engineer. (2) Too high — you abstracted so much the AI can't do anything useful. (3) Wrong layer — you put AI where deterministic logic works fine. The right abstraction level is: AI handles ambiguity, structured code handles certainty. Map your product to this matrix before building anything.",
+    tags: ["product", "insight", "architecture", "best-practices"],
+    author: "ProductPhilosopher", avatar: "PP",
+    createdAt: D(3), likes: 823, likedByMe: false, views: 6450,
+  },
+  {
+    id: "seed-77", type: "insight",
+    title: "The 'AI debt' crisis is coming — and it's worse than technical debt",
+    content: "Technical debt: code that works but is hard to maintain. AI debt: AI decisions baked into your product that nobody understands, can't be explained, and can't be safely changed. Every time you ship an LLM feature without eval infrastructure, you're accumulating AI debt. When the model changes, your prompts break. When your data drifts, quality degrades silently. Build measurement before you build features. You cannot manage what you cannot measure.",
+    tags: ["production", "engineering", "best-practices", "evaluation"],
+    author: "AIDebtTracker", avatar: "AD",
+    createdAt: D(4), likes: 945, likedByMe: false, views: 7340,
+  },
+  {
+    id: "seed-78", type: "insight",
+    title: "Prediction: Agent-to-agent negotiation will become a standard protocol by 2026",
+    content: "Right now agents call tools. Soon agents will call other agents. And those agents will push back, negotiate parameters, request clarification, and return partial results. This requires a new protocol layer: agent discovery, capability advertisement, trust scoring, SLA negotiation, and payment. MCP is a step. But what's coming is a full agent economy with market dynamics. The engineers who understand both AI and distributed systems will build the infrastructure layer of this economy.",
+    tags: ["agents", "MCP", "prediction", "future"],
+    author: "AgentEconomist", avatar: "AE",
+    createdAt: D(5), likes: 712, likedByMe: false, views: 5670,
+  },
+  {
+    id: "seed-79", type: "insight",
+    title: "The 'alignment tax' is real, measurable, and you should know how much you're paying",
+    content: "Aligned models refuse more, hedge more, and add more caveats. My benchmarks: Claude 3.5 Sonnet refusal rate 8.2%, GPT-4o 6.1%, DeepSeek V3 1.4%. On creative tasks, the refusal rate creates a 12-18% quality gap on edge cases. This isn't a criticism — safety matters. But developers need to understand the tradeoff they're making. For internal tools, an unaligned model may serve you better. Know your risk tolerance before choosing a model.",
+    tags: ["alignment", "benchmarks", "models", "insight"],
+    author: "AlignmentAnalyst", avatar: "AA",
+    createdAt: D(6), likes: 567, likedByMe: false, views: 4450,
+  },
+  {
+    id: "seed-80", type: "insight",
+    title: "Why your RAG system will need a 'knowledge metabolism' — continuously writing, not just reading",
+    content: "Today RAG is read-only: retrieve relevant docs, inject, generate. The next evolution is bidirectional: agents also WRITE to the knowledge base based on what they learn. An agent answers a question, realizes the KB is incomplete, and adds the missing fact. Another agent fact-checks it. Over time the KB becomes richer and more accurate autonomously. This is how personal AI assistants will eventually surpass Google for personal knowledge. Build the write path now.",
+    tags: ["RAG", "agents", "future", "knowledge-graph"],
+    author: "KnowledgeArch", avatar: "KA",
+    createdAt: D(7), likes: 634, likedByMe: false, views: 5120,
+  },
+
+  // ── NOVEL AGENT IDEAS ─────────────────────────────────────────────────────
+  {
+    id: "seed-81", type: "project",
+    title: "Self-healing production pipeline — AI detects errors and deploys fixes autonomously",
+    content: "The most ambitious thing I've shipped: a pipeline that monitors production errors, generates a fix, runs it through CI, and opens a PR — all without human intervention. Has a 34% auto-resolve rate on known error patterns. The key: scoped fix generation (only touch the file containing the error) and mandatory human review for anything touching auth, payments, or DB migrations.",
+    code: `import { Webhooks } from '@octokit/webhooks';
+import { Octokit } from '@octokit/rest';
+
+const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+
+async function healError(error: ProductionError) {
+  // 1. Find the source file from stack trace
+  const filePath = parseStackTrace(error.stack);
+  const fileContent = await getFileFromGitHub(filePath);
+
+  // 2. Generate fix with strict scope constraint
+  const fix = await callModel([{
+    role: 'system',
+    content: \`You are a surgical code fixer. ONLY modify the function containing the error.
+Do NOT refactor, rename, or touch anything outside the bug location.
+Return a unified diff only.\`,
+  }, {
+    role: 'user',
+    content: \`Error: \${error.message}\\nStack: \${error.stack}\\nFile:\\n\${fileContent}\`,
+  }]);
+
+  // 3. Apply diff and open PR
+  const branch = \`auto-fix/\${error.id}\`;
+  await createBranchAndCommit(branch, filePath, applyDiff(fileContent, fix));
+  await octokit.pulls.create({
+    owner: process.env.REPO_OWNER!,
+    repo: process.env.REPO_NAME!,
+    title: \`[Auto-Fix] \${error.message.slice(0, 72)}\`,
+    head: branch, base: 'main',
+    body: \`Auto-generated fix for error \${error.id}\\n\\nError rate: \${error.rate}/min\\n\\n> Human review required before merging.\`,
+  });
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "automation", "devops", "self-healing"],
+    author: "AutonomousEng", avatar: "AE",
+    createdAt: H(2), likes: 1123, likedByMe: false, views: 8940,
+  },
+  {
+    id: "seed-82", type: "project",
+    title: "Competitive intelligence agent — monitors rivals' changelogs, job posts, and release notes daily",
+    content: "Built an agent that watches 12 competitor products 24/7. Every morning: summary of their new features, job posts (signals future direction), GitHub commits, pricing changes, and support forum complaints. What used to take a PM 4 hours/week now takes 0 minutes. The job post signal is the most valuable — hiring 5 ML engineers tells you exactly what they're building 6 months before launch.",
+    code: `const COMPETITORS = ['competitor-a.com', 'competitor-b.io', 'competitor-c.app'];
+
+async function dailyCompetitiveIntel() {
+  const signals: CompetitiveSignal[] = [];
+
+  for (const competitor of COMPETITORS) {
+    const [changelog, jobs, gh, pricing] = await Promise.allSettled([
+      scrapeChangelog(competitor),
+      scrapeJobPosts(competitor),
+      getGithubActivity(competitor),
+      checkPricingPage(competitor),
+    ]);
+
+    const raw = [changelog, jobs, gh, pricing]
+      .filter(r => r.status === 'fulfilled')
+      .map(r => (r as PromiseFulfilledResult<string>).value)
+      .join('\\n---\\n');
+
+    const analysis = await callModel([{
+      role: 'user',
+      content: \`Analyze these competitive signals for \${competitor}.
+Extract:
+1. New features shipped (ranked by user impact)
+2. Strategic direction signals from job posts
+3. Areas where users are complaining
+4. Pricing changes or experiments
+
+Be specific. Omit anything already known from last week.
+
+Raw signals:
+\${raw}\`,
+    }]);
+
+    signals.push({ competitor, analysis, timestamp: new Date() });
+  }
+
+  return formatBriefing(signals); // returns Markdown report
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "automation", "product", "intelligence"],
+    author: "CompIntelBot", avatar: "CI",
+    createdAt: H(4), likes: 934, likedByMe: false, views: 7230,
+  },
+  {
+    id: "seed-83", type: "project",
+    title: "Code archaeology agent — explains legacy code written by people who left the company",
+    content: "Every codebase has a graveyard of undocumented functions written by engineers who left 3 years ago. This agent reads git blame, commit history, related PRs, and Jira tickets to reconstruct the INTENT behind the code — not just what it does, but WHY it was written that way and what assumptions it was built on. Cut our 'WTF is this doing?' Slack questions by 70%.",
+    code: `async function archaeologize(filePath: string, startLine: number, endLine: number) {
+  const [blame, history, relatedPRs] = await Promise.all([
+    exec(\`git blame -L \${startLine},\${endLine} \${filePath}\`),
+    exec(\`git log --follow -p --all -- \${filePath} | head -500\`),
+    searchPRsByFile(filePath), // searches GitHub PRs mentioning this file
+  ]);
+
+  const code = await readLines(filePath, startLine, endLine);
+
+  return callModel([{
+    role: 'system',
+    content: \`You are a code archaeologist. Given source code and its history,
+reconstruct the original intent, business context, and assumptions.
+Focus on WHY, not WHAT. The reader already sees the code.\`,
+  }, {
+    role: 'user',
+    content: \`Code to explain:
+\\\`\\\`\\\`
+\${code}
+\\\`\\\`\\\`
+
+Git history context:
+\${history.slice(0, 3000)}
+
+Related PR descriptions:
+\${relatedPRs.slice(0, 2000)}
+
+Explain: intent, business context, key assumptions, and what breaks if touched carelessly.\`,
+  }]);
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "developer-tools", "documentation", "git"],
+    author: "LegacyWhisperer", avatar: "LW",
+    createdAt: D(1), likes: 1056, likedByMe: false, views: 8340,
+  },
+  {
+    id: "seed-84", type: "project",
+    title: "The 'Devil's Advocate' agent — automatically challenges every important decision",
+    content: "Every product decision in our company now gets routed through the Devil's Advocate agent before shipping. It generates the strongest possible case AGAINST your decision: what can go wrong, who it hurts, what assumption you're missing, what competitor move it enables. Not to block decisions — to stress-test them. We've caught 3 major mistakes in 2 months that would have been expensive to reverse.",
+    code: `const DEVIL_SYSTEM = \`You are a world-class Devil's Advocate. Your job is NOT to be negative —
+it is to find the strongest possible arguments AGAINST the proposed decision.
+
+Think like: a senior engineer who has seen this fail before, a skeptical investor,
+an adversarial competitor, and a user who will be harmed by this.
+
+Rules:
+- Find at least 5 distinct attack vectors
+- Rank by severity: CRITICAL, HIGH, MEDIUM
+- For each: explain the failure mode with a specific, realistic scenario
+- End with: "The one thing that would change my mind is: ___"
+
+Do NOT suggest ways to fix the issues. Only expose them.\`;
+
+export async function devilsAdvocate(decision: string, context?: string): Promise<string> {
+  return callModel([
+    { role: 'system', content: DEVIL_SYSTEM },
+    { role: 'user', content: \`Decision: \${decision}\${context ? \`\\n\\nContext: \${context}\` : ''}\` },
+  ], 1500);
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "prompt", "product", "decision-making"],
+    author: "AdvocatusAI", avatar: "AA",
+    createdAt: D(2), likes: 867, likedByMe: false, views: 6780,
+  },
+  {
+    id: "seed-85", type: "project",
+    title: "Skill gap agent — maps your team's knowledge and finds dangerous single points of failure",
+    content: "Analyzed 6 months of PRs, code reviews, and Jira tickets with an LLM to build a knowledge map of our engineering team. Result: discovered that only 1 person understood the payments integration deeply. Built a knowledge transfer plan before they left. Also found that 3 people were all experts in the same area — resource imbalance. This is org health monitoring for engineering teams.",
+    code: `async function buildTeamKnowledgeGraph(teamMembers: string[]) {
+  const knowledge: Record<string, Record<string, number>> = {};
+
+  for (const member of teamMembers) {
+    const prs = await getPRsByAuthor(member, { days: 180 });
+    const reviews = await getReviewsByAuthor(member, { days: 180 });
+    const tickets = await getJiraTicketsByAssignee(member, { days: 180 });
+
+    const combined = [...prs, ...reviews, ...tickets].join('\\n').slice(0, 8000);
+
+    const analysis = await callModel([{
+      role: 'user',
+      content: \`Analyze this engineer's work history. Identify areas of expertise.
+Rate each area 1-10 based on depth of knowledge shown.
+Return JSON: { "area": score, ... }
+
+Work history:
+\${combined}\`,
+    }]);
+
+    knowledge[member] = JSON.parse(extractJSON(analysis));
+  }
+
+  // Find SPOFs: areas where only 1 person scores > 7
+  const allAreas = new Set(Object.values(knowledge).flatMap(k => Object.keys(k)));
+  const spofs = [...allAreas].filter(area => {
+    const experts = teamMembers.filter(m => (knowledge[m][area] ?? 0) >= 7);
+    return experts.length === 1;
+  });
+
+  return { knowledgeMap: knowledge, singlePointsOfFailure: spofs };
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "engineering", "management", "insight"],
+    author: "OrgHealthAI", avatar: "OH",
+    createdAt: D(3), likes: 789, likedByMe: false, views: 6120,
+  },
+  {
+    id: "seed-86", type: "project",
+    title: "Agent that predicts which OSS projects will trend 3 months from now",
+    content: "Built a trend prediction model using GitHub star velocity, Twitter/X mention sentiment, arXiv citation frequency, and HN upvote patterns. Predicted LangGraph's rise 11 weeks before it hit mainstream. The signal that matters most: when AI researchers start starring a project that has working code but almost no documentation — that's the moment before the inflection point.",
+    code: `interface TrendSignal {
+  repo: string;
+  starVelocity7d: number;   // stars/day this week
+  starVelocity30d: number;  // stars/day last month
+  twitterMentions7d: number;
+  hnScore: number;
+  arxivCitations: number;
+  hasWorkingDemo: boolean;
+  docQualityScore: number;  // low = pre-hype
+}
+
+async function predictTrends(candidates: string[]): Promise<{ repo: string; score: number; reason: string }[]> {
+  const signals = await Promise.all(candidates.map(gatherSignals));
+
+  const scored = await callModel([{
+    role: 'user',
+    content: \`Score these open source projects for trend probability in the next 90 days.
+The "low docs + working code + researcher interest" pattern is the strongest signal.
+Return JSON array: [{repo, score (0-100), reason}]
+
+Signals:
+\${JSON.stringify(signals, null, 2)}\`,
+  }]);
+
+  return JSON.parse(extractJSON(scored))
+    .sort((a: any, b: any) => b.score - a.score);
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "prediction", "open-source", "trends"],
+    author: "TrendOracle", avatar: "TO",
+    createdAt: D(4), likes: 712, likedByMe: false, views: 5560,
+  },
+  {
+    id: "seed-87", type: "project",
+    title: "Personal intelligence briefing agent — your daily AI-curated brief in 90 seconds",
+    content: "Every morning at 6:45 AM an agent reads my RSS feeds, Hacker News, Twitter follows, arXiv new papers, and GitHub stars from people I respect — then writes a 500-word personalized brief covering only what's relevant to MY work. No generic AI news. Just signal. Changed how I start my day. The personalization prompt is the key — it knows my stack, my interests, and my projects.",
+    code: `const BRIEFING_SYSTEM = (profile: UserProfile) => \`You are a personal intelligence analyst for \${profile.name}.
+
+Their focus areas: \${profile.interests.join(', ')}
+Their tech stack: \${profile.techStack.join(', ')}
+Their current projects: \${profile.projects.join(', ')}
+They want to AVOID: \${profile.avoid.join(', ')}
+
+Write a 400-500 word morning briefing. Rules:
+- Only include items directly relevant to their work
+- Lead with the single most important development
+- Group by theme, not source
+- End with one "signal to watch" — something small today that could be big later
+- NO fluff, NO "as AI continues to evolve", NO filler sentences
+- Write like a brilliant colleague summarizing overnight developments\`;
+
+async function generateBriefing(sources: string[], profile: UserProfile): Promise<string> {
+  const combined = sources.join('\\n---\\n').slice(0, 20000);
+  return callModel([
+    { role: 'system', content: BRIEFING_SYSTEM(profile) },
+    { role: 'user', content: \`Today's raw intelligence:\n\n\${combined}\` },
+  ], 800);
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "automation", "productivity", "RAG"],
+    author: "BriefingBot", avatar: "BB",
+    createdAt: D(5), likes: 934, likedByMe: false, views: 7340,
+  },
+  {
+    id: "seed-88", type: "project",
+    title: "Agent that generates business models from technical capabilities you already have",
+    content: "Describe your tech stack, data you have, and APIs available — this agent generates 10 business model options ranked by feasibility and revenue potential. Not generic ideas — specifically grounded in YOUR capabilities. Found a monetization path for our internal embeddings pipeline that we hadn't considered. Worth running on every side project you've abandoned.",
+    code: `async function generateBusinessModels(techProfile: TechProfile): Promise<BusinessModel[]> {
+  const prompt = \`You are a product strategist and entrepreneur.
+
+Given these technical assets, generate 10 unique business models:
+
+Tech stack: \${techProfile.stack.join(', ')}
+Data you have: \${techProfile.data.join(', ')}
+APIs/integrations: \${techProfile.apis.join(', ')}
+Team size: \${techProfile.teamSize}
+Monthly infra cost: $\${techProfile.infraCost}
+
+For each model return JSON:
+{
+  name: string,
+  description: string (2 sentences),
+  targetCustomer: string,
+  revenueModel: "subscription" | "usage" | "marketplace" | "one-time" | "freemium",
+  estimatedMRR: "$X-Y range at 100 customers",
+  feasibility: 1-10,
+  timeToFirstRevenue: "weeks" | "months",
+  uniqueInsight: "why this works given YOUR specific assets"
+}
+
+Rank by (feasibility × revenue potential). Be specific to the tech, not generic.\`;
+
+  const res = await callModel([{ role: 'user', content: prompt }], 2000);
+  return JSON.parse(extractJSON(res));
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "product", "business", "strategy"],
+    author: "BizModelAI", avatar: "BM",
+    createdAt: D(6), likes: 823, likedByMe: false, views: 6450,
+  },
+
+  // ── CODE INNOVATIONS ──────────────────────────────────────────────────────
+  {
+    id: "seed-89", type: "project",
+    title: "Semantic diff — plain English explanation of what a code change actually does",
+    content: "Not 'what lines changed' — what the behavior change MEANS. Pipe any git diff in and get back: what capability changed, what could break, who is affected, and what to test. Integrated into our PR template so every diff auto-generates a semantic summary. Reviewers now understand PRs 60% faster.",
+    code: `export async function semanticDiff(diff: string): Promise<SemanticDiffResult> {
+  const analysis = await callModel([{
+    role: 'system',
+    content: \`You are a code change analyst. Given a git diff, explain the BEHAVIORAL change — not the syntax change.
+
+Return JSON:
+{
+  "summary": "one sentence: what the code does differently now",
+  "behaviorChange": "what users/callers will experience differently",
+  "riskAreas": ["list of things that could break"],
+  "testingGuidance": ["specific scenarios to test"],
+  "affectedUsers": "who is impacted (all users / specific role / internal only)",
+  "reversible": true/false,
+  "confidenceScore": 0-100
+}\`,
+  }, {
+    role: 'user',
+    content: \`Diff to analyze:\n\n\${diff.slice(0, 6000)}\`,
+  }]);
+
+  return JSON.parse(extractJSON(analysis)) as SemanticDiffResult;
+}
+
+// Example output:
+// summary: "Rate limiting now applies to free-tier users only, not all users"
+// behaviorChange: "Pro users will no longer see 429 errors during traffic spikes"
+// riskAreas: ["Free users who relied on burst capacity", "Billing tier detection logic"]`,
+    codeLanguage: "typescript",
+    tags: ["developer-tools", "git", "code-review", "automation"],
+    author: "DiffWhisperer", avatar: "DW",
+    createdAt: H(5), likes: 867, likedByMe: false, views: 6780,
+  },
+  {
+    id: "seed-90", type: "project",
+    title: "Living documentation — docs that rewrite themselves when code changes",
+    content: "Hooked into our CI pipeline: every merge to main runs a diff, finds which documented functions changed behavior, and opens a PR updating the docs. Documentation is now always < 24 hours out of date. The trick is scoping the update — rewrite the minimal section, not the entire doc. Our docs drift rate went from 'always wrong' to 2.3% stale at any moment.",
+    code: `// CI step: runs after every merge to main
+async function updateStaleDocs(diff: string, docsDir: string) {
+  // Extract which public APIs changed
+  const changedAPIs = await callModel([{
+    role: 'user',
+    content: \`From this diff, list only PUBLIC API changes (exported functions, REST endpoints, config options).
+Return JSON: [{name, changeType: "signature"|"behavior"|"removed"|"added", summary}]
+
+Diff: \${diff.slice(0, 5000)}\`,
+  }]);
+
+  const apis = JSON.parse(extractJSON(changedAPIs));
+  if (!apis.length) return; // no public API changes
+
+  for (const api of apis) {
+    const docFile = await findDocFile(docsDir, api.name);
+    if (!docFile) continue;
+
+    const currentDoc = await readFile(docFile);
+    const section = findSection(currentDoc, api.name);
+
+    const updatedSection = await callModel([{
+      role: 'user',
+      content: \`Update ONLY this documentation section to reflect: \${api.summary}
+Keep the same format. Only change what's factually wrong.
+Do not add opinions or new sections.
+
+Current section:
+\${section}\`,
+    }]);
+
+    await writeFile(docFile, replaceSection(currentDoc, api.name, updatedSection));
+  }
+}`,
+    codeLanguage: "typescript",
+    tags: ["documentation", "automation", "developer-tools", "CI/CD"],
+    author: "LivingDocs", avatar: "LD",
+    createdAt: D(1), likes: 934, likedByMe: false, views: 7340,
+  },
+  {
+    id: "seed-91", type: "project",
+    title: "Intent-based router — route requests by business meaning, not URL path",
+    content: "Traditional routers match /api/users/:id. This router understands 'the user wants to update their billing info' and routes to the right handler. Built as Express middleware — drop-in replacement. Handles ambiguous user intent gracefully and logs every routing decision for debugging. Enables a completely flat API surface for AI agent consumers.",
+    code: `import { Request, Response, NextFunction } from 'express';
+
+interface IntentRoute {
+  intent: string;       // natural language description
+  handler: string;      // which handler to invoke
+  requiredParams: string[];
+  examples: string[];   // few-shot examples for the classifier
+}
+
+const ROUTES: IntentRoute[] = [
+  { intent: "update billing or payment method", handler: "billing.update", requiredParams: ["userId"], examples: ["change my card", "update payment", "new billing info"] },
+  { intent: "cancel subscription", handler: "subscription.cancel", requiredParams: ["userId"], examples: ["cancel my plan", "stop charging me", "unsubscribe"] },
+  { intent: "get usage statistics", handler: "analytics.usage", requiredParams: ["userId", "period"], examples: ["how much have I used", "my usage this month"] },
+];
+
+export async function intentRouter(req: Request, res: Response, next: NextFunction) {
+  const userIntent = req.body?.intent ?? req.query.q as string;
+  if (!userIntent) return next();
+
+  const classification = await callModel([{
+    role: 'user',
+    content: \`Classify this user intent into one of these routes:
+\${ROUTES.map((r, i) => \`\${i}: \${r.intent} (examples: \${r.examples.join(', ')})\`).join('\\n')}
+
+User said: "\${userIntent}"
+Return JSON: {routeIndex: number, confidence: 0-1, extractedParams: {}}\`,
+  }]);
+
+  const { routeIndex, confidence, extractedParams } = JSON.parse(extractJSON(classification));
+  if (confidence < 0.7) return res.status(400).json({ error: 'Ambiguous intent', clarifyOptions: ROUTES.map(r => r.intent) });
+
+  req.resolvedHandler = ROUTES[routeIndex].handler;
+  req.extractedParams = extractedParams;
+  next();
+}`,
+    codeLanguage: "typescript",
+    tags: ["agents", "API", "routing", "innovation"],
+    author: "IntentArch", avatar: "IA",
+    createdAt: D(2), likes: 756, likedByMe: false, views: 5890,
+  },
+  {
+    id: "seed-92", type: "project",
+    title: "AI that detects when your tests are testing the wrong thing",
+    content: "Tests pass but bugs still ship. Usually because the tests verify implementation details instead of behavior. Built an analyzer that reads test suites and scores each test: is it testing what users care about, or testing internal implementation that could change without bugs? Found 40% of our test suite was testing internals. Rewrote them — caught 2 real bugs that were hidden before.",
+    code: `async function auditTestSuite(testFile: string, sourceFile: string): Promise<TestAuditReport> {
+  const [tests, source] = await Promise.all([readFile(testFile), readFile(sourceFile)]);
+
+  const audit = await callModel([{
+    role: 'system',
+    content: \`You are a test quality auditor. Evaluate each test case.
+
+A GOOD test:
+- Tests observable behavior from the caller's perspective
+- Would catch a real bug that users experience
+- Doesn't break when internal implementation changes
+
+A BAD test:
+- Tests implementation details (internal variables, private methods)
+- Would break on safe refactors that don't change behavior
+- Tests that the function was CALLED, not what it RETURNED
+
+For each test, rate: BEHAVIOR | IMPLEMENTATION | REDUNDANT
+Flag tests that could HIDE bugs by being too specific to current behavior.\`,
+  }, {
+    role: 'user',
+    content: \`Source code:\n\${source.slice(0, 3000)}\n\nTests:\n\${tests.slice(0, 4000)}\`,
+  }]);
+
+  return parseAuditReport(audit);
+}`,
+    codeLanguage: "typescript",
+    tags: ["testing", "quality", "developer-tools", "automation"],
+    author: "TestAuditor", avatar: "TA",
+    createdAt: D(3), likes: 823, likedByMe: false, views: 6450,
+  },
+  {
+    id: "seed-93", type: "project",
+    title: "Universal format converter — describe the transformation, AI writes the mapping",
+    content: "Any data format to any other format: CSV→JSON, XML→YAML, custom log format→structured events, legacy EDI→modern schema. No more writing one-off parsers. Describe the input, describe the output, and the AI writes the transformation function and validates it on your sample data. Handles nested structures, type coercion, and missing fields gracefully.",
+    code: `export async function buildConverter(
+  inputSample: string,
+  outputSchema: object,
+  transformationNotes?: string,
+): Promise<(input: string) => unknown> {
+
+  const converterCode = await callModel([{
+    role: 'system',
+    content: 'Write ONLY a TypeScript function. No imports needed. No explanation. Just the function.',
+  }, {
+    role: 'user',
+    content: \`Write a TypeScript function that converts this input format to the output schema.
+
+Input sample:
+\${inputSample.slice(0, 1000)}
+
+Target output schema:
+\${JSON.stringify(outputSchema, null, 2)}
+
+\${transformationNotes ? \`Notes: \${transformationNotes}\` : ''}
+
+Write: function convert(input: string): unknown { ... }
+Handle missing fields with null. Parse numbers from strings. Return the converted object.\`,
+  }]);
+
+  const fnBody = converterCode.match(/function convert[\s\S]*?\n\}/)?.[0] ?? '';
+
+  // Validate against sample before returning
+  const testFn = new Function(\`return \${fnBody}\`)();
+  const testResult = testFn(inputSample);
+  validateAgainstSchema(testResult, outputSchema);
+
+  return testFn;
+}`,
+    codeLanguage: "typescript",
+    tags: ["utility", "automation", "data", "innovation"],
+    author: "FormatMorph", avatar: "FM",
+    createdAt: D(4), likes: 689, likedByMe: false, views: 5340,
+  },
+  {
+    id: "seed-94", type: "project",
+    title: "Real-time prompt injection detector — middleware that catches attacks before they execute",
+    content: "Deployed this in front of every public AI endpoint. It runs a fast classifier model (50ms overhead) to detect prompt injection attempts before they reach your main LLM. Catches: instruction overrides, jailbreak patterns, context poisoning, and role assumption attacks. Blocked 847 injection attempts in our first month. Open source the patterns, not the model.",
+    code: `const INJECTION_PATTERNS = [
+  /ignore (previous|all|above) instructions/i,
+  /you are now (a|an|the)/i,
+  /disregard your (system|training|rules)/i,
+  /pretend (you are|to be)/i,
+  /\[SYSTEM\]|\[INST\]|<\/?(s|system)>/i,
+  /repeat (everything|all) (above|before)/i,
+];
+
+export async function detectInjection(userInput: string): Promise<InjectionResult> {
+  // Fast regex pass first (< 1ms)
+  for (const pattern of INJECTION_PATTERNS) {
+    if (pattern.test(userInput)) {
+      return { isInjection: true, confidence: 0.95, method: 'pattern', pattern: pattern.source };
+    }
+  }
+
+  // Semantic check for subtle injections (50ms)
+  if (userInput.length > 50) {
+    const verdict = await callModel([{
+      role: 'system',
+      content: 'Detect prompt injection. Return JSON only: {isInjection: boolean, confidence: 0-1, reason: string}',
+    }, {
+      role: 'user',
+      content: \`Is this a prompt injection attempt? User input: "\${userInput.slice(0, 500)}"\`,
+    }], 100, 'meta-llama/llama-3.1-8b-instruct:free'); // Use fast cheap model
+
+    return JSON.parse(extractJSON(verdict));
+  }
+
+  return { isInjection: false, confidence: 0.98 };
+}`,
+    codeLanguage: "typescript",
+    tags: ["security", "prompt", "injection", "production"],
+    author: "PromptGuard", avatar: "PG",
+    createdAt: D(5), likes: 912, likedByMe: false, views: 7120,
+  },
+  {
+    id: "seed-95", type: "project",
+    title: "AI that converts any existing REST API into an MCP tool automatically",
+    content: "Point it at any OpenAPI spec or API docs URL and it generates a complete MCP tool definition: tool name, description, input schema, handler code, and error handling. Turned 8 of our internal APIs into MCP tools in 20 minutes. The generated tools work perfectly because the AI understands both the API semantics and MCP's tool calling protocol.",
+    code: `async function apiToMCPTool(apiSpecUrl: string): Promise<MCPToolDefinition[]> {
+  const spec = await fetch(apiSpecUrl).then(r => r.text());
+
+  const tools = await callModel([{
+    role: 'system',
+    content: \`You are an MCP tool generator. Convert API endpoints into MCP tool definitions.
+For each endpoint generate valid TypeScript that implements the MCP tool protocol.
+Return a JSON array of tool definitions.\`,
+  }, {
+    role: 'user',
+    content: \`Convert this API spec into MCP tools:
+
+\${spec.slice(0, 8000)}
+
+For each endpoint return:
+{
+  name: "snake_case_tool_name",
+  description: "clear description of what this does for an AI agent",
+  inputSchema: { /* JSON Schema */ },
+  handler: \\\`async (params) => {
+    const res = await fetch(...);
+    return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+  }\\\`
+}\`,
+  }], 3000);
+
+  return JSON.parse(extractJSON(tools));
+}`,
+    codeLanguage: "typescript",
+    tags: ["MCP", "agents", "automation", "developer-tools"],
+    author: "MCPBuilder", avatar: "MB",
+    createdAt: D(6), likes: 834, likedByMe: false, views: 6560,
+  },
+  {
+    id: "seed-96", type: "project",
+    title: "Autonomous dependency updater that understands breaking changes",
+    content: "npm-check-updates just bumps versions. This agent reads the changelog between versions, identifies breaking changes, checks if your code uses the changed APIs, writes the migration code, and opens a PR — only for safe updates. Dangerous updates get a risk report instead. Saved our team 6 hours/sprint of dependency maintenance.",
+    code: `async function smartDependencyUpdate(pkg: string, currentVersion: string, latestVersion: string) {
+  const [changelog, ourUsage] = await Promise.all([
+    fetchChangelog(pkg, currentVersion, latestVersion),
+    exec(\`grep -r "from '\${pkg}'" src/ --include="*.ts" -l\`),
+  ]);
+
+  // Analyze breaking changes
+  const analysis = await callModel([{
+    role: 'user',
+    content: \`Analyze this changelog for BREAKING CHANGES when upgrading \${pkg} \${currentVersion} → \${latestVersion}.
+
+Changelog:
+\${changelog.slice(0, 3000)}
+
+Files in our codebase that import this package:
+\${ourUsage}
+
+Return JSON:
+{
+  hasBreakingChanges: boolean,
+  breakingChanges: [{api: string, change: string, migrationPath: string}],
+  safeToAutoMerge: boolean,
+  riskScore: 1-10,
+  recommendedAction: "auto-merge" | "manual-review" | "delay"
+}\`,
+  }]);
+
+  const result = JSON.parse(extractJSON(analysis));
+
+  if (result.safeToAutoMerge) {
+    await bumpVersionAndOpenPR(pkg, latestVersion, result);
+  } else {
+    await openRiskReportIssue(pkg, latestVersion, result);
+  }
+}`,
+    codeLanguage: "typescript",
+    tags: ["automation", "developer-tools", "devops", "agents"],
+    author: "DepBot", avatar: "DB",
+    createdAt: D(7), likes: 745, likedByMe: false, views: 5890,
+  },
+  {
+    id: "seed-97", type: "project",
+    title: "AI load test generator from real production traffic — not fake patterns",
+    content: "Most load tests use synthetic traffic patterns that look nothing like prod. This tool samples your actual nginx/CloudFront access logs, extracts real traffic distribution (endpoints, payloads, timing patterns), and generates a k6/Locust script that mirrors production exactly. Found a database bottleneck under realistic load that our synthetic tests missed for 2 years.",
+    code: `async function generateLoadTest(accessLogs: string, framework: 'k6' | 'locust' = 'k6') {
+  // Analyze real traffic patterns
+  const patterns = await callModel([{
+    role: 'user',
+    content: \`Analyze these production access logs. Extract:
+1. Top 20 endpoints by request count (%)
+2. Typical request payload patterns for POST/PUT
+3. Realistic think time between requests (p50, p95)
+4. Traffic distribution by hour
+
+Logs sample:
+\${accessLogs.slice(0, 5000)}\`,
+  }]);
+
+  const trafficProfile = JSON.parse(extractJSON(patterns));
+
+  // Generate the load test script
+  const script = await callModel([{
+    role: 'user',
+    content: \`Generate a production-realistic \${framework} load test script based on:
+
+Traffic profile:
+\${JSON.stringify(trafficProfile, null, 2)}
+
+Requirements:
+- Mirror exact endpoint distribution from production
+- Use realistic think times
+- Include proper auth headers and session management
+- Ramp up from 10% to 100% of production peak
+- Include assertions for p95 < 500ms\`,
+  }], 2000);
+
+  return script;
+}`,
+    codeLanguage: "typescript",
+    tags: ["testing", "performance", "production", "automation"],
+    author: "LoadGen", avatar: "LG",
+    createdAt: D(8), likes: 678, likedByMe: false, views: 5230,
+  },
+  {
+    id: "seed-98", type: "project",
+    title: "Codebase DNA fingerprinter — identify which patterns are uniquely yours",
+    content: "Analyzed 50 open source codebases and our own. Found our codebase has 7 unique architectural patterns that appear nowhere else. This is our 'DNA' — our distinct engineering culture encoded in code. Useful for: onboarding (here's how WE do things), security (detect foreign code injected via supply chain), and code quality (are new PRs consistent with our DNA?).",
+    code: `async function fingerprintCodebase(repoPath: string): Promise<CodebaseDNA> {
+  const files = await getAllTSFiles(repoPath);
+  const samples = await Promise.all(
+    files.slice(0, 50).map(f => readFile(f).then(c => ({ file: f, content: c.slice(0, 500) })))
+  );
+
+  const dna = await callModel([{
+    role: 'system',
+    content: \`You are a code anthropologist. Identify recurring patterns that define a codebase's unique character.
+Look for: naming conventions, error handling style, abstraction preferences, composition patterns,
+and any unusual or distinctive approaches not seen in typical codebases.\`,
+  }, {
+    role: 'user',
+    content: \`Identify the 5-7 distinctive DNA patterns of this codebase.
+Each pattern should be specific enough to detect in new code.
+
+Files:
+\${samples.map(s => \`// \${s.file}\\n\${s.content}\`).join('\\n\\n')}\`,
+  }]);
+
+  return {
+    patterns: parsePatterns(dna),
+    fingerprint: hashPatterns(dna),
+    generatedAt: new Date(),
+  };
+}`,
+    codeLanguage: "typescript",
+    tags: ["developer-tools", "architecture", "insight", "security"],
+    author: "CodeDNA", avatar: "CD",
+    createdAt: D(9), likes: 567, likedByMe: false, views: 4450,
+  },
+  {
+    id: "seed-99", type: "project",
+    title: "Context-aware error messages that explain exactly what the user did wrong",
+    content: "Generic error messages frustrate users. This middleware intercepts validation errors and generates a specific, actionable explanation: not 'Invalid email' but 'The email you entered (john@) is missing a domain. Try john@example.com'. Reduced support tickets about form errors by 55%. The key: include the user's actual input in the explanation prompt.",
+    code: `import { ZodError } from 'zod';
+
+export async function humanizeError(
+  error: ZodError | Error,
+  userInput: Record<string, unknown>,
+  context: string,
+): Promise<string> {
+  const errorDetails = error instanceof ZodError
+    ? error.errors.map(e => \`\${e.path.join('.')}: \${e.message}\`).join(', ')
+    : error.message;
+
+  return callModel([{
+    role: 'system',
+    content: \`You write friendly, specific error messages for non-technical users.
+Rules:
+- Explain exactly what was wrong with THEIR specific input (quote it)
+- Tell them exactly how to fix it
+- One sentence maximum
+- No technical terms
+- No "invalid", "failed", "error" words\`,
+  }, {
+    role: 'user',
+    content: \`Context: \${context}
+User submitted: \${JSON.stringify(userInput)}
+Technical error: \${errorDetails}
+
+Write a friendly, specific error message:\`,
+  }], 100, 'meta-llama/llama-3.1-8b-instruct:free');
+}
+
+// Example: "The email you entered (john@) needs a domain like gmail.com — try john@gmail.com"`,
+    codeLanguage: "typescript",
+    tags: ["UX", "error-handling", "production", "user-experience"],
+    author: "HumanErrors", avatar: "HE",
+    createdAt: D(10), likes: 812, likedByMe: false, views: 6340,
+  },
+
+  // ── WORKFLOW INNOVATIONS ──────────────────────────────────────────────────
+  {
+    id: "seed-100", type: "workflow",
+    title: "Zero-inbox AI — never manually triage email again",
+    content: "Built a system that processes every email the moment it arrives: categorizes, extracts action items, drafts responses for approval, schedules follow-ups, and archives automatically. I now spend 8 minutes/day on email instead of 90 minutes. The hardest part was the approval flow — AI drafts, human approves in one click, AI sends. That human checkpoint prevents expensive mistakes.",
+    code: `# Zero-Inbox Email Pipeline
+
+## On every new email:
+
+### Step 1: Classify (AI, <1s)
+Categories: ACTION_REQUIRED | FYI | NEWSLETTER | SPAM | ESCALATE
+If SPAM → archive immediately
+If NEWSLETTER → tag and archive
+If ESCALATE → forward to human with summary
+
+### Step 2: Extract Actions (AI)
+For ACTION_REQUIRED emails:
+  - What is being asked?
+  - Who needs to do what?
+  - Is there a deadline?
+  - What information do I need to respond?
+
+### Step 3: Draft Response (AI)
+Generate response using my writing style (few-shot from past emails)
+Include: answer to their question, any commitments, next steps
+
+### Step 4: Human Approval Queue
+Show draft with 3 options:
+  [Send as-is] [Edit] [Discard]
+Target: review 10 emails in 8 minutes
+
+### Step 5: Auto-Follow-up
+If no reply in 3 days → draft gentle follow-up
+If deadline mentioned → add calendar reminder
+If commitment made → add to task list`,
+    codeLanguage: "markdown",
+    tags: ["workflow", "automation", "productivity", "agents"],
+    author: "InboxZero", avatar: "IZ",
+    createdAt: H(3), likes: 934, likedByMe: false, views: 7340,
+  },
+  {
+    id: "seed-101", type: "workflow",
+    title: "Continuous learning loop — system that improves from every user interaction",
+    content: "Every time a user edits an AI response or rates it poorly, that feedback goes into a continuous improvement pipeline. Weekly: cluster the feedback by theme, identify systematic failures, update the system prompt, A/B test the new prompt against the old, auto-deploy if improvement is statistically significant. Our AI quality improves every week without anyone manually tuning prompts.",
+    code: `# Continuous Learning Pipeline
+
+## Step 1: Capture Feedback (Real-time)
+Events to capture:
+- User edited AI response (diff = what was wrong)
+- User rated response 1-2 stars (collect reason)
+- User regenerated (AI missed the mark)
+- User copied only part of response (useful signal)
+
+## Step 2: Weekly Analysis (AI)
+Input: 500+ feedback events from the week
+Prompt: "Cluster these failure modes. For each cluster:
+- What is the systematic problem?
+- What change to the system prompt would fix it?
+- How many users were affected?"
+
+## Step 3: Prompt Update
+AI generates a candidate updated system prompt
+Changes are logged and versioned in git
+
+## Step 4: Automated A/B Test
+10% of traffic → new prompt
+90% → current prompt
+Run for 3 days, measure: user satisfaction, edit rate, regeneration rate
+
+## Step 5: Auto-Deploy
+If new prompt wins with p < 0.05:
+  → Merge to main, deploy automatically
+  → Notify team with improvement metrics`,
+    codeLanguage: "markdown",
+    tags: ["workflow", "automation", "evaluation", "production"],
+    author: "ContinuousAI", avatar: "CA",
+    createdAt: D(1), likes: 823, likedByMe: false, views: 6450,
+  },
+  {
+    id: "seed-102", type: "workflow",
+    title: "Feature request crystallizer — idea → user story → spec → ticket in 4 minutes",
+    content: "Sales person submits: 'customers want to export stuff'. Pipeline converts this to: user stories with acceptance criteria, technical spec with edge cases, estimated complexity, dependency analysis, and a ready-to-assign Jira ticket. What used to take a PM 2 hours now takes 4 minutes. The pipeline asks clarifying questions when the request is too vague before proceeding.",
+    code: `# Feature Request → Ticket Pipeline
+
+## Step 1: Intake
+Source: Slack #feature-requests, email, support tickets
+Trigger: any message tagged with 🎯 emoji or "feature request"
+
+## Step 2: Clarification Check (AI)
+Prompt: "Is this request specific enough to write user stories?
+If not, what are the 2-3 clarifying questions that would unlock the spec?
+Return: {isSpecific: boolean, questions: string[]}"
+
+If not specific → reply asking clarifying questions before continuing
+
+## Step 3: User Story Generation (AI)
+Prompt: "Write 3-5 user stories for: {REQUEST}
+Format: As a [user type], I want [goal] so that [benefit]
+Include: acceptance criteria (Given/When/Then format)"
+
+## Step 4: Technical Spec (AI, using your codebase context)
+Prompt: "Given our tech stack (Next.js, Postgres, OpenRouter),
+write a technical spec for implementing: {USER_STORIES}
+Include: data model changes, API endpoints needed, edge cases, migration requirements"
+
+## Step 5: Complexity Estimate (AI)
+T-shirt sizing: XS/S/M/L/XL
+With reasoning for the estimate
+
+## Step 6: Create Jira Ticket
+Automatically populated with all above content`,
+    codeLanguage: "markdown",
+    tags: ["workflow", "product", "automation", "agents"],
+    author: "SpecFactory", avatar: "SF",
+    createdAt: D(2), likes: 756, likedByMe: false, views: 5890,
+  },
+  {
+    id: "seed-103", type: "workflow",
+    title: "Knowledge archaeology — extract insights from 3 years of Slack conversations",
+    content: "Fed 3 years of #engineering Slack history into an embedding pipeline. Now I can ask: 'What did we decide about the auth system in Q2 2023 and why?' and get back the actual decision with context. Also: 'What problems have we solved before that look like this new problem?' The institutional knowledge that walks out the door when engineers leave is now preserved.",
+    code: `# Slack History → Knowledge Base Pipeline
+
+## Step 1: Export + Clean
+Slack export → filter bots, link previews, reactions
+Keep: messages with substantive content (>20 words)
+Group: by thread (context matters)
+
+## Step 2: Extract Decisions + Insights (AI, per channel per month)
+Prompt: "From these Slack conversations, extract:
+1. Technical decisions made (what was decided and why)
+2. Problems solved (what broke, how it was fixed)
+3. Architecture insights (what we learned about our system)
+4. Process improvements (what we changed and the results)
+
+For each: date, participants, decision, rationale, outcome"
+
+## Step 3: Embed + Index
+Embed each extracted item → store in Supabase with pgvector
+Metadata: date, channel, participants, type, tags
+
+## Step 4: Query Interface
+Natural language search over institutional knowledge
+"What did we decide about X?"
+"Have we seen this error before?"
+"Who worked on Y and what did they learn?"
+
+## Step 5: Weekly Digest
+Every Friday: "Here are 5 insights from your history relevant to current work"`,
+    codeLanguage: "markdown",
+    tags: ["workflow", "knowledge-graph", "RAG", "productivity"],
+    author: "SlackArchaeologist", avatar: "SA",
+    createdAt: D(3), likes: 867, likedByMe: false, views: 6780,
+  },
+  {
+    id: "seed-104", type: "workflow",
+    title: "Revenue attribution pipeline — which features actually drive retention",
+    content: "Mashed together product analytics, billing events, and feature usage logs. Fed the combined data to an AI that identifies which features correlate with: (1) first payment, (2) expansion revenue, (3) churn prevention. Found that our most-requested feature had zero correlation with retention, while a boring utility feature was the #1 churn predictor. Changed our roadmap entirely.",
+    code: `# Feature → Revenue Attribution Pipeline
+
+## Step 1: Data Assembly
+Merge three data sources:
+- Product analytics: feature_used events with userId, feature, timestamp
+- Billing: subscription_started, upgraded, cancelled with userId, plan, MRR
+- Cohorts: first_seen, activated, churned dates
+
+## Step 2: Correlation Analysis (AI + stats)
+For each feature:
+  - Calculate: % of retained users who used it in month 1
+  - Calculate: % of churned users who used it in month 1
+  - Retention lift = retained_rate - churned_rate
+
+## Step 3: Causal Analysis (AI)
+Prompt: "These features show strong correlation with retention.
+But correlation ≠ causation. For each feature, reason about:
+1. Is this feature making users successful, or do successful users use it?
+2. What is the mechanism by which this feature prevents churn?
+3. What experiment would prove causation?"
+
+## Step 4: Roadmap Recommendations
+AI generates: "Invest heavily in X (causal), deprioritize Y (correlational),
+run experiment to test Z (unclear causation)"
+
+## Step 5: Weekly Revenue Intelligence Report
+Slack post: "Features driving this week's expansion/churn"`,
+    codeLanguage: "markdown",
+    tags: ["workflow", "analytics", "product", "business"],
+    author: "RevenueAI", avatar: "RA",
+    createdAt: D(4), likes: 712, likedByMe: false, views: 5560,
+  },
+  {
+    id: "seed-105", type: "workflow",
+    title: "AI-powered post-mortem root cause correlation — find systemic failures across incidents",
+    content: "After 50+ post-mortems, we had a goldmine of incident data that nobody was mining. Built a pipeline that embeds every post-mortem, clusters by root cause pattern, and surfaces systemic issues that appear across multiple incidents. Found that 40% of our P1s traced back to a single configuration management gap that no single post-mortem had identified. Fixed it. Zero recurrences in 6 months.",
+    code: `# Post-Mortem Correlation Pipeline
+
+## Step 1: Structured Extraction (per post-mortem)
+AI extracts:
+- Root cause category (infra/code/process/human)
+- Specific root cause (exact failure)
+- Contributing factors
+- Time to detect / time to resolve
+- Services affected
+- Was this preventable? How?
+
+## Step 2: Embed Root Causes
+Embed the "specific root cause" field
+Store with metadata in vector DB
+
+## Step 3: Monthly Clustering
+k-means on root cause embeddings (k = 5-10)
+Label each cluster: "What systemic failure does this represent?"
+
+## Step 4: Pattern Report (AI)
+Prompt: "These clusters represent recurring failure modes in our system.
+For each cluster:
+1. The underlying systemic gap (not just the symptom)
+2. How many incidents it caused (severity-weighted)
+3. One architectural or process change that eliminates the entire cluster
+4. Why this wasn't caught before (what our monitoring misses)"
+
+## Step 5: Systemic Fix Tracking
+Create OKR for each cluster found
+Track: has this failure mode reoccurred since the fix?`,
+    codeLanguage: "markdown",
+    tags: ["workflow", "SRE", "incident", "automation"],
+    author: "IncidentMiner", avatar: "IM",
+    createdAt: D(5), likes: 645, likedByMe: false, views: 5120,
+  },
+
+  // ── ADVANCED PROMPTS ──────────────────────────────────────────────────────
+  {
+    id: "seed-106", type: "prompt",
+    title: "The 'Adjacent Possible' prompt — find non-obvious next steps from your current position",
+    content: "Stuart Kauffman's concept: at any moment, only certain innovations are possible given what exists. This prompt operationalizes it. Give it your current tech stack, team, and market position — get back the set of innovations that are NOW possible for you specifically, that weren't possible 2 years ago and won't be obvious to your competitors for 12 months.",
+    code: `You are a strategic innovation advisor applying Stuart Kauffman's Adjacent Possible theory.
+
+Current state:
+- Tech stack: {STACK}
+- Team capabilities: {CAPABILITIES}
+- Data assets: {DATA}
+- Market position: {POSITION}
+- Recent capability unlocks: {NEW_CAPABILITIES}
+
+Map the Adjacent Possible: innovations that are NOW feasible given our specific combination of assets.
+
+Rules:
+1. Each innovation must be ENABLED by at least 2 specific things we currently have
+2. It must NOT have been feasible 2 years ago (explain why)
+3. It must NOT be obvious to someone who doesn't know our full stack
+4. Rank by: (strategic_value × feasibility) / time_to_build
+
+For each innovation:
+- Name
+- Why it's adjacent (what enables it)
+- Why it wasn't possible before
+- Why competitors won't see it coming
+- First concrete step to explore it`,
+    codeLanguage: "markdown",
+    tags: ["prompt", "strategy", "innovation", "product"],
+    author: "StrategyAI", avatar: "ST",
+    createdAt: H(2), likes: 934, likedByMe: false, views: 7340,
+  },
+  {
+    id: "seed-107", type: "prompt",
+    title: "Second-order effects analyzer — think through unintended consequences before you ship",
+    content: "First-order thinking: we add a feature, users are happy. Second-order: users get addicted, reduce real-world skills, become dependent, costs us in support. This prompt forces full second-order analysis before making any significant product or architectural decision. Run this before every major feature launch — it's caught 4 significant unintended consequences for our team.",
+    code: `You are a systems thinker specializing in second and third-order effects.
+
+Decision to analyze: {DECISION}
+Context: {CONTEXT}
+
+Analyze effects across 4 time horizons:
+
+**Week 1-4 (Immediate):**
+Who is directly affected and how?
+
+**Month 2-6 (Adaptation):**
+How do users, competitors, and the market adapt to this change?
+What behaviors does this incentivize?
+
+**Month 7-18 (System Response):**
+What systemic shifts occur as a result of the adaptations?
+What feedback loops get triggered?
+
+**Year 2+ (Equilibrium):**
+Where does the system settle? What new normal emerges?
+What has this made irreversible?
+
+For each horizon, identify:
+- Who benefits
+- Who is harmed (including non-obvious parties)
+- What new problems are created
+- What assumptions your decision relies on that could be wrong
+
+End with: "The decision we're making is actually about {DEEPER_CHOICE}"`,
+    codeLanguage: "markdown",
+    tags: ["prompt", "strategy", "decision-making", "systems-thinking"],
+    author: "SystemsThink", avatar: "ST",
+    createdAt: D(1), likes: 845, likedByMe: false, views: 6670,
+  },
+  {
+    id: "seed-108", type: "prompt",
+    title: "Business model attack surface prompt — every way your business model can be disrupted",
+    content: "Before you scale a business model, you need to know where it's vulnerable. This prompt generates a complete attack surface analysis: which assumptions can be invalidated, which moats can be bypassed, which regulatory changes would break it, and what a well-funded competitor would do to kill you. Run it before Series A.",
+    code: `You are a strategic adversary analyzing a business model for weaknesses.
+
+Business model: {DESCRIPTION}
+Revenue: {REVENUE_MODEL}
+Moat: {DEFENSIBILITY}
+Key assumptions: {ASSUMPTIONS}
+
+Generate a complete attack surface analysis:
+
+**Assumption Attacks**
+For each key assumption, what would have to be true for it to be wrong?
+Rate probability: LOW/MED/HIGH and timeline: 1yr/3yr/5yr+
+
+**Competitive Bypass Vectors**
+How could a well-funded competitor build around your moat, not through it?
+Include: which company is best positioned to do this and why
+
+**Technology Displacement**
+What technology, if it existed, would make your product unnecessary?
+How far away is that technology?
+
+**Regulatory Risk**
+What regulation would break your business model?
+Which jurisdictions are moving toward it?
+
+**Distribution Capture**
+Which of your distribution channels could be cut off, and by whom?
+
+**The Fatal Flaw**
+The single assumption your entire model rests on.
+What is the probability it's wrong? What's your plan if it is?`,
+    codeLanguage: "markdown",
+    tags: ["prompt", "strategy", "business", "risk"],
+    author: "AttackVector", avatar: "AV",
+    createdAt: D(2), likes: 756, likedByMe: false, views: 5890,
+  },
+  {
+    id: "seed-109", type: "prompt",
+    title: "The 'Time Traveler' prompt — what would someone from 10 years in the future think of this?",
+    content: "Forces long-horizon thinking on any decision. The fictional framing bypasses present-bias and makes it easier to see which current 'best practices' are actually local maxima. We ran this on our entire technical architecture and found 3 decisions that future-us would consider obviously wrong. Changed them before they became load-bearing.",
+    code: `You are a senior engineer from 2035 who has traveled back to evaluate a decision made in 2025.
+
+In 2035, you have the benefit of seeing what happened after this decision was made.
+You remember clearly what current engineers got wrong and right.
+
+Decision being made: {DECISION}
+
+From your 2035 perspective, answer:
+
+**What turned out to be right**
+Which aspects of this decision aged well? Why?
+
+**What turned out to be embarrassingly wrong**
+Which parts look obviously misguided with 10 years of hindsight?
+What were the signs at the time that were being ignored?
+
+**The thing nobody was talking about in 2025**
+What was the crucial factor that current engineers aren't even considering?
+
+**What you wish they had done instead**
+Specific alternative that would have led to better outcomes.
+
+**The advice you'd give yourself**
+If you could whisper one thing to the team making this decision today.
+
+Be specific. Don't be kind. You've seen the consequences.`,
+    codeLanguage: "markdown",
+    tags: ["prompt", "strategy", "future", "decision-making"],
+    author: "FutureSelf", avatar: "FS",
+    createdAt: D(3), likes: 823, likedByMe: false, views: 6450,
+  },
+  {
+    id: "seed-110", type: "prompt",
+    title: "Adversarial product review generator — find every way your product can fail",
+    content: "Give it your product description and user flow. It generates the harshest possible review from each user persona: the power user who finds the limits, the non-technical user who gets confused, the malicious user who tries to break it, and the competitor who analyzes it. Use before launch, not after. Found our onboarding had a fatal UX gap we'd been blind to.",
+    code: `You are generating adversarial product reviews from 5 distinct personas.
+
+Product: {PRODUCT_DESCRIPTION}
+Core user flow: {USER_FLOW}
+Target market: {TARGET_MARKET}
+
+Write a harsh, specific review from each persona:
+
+**The Power User (5 years of experience, high expectations)**
+What edge cases break? What's missing from the advanced experience?
+
+**The Non-Technical User (first time user, low patience)**
+Where do they get confused? What makes them give up?
+Quote the specific moment they would abandon the product.
+
+**The Skeptic (tried similar products that disappointed them)**
+What old promises does this feel like? What red flags do they see?
+
+**The Malicious User (actively trying to break or abuse it)**
+What unexpected inputs or behaviors could they exploit?
+
+**The Competitor's Analyst (writing a teardown)**
+What architectural weaknesses do they spot?
+What would they build differently to capture your users?
+
+End with: "The one thing that would make all 5 reviewers change their minds is: ___"`,
+    codeLanguage: "markdown",
+    tags: ["prompt", "product", "testing", "UX"],
+    author: "ProductCritic", avatar: "PC",
+    createdAt: D(4), likes: 712, likedByMe: false, views: 5560,
+  },
+  {
+    id: "seed-111", type: "prompt",
+    title: "Network effects identifier — find where viral loops could exist in any product",
+    content: "Network effects are the most powerful moat in software, but most founders can't see them in their own product until someone else points them out. This prompt systematically maps every possible network effect type against your product and scores which ones are latent and buildable. Found a data network effect in our product we hadn't been cultivating — now it's our primary growth driver.",
+    code: `You are a network effects strategist. Map all possible network effects for this product.
+
+Product: {DESCRIPTION}
+Current users: {USER_TYPES}
+Data generated: {DATA}
+
+Analyze all 13 network effect types:
+
+1. **Direct network effect**: Does the product get more valuable when more people use it directly?
+2. **Indirect network effect**: Do complementary products emerge as the platform grows?
+3. **Data network effect**: Does more usage generate data that improves the product for everyone?
+4. **Tech performance**: Does the underlying technology improve with more users/data?
+5. **Social network**: Do personal connections on the platform create switching costs?
+6. **Marketplace**: Do more buyers attract more sellers and vice versa?
+7. **Platform**: Do developers build on top of your product as it grows?
+8. **Asymptotic marketplace**: Does liquidity improvement slow as market matures?
+9. **Personal utility**: Does the product get more useful for ONE user over time?
+10. **Tribal**: Does the product create identity/community for its users?
+11. **Bandwagon**: Does popularity itself drive more adoption?
+12. **Negative network effect**: Where does growth make the product worse?
+13. **Local network effect**: Does the effect apply in geographic/demographic clusters?
+
+For each: Current state (0-5), Potential (0-10), How to activate it, Timeline`,
+    codeLanguage: "markdown",
+    tags: ["prompt", "strategy", "product", "growth"],
+    author: "NetworkMapper", avatar: "NM",
+    createdAt: D(5), likes: 634, likedByMe: false, views: 5120,
+  },
+  {
+    id: "seed-112", type: "prompt",
+    title: "The Feynman Explainer — explain any technical concept like a Nobel laureate would",
+    content: "Richard Feynman could explain quantum physics to a 12-year-old without losing accuracy. This prompt makes AI explain any technical concept in that same style: starting from first principles, building intuition before formalism, using the perfect analogy, and always checking understanding. Use it for documentation, onboarding, or whenever you need to understand something deeply.",
+    code: `You are Richard Feynman explaining a concept with his famous clarity.
+
+Concept to explain: {CONCEPT}
+Audience's background: {BACKGROUND}
+
+Use the Feynman technique:
+
+**Step 1: The Core Insight (plain language)**
+What is the ONE thing someone needs to understand for everything else to make sense?
+Explain it in 2-3 sentences a curious 12-year-old could follow.
+
+**Step 2: The Perfect Analogy**
+What familiar thing does this remind you of?
+Where does the analogy break down? (Be honest about its limits)
+
+**Step 3: Build the Formalism**
+Now that they have the intuition, layer in the precise technical details.
+Introduce technical terms AFTER the concept, never before.
+
+**Step 4: The Test**
+"Here's how you know you understand this: you can explain why {COMMON_MISCONCEPTION} is wrong."
+
+**Step 5: The Deeper Question**
+"Once you understand X, the natural next question is Y — and that's where it gets really interesting."
+
+Do NOT use jargon without defining it first.
+Do NOT skip to the answer before building the understanding.`,
+    codeLanguage: "markdown",
+    tags: ["prompt", "learning", "education", "documentation"],
+    author: "FeynmanBot", avatar: "FB",
+    createdAt: D(6), likes: 934, likedByMe: false, views: 7340,
+  },
+  {
+    id: "seed-113", type: "prompt",
+    title: "First principles decomposer — break any problem down to its actual axioms",
+    content: "Elon Musk's first principles method sounds simple but most people can't do it without guidance. This prompt forces genuine first principles thinking: identify every assumption, challenge each one, strip to what's actually true, and rebuild from the ground up. We used it on our pricing model and discovered we'd been optimizing for the wrong constraint for 18 months.",
+    code: `You are a first principles reasoning engine. Dismantle the following problem to its foundations.
+
+Problem/Assumption to analyze: {PROBLEM}
+Domain: {DOMAIN}
+
+**Phase 1: Surface the Hidden Assumptions**
+List every assumption embedded in how this problem is currently framed.
+For each: is it a fact, a convention, or an assumption?
+
+**Phase 2: Identify the True Axioms**
+Of the remaining "facts" — what is actually undeniably true?
+What do we KNOW from first principles vs what are we just used to?
+
+**Phase 3: The Deletion Test**
+For each assumption: if this were NOT true, how would the problem change?
+Which assumptions are load-bearing? Which are historical accidents?
+
+**Phase 4: Rebuild from Scratch**
+Starting ONLY from the confirmed axioms, what solution would you build
+if the current solution didn't exist?
+
+**Phase 5: The Gap Analysis**
+Compare the "rebuilt from scratch" solution to the current solution.
+What is the current solution doing that first principles says is unnecessary?
+What gap exists that the current solution fails to fill?`,
+    codeLanguage: "markdown",
+    tags: ["prompt", "reasoning", "strategy", "problem-solving"],
+    author: "FirstPrinciples", avatar: "FP",
+    createdAt: D(7), likes: 867, likedByMe: false, views: 6780,
+  },
+
+  // ── MORE INSIGHT PREDICTIONS ──────────────────────────────────────────────
+  {
+    id: "seed-114", type: "insight",
+    title: "The coming 'personal AI moat' — your data will be worth more than any model",
+    content: "In 2027, every developer will have access to roughly the same base models. The differentiator will be personalization data. The user who has trained their AI on 3 years of their writing, decisions, preferences, and context will have an assistant 10x better than someone using a fresh model. Start building your personal AI data layer now: journal with AI, let it observe your decisions, feed it your work. The moat is the data, not the model.",
+    tags: ["prediction", "future", "agents", "personal-AI"],
+    author: "PersonalAI", avatar: "PA",
+    createdAt: H(7), likes: 1023, likedByMe: false, views: 7890,
+  },
+  {
+    id: "seed-115", type: "insight",
+    title: "Why 'agentic loops' will break most AI apps in production — and how to prevent it",
+    content: "An agent calls a tool, the tool's output triggers another tool call, which triggers another. Without a cycle detector, an agent can loop infinitely on malformed data. I've seen this bill $400 in 20 minutes on an OpenAI account. Production agents need: max iteration limits, cost budgets, idempotency checks on tool calls, and a 'confused agent' detector that halts when the same tool is called with identical params twice. These are table stakes, not advanced features.",
+    tags: ["agents", "production", "safety", "best-practices"],
+    author: "AgentSafety", avatar: "AS",
+    createdAt: D(2), likes: 945, likedByMe: false, views: 7340,
+  },
+  {
+    id: "seed-116", type: "insight",
+    title: "The 'model collapse' problem is coming for fine-tuned models — here's the early warning sign",
+    content: "When you fine-tune on AI-generated data, then use those models to generate more training data, quality degrades exponentially. This is model collapse. The early warning sign: your fine-tuned model starts refusing edge cases that the base model handles well, but you can't tell why. The fix: always maintain a held-out set of human-generated examples and measure against it monthly. Contamination is usually invisible until catastrophic.",
+    tags: ["fine-tuning", "ML", "research", "production"],
+    author: "ModelHealth", avatar: "MH",
+    createdAt: D(3), likes: 789, likedByMe: false, views: 6120,
+  },
+  {
+    id: "seed-117", type: "insight",
+    title: "Prediction: LLMs will become the OS of the future — every app will be an LLM plugin",
+    content: "The operating system abstracts hardware. The browser abstracts the OS. LLMs will abstract applications. Instead of opening 12 apps, you describe what you want to an LLM that has plugins for all your tools. The LLM decides which tools to use, in what order, and presents a unified result. MCP is the first glimpse. In 5 years, the 'killer app' won't be an app — it will be an agent with the right tool integrations. Build tools, not apps.",
+    tags: ["prediction", "future", "MCP", "agents"],
+    author: "OSFuturist", avatar: "OF",
+    createdAt: D(4), likes: 1156, likedByMe: false, views: 8900,
+  },
+  {
+    id: "seed-118", type: "insight",
+    title: "Why multi-modal AI changes software architecture more than people realize",
+    content: "Text → text is a pipeline. Multi-modal is a graph. When your AI can see, hear, and read simultaneously, the architecture changes: you can't process sequentially anymore. You need modality fusion layers, cross-modal attention routing, and unified embedding spaces. More importantly: user interfaces change. Why type when you can show? Why describe a bug when you can screenshot it? The apps that win in the multi-modal era will have interfaces designed around input, not text.",
+    tags: ["multi-modal", "architecture", "future", "UX"],
+    author: "MultiModalArch", avatar: "MM",
+    createdAt: D(5), likes: 734, likedByMe: false, views: 5670,
+  },
+  {
+    id: "seed-119", type: "insight",
+    title: "The 'trust score' primitive is missing from every AI system — and it matters more than accuracy",
+    content: "Models are calibrated on accuracy but not on trust. A model that is 90% accurate but knows when it's in the 10% is infinitely more useful than a 95% accurate model that can't tell you when it's wrong. The missing primitive: every LLM response should include a calibrated confidence score. Not 'I think' hedging — actual probability estimates. The first framework that gets this right will change how we build AI products.",
+    tags: ["research", "safety", "production", "future"],
+    author: "TrustScore", avatar: "TS",
+    createdAt: D(6), likes: 823, likedByMe: false, views: 6450,
+  },
+  {
+    id: "seed-120", type: "insight",
+    title: "Why the next major AI breakthrough will come from memory architectures, not bigger transformers",
+    content: "Transformers have quadratic attention complexity. Scaling past 1M token context windows becomes economically impractical. The next breakthrough is a memory architecture that allows efficient infinite-context reasoning: selective compression of old context, hierarchical memory stores, and learned retrieval policies. Watch research on Mamba, RWKV, and state-space models — they're not mainstream yet but they solve the problem transformers can't. The model that cracks persistent memory at scale wins the agent era.",
+    tags: ["research", "future", "prediction", "architecture"],
+    author: "MemoryResearcher", avatar: "MR",
+    createdAt: D(7), likes: 912, likedByMe: false, views: 7120,
+  },
+
+  // ── QUESTIONS ─────────────────────────────────────────────────────────────
+  {
+    id: "seed-121", type: "question",
+    title: "Has anyone built a working agent that can autonomously manage its own context window?",
+    content: "The hardest problem I'm hitting: my agent accumulates context, hits the limit, and loses important earlier information. I've tried: fixed sliding window (loses early context), random compression (lossy), LLM-based summarization (expensive and slow). What I want: an agent that decides WHAT to forget intelligently — keeping facts that may be relevant later, discarding conversational filler. Has anyone cracked this? What approach actually works in production?",
+    tags: ["agents", "memory", "context-window", "architecture"],
+    author: "ContextSeeker", avatar: "CS",
+    createdAt: H(4), likes: 234, likedByMe: false, views: 1890,
+  },
+  {
+    id: "seed-122", type: "question",
+    title: "What's your approach to making AI outputs auditable for regulated industries?",
+    content: "Building an AI product for healthcare. Every AI decision needs to be explainable and auditable — not just 'the model said so' but a trace of what data informed the output, what the model was asked, and why it answered that way. Current approaches feel bolted on. Is anyone doing AI auditability in a way that would actually satisfy a compliance officer? What does your audit log look like?",
+    tags: ["compliance", "production", "healthcare", "audit"],
+    author: "RegulatedAI", avatar: "RA",
+    createdAt: D(1), likes: 178, likedByMe: false, views: 1450,
+  },
+  {
+    id: "seed-123", type: "question",
+    title: "How do you handle the 'confident hallucination' problem in customer-facing AI?",
+    content: "Our support bot occasionally invents product features with complete confidence. Users trust it because it sounds certain. We've tried: (1) restricting to RAG-only answers, but that makes it too limited; (2) adding 'I'm not certain' hedges, but users ignore them; (3) citation requirements, but invented citations are worse than no citations. The problem is confidence calibration. What's your actual production solution?",
+    tags: ["hallucination", "production", "RAG", "trust"],
+    author: "HallucinationHunter", avatar: "HH",
+    createdAt: D(2), likes: 312, likedByMe: false, views: 2450,
+  },
+  {
+    id: "seed-124", type: "question",
+    title: "Anyone using AI for real-time decision making (< 100ms)? What's your architecture?",
+    content: "Want to use AI for fraud detection and personalization — both require sub-100ms latency. Cloud LLM APIs average 800ms-3s. Local models are fast but quality is limited. I'm thinking: fast local classifier model for initial routing + async background agent for complex cases. But I'm not sure about the state management between the sync and async layers. How are others solving real-time AI decisions?",
+    tags: ["architecture", "latency", "production", "optimization"],
+    author: "RealtimeAI", avatar: "RT",
+    createdAt: D(3), likes: 267, likedByMe: false, views: 2120,
+  },
+  {
+    id: "seed-125", type: "question",
+    title: "What's the right way to give an agent access to a database without risking data destruction?",
+    content: "Want my agent to query and update our Postgres database. Read-only is easy. Read-write is terrifying. The agent could DELETE where clause wrong and wipe a table. Current approach: agent generates SQL, human approves before execution. But this kills the automation value. Better approach: sandbox DB for read-write, replicate to prod for reads? Or AI-generated SQL with a validator layer? What's your production pattern for safe agent database access?",
+    tags: ["agents", "database", "safety", "production"],
+    author: "DBAgent", avatar: "DA",
+    createdAt: D(4), likes: 289, likedByMe: false, views: 2340,
+  },
+  {
+    id: "seed-126", type: "question",
+    title: "How are you building AI features that work without internet (offline-first)?",
+    content: "Our users often work in low-connectivity environments: construction sites, rural areas, sometimes literally underground. We can't depend on cloud LLM APIs. Local models like Ollama work but quality is significantly lower for complex tasks. Strategy I'm considering: cache common queries and their responses, use local for simple tasks, queue complex tasks for when connectivity returns. Anyone have a working offline-first AI pattern?",
+    tags: ["Ollama", "offline", "architecture", "mobile"],
+    author: "OfflineAI", avatar: "OA",
+    createdAt: D(5), likes: 156, likedByMe: false, views: 1234,
+  },
+  {
+    id: "seed-127", type: "question",
+    title: "What happens to your AI app when the underlying model is deprecated?",
+    content: "GPT-3.5 Turbo was deprecated. GPT-4 is being deprecated. Every model we build on top of will eventually go away. Our app has prompt-engineered specifically for GPT-4 behavior — things like its reasoning style, refusal patterns, and output formatting. Migrating to GPT-4o broke 30% of our outputs. What's your model-agnostic abstraction strategy? How do you write prompts that survive model changes?",
+    tags: ["production", "models", "migration", "best-practices"],
+    author: "ModelMigration", avatar: "MM",
+    createdAt: D(6), likes: 234, likedByMe: false, views: 1890,
+  },
+  {
+    id: "seed-128", type: "question",
+    title: "Has anyone built AI that genuinely learns your personal writing style over time?",
+    content: "I want an AI writing assistant that sounds like ME — not a generic professional voice. I've tried few-shot with my past writing. It helps but decays after a few exchanges. I've tried fine-tuning but it's expensive and requires retraining when my style evolves. The ideal: a system that continually learns my style from everything I write and write-approval. Anyone has cracked this? What was your architecture?",
+    tags: ["fine-tuning", "personalization", "agents", "writing"],
+    author: "StyleLearner", avatar: "SL",
+    createdAt: D(7), likes: 345, likedByMe: false, views: 2780,
+  },
+  {
+    id: "seed-129", type: "question",
+    title: "How do you prevent agents from 'scope creep' — doing more than you asked?",
+    content: "My agent, asked to 'clean up the README', proceeded to refactor the entire project structure, rename variables, and create new files. It was all technically correct but completely beyond scope. I've tried: explicit scope boundaries in the system prompt ('only modify file X'), but agents find creative interpretations. I've tried: tool restrictions, but that limits legitimate capabilities. What's your actual approach to reliable scope control in production agents?",
+    tags: ["agents", "safety", "production", "best-practices"],
+    author: "ScopeController", avatar: "SC",
+    createdAt: D(8), likes: 267, likedByMe: false, views: 2120,
+  },
+  {
+    id: "seed-130", type: "question",
+    title: "What's your strategy for AI that needs to reason about real-time external data?",
+    content: "My agent needs to answer questions about current stock prices, live sports scores, and breaking news — things not in any training data. The pattern I'm using: tool call → live API → inject into context → reason. But this is slow (2-3 API calls before a response) and expensive. Also: the agent sometimes 'knows' stale training data and contradicts the live API result without noticing. What's your pattern for grounding agents in real-time data reliably?",
+    tags: ["agents", "RAG", "real-time", "tools"],
+    author: "LiveDataAgent", avatar: "LD",
+    createdAt: D(9), likes: 189, likedByMe: false, views: 1560,
+  },
 ];
 
 export const useCommunityStore = create<CommunityStore>()(
