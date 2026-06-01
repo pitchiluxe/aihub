@@ -122,18 +122,26 @@ export default function GraphPage() {
   const entranceStartRef  = useRef(0);
   const entranceMapRef    = useRef<Map<string, { delay: number; duration: number }>>(new Map());
   const nodeAnimRef       = useRef<Map<string, { t0: number; duration: number }>>(new Map());
+  // Timelapse refs (ported from QB Brain)
+  const timelapseModeRef  = useRef(false);
+  const visibleSetRef     = useRef<Set<string>>(new Set());
+  const timelapseIdxRef   = useRef(0);
+  const timelapseTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── State ─────────────────────────────────────────────────
-  const [activeTab,      setActiveTab]      = useState<"graph" | "articles">("graph");
-  const [activeTypes,    setActiveTypes]    = useState<Set<string>>(new Set(Object.keys(NODE_COLORS)));
-  const [selectedNode,   setSelectedNode]   = useState<GraphNode | null>(null);
-  const [hoveredNode,    setHoveredNode]    = useState<GraphNode | null>(null);
-  const [zoom,           setZoom]           = useState(1);
-  const [search,         setSearch]         = useState("");
-  const [foldersOpen,    setFoldersOpen]    = useState(true);
-  const [fullscreen,     setFullscreen]     = useState(false);
-  const [showMiniMap,    setShowMiniMap]    = useState(true);
-  const [graphArticles,  setGraphArticles]  = useState<{id:string;title:string;summary:string;source:string}[]>([]);
+  const [activeTab,        setActiveTab]        = useState<"graph" | "articles">("graph");
+  const [activeTypes,      setActiveTypes]      = useState<Set<string>>(new Set(Object.keys(NODE_COLORS)));
+  const [selectedNode,     setSelectedNode]     = useState<GraphNode | null>(null);
+  const [hoveredNode,      setHoveredNode]      = useState<GraphNode | null>(null);
+  const [hoveredPos,       setHoveredPos]       = useState({ x: 0, y: 0 });
+  const [zoom,             setZoom]             = useState(1);
+  const [search,           setSearch]           = useState("");
+  const [foldersOpen,      setFoldersOpen]      = useState(true);
+  const [fullscreen,       setFullscreen]       = useState(false);
+  const [showMiniMap,      setShowMiniMap]      = useState(true);
+  const [timelapsePlaying, setTimelapsePlaying] = useState(false);
+  const [timelapseProgress,setTimelapseProgress]= useState(0);
+  const [graphArticles,    setGraphArticles]    = useState<{id:string;title:string;summary:string;source:string}[]>([]);
 
   const [articles,       setArticles]       = useState<NewsArticle[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
@@ -270,6 +278,9 @@ export default function GraphPage() {
 
     // Nodes
     for (const node of nodes) {
+      // Timelapse: only draw revealed nodes
+      if (timelapseModeRef.current && !visibleSetRef.current.has(node.id)) continue;
+
       const nx=node.x??0, ny=node.y??0, r=nodeRadius(node.size??20);
       const col=node.color??NODE_COLORS[node.type]??"#6366f1";
       const isSel=node.id===selId, isConn=connectedIds?connectedIds.has(node.id):true;
@@ -290,19 +301,11 @@ export default function GraphPage() {
       const realR=isSel?drawR*1.35:drawR;
 
       if (isSel) { ctx.shadowColor=col; ctx.shadowBlur=18; }
-      // Solid fill
+      // Solid fill — no inner ring
       ctx.beginPath(); ctx.arc(nx,ny,realR,0,Math.PI*2);
       ctx.fillStyle=hexToRgba(col,fillA); ctx.fill();
-      // Inner concentric ring — QB Brain texture
-      if (realR*k > 5) {
-        ctx.beginPath(); ctx.arc(nx,ny,realR*0.58,0,Math.PI*2);
-        ctx.strokeStyle=`rgba(0,0,0,0.18)`;
-        ctx.lineWidth=Math.max(0.8,1.4/k); ctx.stroke();
-      }
-      // Outer border
-      ctx.beginPath(); ctx.arc(nx,ny,realR,0,Math.PI*2);
-      ctx.strokeStyle=hexToRgba(col,isSel?1:isConn?0.55:0.08);
-      ctx.lineWidth=(isSel?2.5:1)/k; ctx.stroke();
+      ctx.strokeStyle=hexToRgba(col,isSel?1:isConn?0.50:0.07);
+      ctx.lineWidth=(isSel?2.5:1.5)/k; ctx.stroke();
       if (isSel) ctx.shadowBlur=0;
 
       if (isSel) {
@@ -321,6 +324,7 @@ export default function GraphPage() {
       const fSize = Math.max(7, Math.min(13, 10/k));
       ctx.font=`500 ${fSize}px Inter,system-ui,sans-serif`; ctx.textAlign="center";
       for (const node of nodes) {
+        if (timelapseModeRef.current && !visibleSetRef.current.has(node.id)) continue;
         const r=nodeRadius(node.size??20);
         // Skip labels for nodes that appear too small on screen
         if (r*k < 6 && node.id !== selId) continue;
@@ -380,7 +384,7 @@ export default function GraphPage() {
       const alpha = simRef.current?.alpha() ?? 0;
       const hasHover = !!hoveredRef.current;
       const hasSel   = !!selectedIdRef.current;
-      const active   = entranceActiveRef.current;
+      const active   = entranceActiveRef.current || timelapseModeRef.current;
       // Throttle to ~20fps when sim settled and no active interaction
       if (!active && alpha < 0.004 && !hasHover && !hasSel && ts - lastTs < 48) {
         rafRef.current = requestAnimationFrame(loop);
@@ -486,7 +490,7 @@ export default function GraphPage() {
     let isPanning=false, panStart={x:0,y:0}, panStartTx={x:0,y:0,k:1}, mouseDownPos={x:0,y:0}, didDrag=false;
 
     const onMouseDown=(e:MouseEvent)=>{ if(e.button!==0) return; mouseDownPos={x:e.clientX,y:e.clientY}; didDrag=false; const node=getNodeAt(e.clientX,e.clientY); if(node){draggingRef.current=node;node.fx=node.x;node.fy=node.y;sim.alphaTarget(0.5).restart();}else{isPanning=true;panStart={x:e.clientX,y:e.clientY};panStartTx={...transformRef.current};} };
-    const onMouseMove=(e:MouseEvent)=>{ const ddx=e.clientX-mouseDownPos.x,ddy=e.clientY-mouseDownPos.y; if(Math.sqrt(ddx*ddx+ddy*ddy)>3) didDrag=true; if(draggingRef.current){const rect=canvas.getBoundingClientRect();const{x:tx2,y:ty2,k}=transformRef.current;draggingRef.current.fx=(e.clientX-rect.left-tx2)/k;draggingRef.current.fy=(e.clientY-rect.top-ty2)/k;}else if(isPanning){transformRef.current={k:panStartTx.k,x:panStartTx.x+(e.clientX-panStart.x),y:panStartTx.y+(e.clientY-panStart.y)};}else{const node=getNodeAt(e.clientX,e.clientY);if(node!==hoveredRef.current){hoveredRef.current=node;setHoveredNode(node);}} };
+    const onMouseMove=(e:MouseEvent)=>{ const ddx=e.clientX-mouseDownPos.x,ddy=e.clientY-mouseDownPos.y; if(Math.sqrt(ddx*ddx+ddy*ddy)>3) didDrag=true; if(draggingRef.current){const rect=canvas.getBoundingClientRect();const{x:tx2,y:ty2,k}=transformRef.current;draggingRef.current.fx=(e.clientX-rect.left-tx2)/k;draggingRef.current.fy=(e.clientY-rect.top-ty2)/k;}else if(isPanning){transformRef.current={k:panStartTx.k,x:panStartTx.x+(e.clientX-panStart.x),y:panStartTx.y+(e.clientY-panStart.y)};}else{const node=getNodeAt(e.clientX,e.clientY);if(node!==hoveredRef.current){hoveredRef.current=node;setHoveredNode(node);}if(node) setHoveredPos({x:e.clientX,y:e.clientY});} };
     const onMouseUp=()=>{ if(draggingRef.current){draggingRef.current.fx=null;draggingRef.current.fy=null;sim.alphaTarget(0.08);setTimeout(()=>simRef.current?.alphaTarget(0),500);draggingRef.current=null;}isPanning=false; };
     const onClick=(e:MouseEvent)=>{ if(didDrag) return; const node=getNodeAt(e.clientX,e.clientY); if(node){setSelectedNode(prev=>{const next=prev?.id===node.id?null:(node as GraphNode);selectedIdRef.current=next?.id??null;return next;});}else{setSelectedNode(null);selectedIdRef.current=null;} };
     const onWheel=(e:WheelEvent)=>{ e.preventDefault();
@@ -508,12 +512,20 @@ export default function GraphPage() {
     const onTouchMove=(e:TouchEvent)=>{ e.preventDefault(); if(e.touches.length===2){const[a,b]=[e.touches[0],e.touches[1]];const dist=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY),factor=dist/Math.max(lastTD,1),mid={x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2};const rect=canvas.getBoundingClientRect();const mx=mid.x-rect.left,my=mid.y-rect.top;const{x:tx2,y:ty2,k}=transformRef.current;const newK=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,k*factor));transformRef.current={k:newK,x:mx-(mx-tx2)*(newK/k),y:my-(my-ty2)*(newK/k)};setZoom(newK);lastTD=dist;}else if(e.touches.length===1&&isPanning){const dx=e.touches[0].clientX-panStart.x,dy=e.touches[0].clientY-panStart.y;if(Math.sqrt(dx*dx+dy*dy)>3)didDrag=true;transformRef.current={k:panStartTx.k,x:panStartTx.x+dx,y:panStartTx.y+dy};} };
     const onTouchEnd=()=>{ isPanning=false; };
     const onLeave=()=>{ hoveredRef.current=null; setHoveredNode(null); };
+    // Double-click: open URL if available, or open article if news node
+    const onDblClick=(e:MouseEvent)=>{
+      const node=getNodeAt(e.clientX,e.clientY);
+      if(!node) return;
+      if(node.url) { window.open(node.url,"_blank","noopener noreferrer"); return; }
+      if(node.type==="news") { setActiveTab("articles"); }
+    };
 
     canvas.addEventListener("mousedown",onMouseDown);
     canvas.addEventListener("mousemove",onMouseMove);
     canvas.addEventListener("mouseup",onMouseUp);
     canvas.addEventListener("mouseleave",onLeave);
     canvas.addEventListener("click",onClick);
+    canvas.addEventListener("dblclick",onDblClick);
     canvas.addEventListener("wheel",onWheel,{passive:false});
     canvas.addEventListener("touchstart",onTouchStart,{passive:false});
     canvas.addEventListener("touchmove",onTouchMove,{passive:false});
@@ -527,6 +539,7 @@ export default function GraphPage() {
       canvas.removeEventListener("mouseup",onMouseUp);
       canvas.removeEventListener("mouseleave",onLeave);
       canvas.removeEventListener("click",onClick);
+      canvas.removeEventListener("dblclick",onDblClick);
       canvas.removeEventListener("wheel",onWheel);
       canvas.removeEventListener("touchstart",onTouchStart);
       canvas.removeEventListener("touchmove",onTouchMove);
@@ -583,6 +596,54 @@ export default function GraphPage() {
   const connectedLinks=selectedNode?INITIAL_GRAPH_DATA.links.filter(l=>l.source===selectedNode.id||l.target===selectedNode.id):[];
   const connectedNodes=connectedLinks.map(l=>{ const oid=l.source===selectedNode?.id?l.target:l.source; const n=INITIAL_GRAPH_DATA.nodes.find(nd=>nd.id===oid); return n?{node:n,label:l.label,dir:l.source===selectedNode?.id?"→":"←"}:null; }).filter(Boolean);
 
+  // ── Timelapse (ported from QB Brain) ─────────────────────
+  const stopTimelapse = useCallback(() => {
+    if (timelapseTimerRef.current) { clearInterval(timelapseTimerRef.current); timelapseTimerRef.current = null; }
+    setTimelapsePlaying(false); setTimelapseProgress(100);
+    timelapseModeRef.current = false;
+    visibleSetRef.current = new Set();
+    nodeAnimRef.current = new Map();
+  }, []);
+
+  const startTimelapse = useCallback(() => {
+    const nodes = nodesRef.current;
+    if (!nodes.length) return;
+    if (timelapseTimerRef.current) clearInterval(timelapseTimerRef.current);
+    setSelectedNode(null); selectedIdRef.current = null;
+    setTimelapsePlaying(true); setTimelapseProgress(0);
+    timelapseIdxRef.current = 0;
+    timelapseModeRef.current = true;
+    visibleSetRef.current = new Set();
+    nodeAnimRef.current = new Map();
+
+    // Sort by connection count (most connected first — hub-first cascade)
+    const linkCounts: Record<string,number> = {};
+    for (const l of INITIAL_GRAPH_DATA.links) {
+      linkCounts[String(l.source)] = (linkCounts[String(l.source)]??0)+1;
+      linkCounts[String(l.target)] = (linkCounts[String(l.target)]??0)+1;
+    }
+    const sorted = [...nodes].sort((a,b) => (linkCounts[b.id]??0) - (linkCounts[a.id]??0));
+    const total = sorted.length;
+
+    setTimeout(() => {
+      timelapseTimerRef.current = setInterval(() => {
+        const idx = timelapseIdxRef.current;
+        if (idx >= total) {
+          clearInterval(timelapseTimerRef.current!); timelapseTimerRef.current = null;
+          setTimelapsePlaying(false); setTimelapseProgress(100);
+          setTimeout(() => { timelapseModeRef.current = false; visibleSetRef.current = new Set(); }, 300);
+          return;
+        }
+        const node = sorted[idx];
+        visibleSetRef.current.add(node.id);
+        nodeAnimRef.current.set(node.id, { t0: performance.now(), duration: 400 });
+        timelapseIdxRef.current++;
+        setTimelapseProgress(Math.round(((idx+1)/total)*100));
+        simRef.current?.alpha(0.06).restart();
+      }, 120);
+    }, 200);
+  }, []);
+
   // ── Articles helpers ──────────────────────────────────────
   const filteredArticles = articles.filter(a => {
     const matchCat = articleCategory==="all" || a.category===articleCategory;
@@ -606,8 +667,8 @@ export default function GraphPage() {
 
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ── Column 1: Nav Sidebar — hidden in full-screen graph mode ── */}
-        <aside className={cn("hidden md:flex w-52 flex-shrink-0 bg-[#080c17] border-r border-white/[0.06] flex-col h-full overflow-hidden", activeTab==="graph" && "!hidden")}>
+        {/* ── Column 1: Nav Sidebar ─────────────────────────── */}
+        <aside className="hidden md:flex w-52 flex-shrink-0 bg-[#080c17] border-r border-white/[0.06] flex-col h-full overflow-hidden">
           <div className="px-3 py-3 border-b border-white/[0.06]">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
@@ -837,29 +898,77 @@ export default function GraphPage() {
             </button>
           </div>
 
-          {/* Hover tooltip — centered top */}
+          {/* Hover tooltip — QB Brain cursor-following style */}
+          {hoveredNode && !selectedNode && (
+            <div className="fixed z-50 bg-[#0f1829] border border-white/10 rounded-lg px-3 py-2 text-xs max-w-[200px] pointer-events-none shadow-xl"
+              style={{ left: hoveredPos.x + 14, top: hoveredPos.y - 44 }}>
+              <div className="font-semibold text-white mb-0.5 truncate">{hoveredNode.label}</div>
+              <div className="text-[10px]" style={{color:NODE_COLORS[hoveredNode.type]??"#6b7280"}}>{NODE_TYPE_LABELS[hoveredNode.type]}</div>
+              {hoveredNode.description && <div className="text-[10px] text-gray-600 mt-1 line-clamp-2">{hoveredNode.description}</div>}
+              <div className="text-[9px] text-gray-700 mt-1 border-t border-white/5 pt-1">
+                Click · Double-click to open{hoveredNode.url ? " ↗" : ""}
+              </div>
+            </div>
+          )}
+
+          {/* Selected node info card — QB Brain bottom-center style */}
           <AnimatePresence>
-            {hoveredNode && (
-              <motion.div key={hoveredNode.id} initial={{opacity:0,y:4}} animate={{opacity:1,y:0}} exit={{opacity:0}}
-                className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-                <div className="glass-card px-3 py-1.5 flex items-center gap-2 shadow-xl">
-                  <span>{typeEmoji(hoveredNode.type)}</span>
-                  <span className="text-xs font-semibold text-white">{hoveredNode.label}</span>
-                  <span className="text-[10px] font-medium" style={{color:NODE_COLORS[hoveredNode.type]}}>{NODE_TYPE_LABELS[hoveredNode.type]}</span>
+            {selectedNode && !timelapsePlaying && (
+              <motion.div
+                initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:16}}
+                transition={{type:"spring",stiffness:400,damping:30}}
+                className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 bg-[#0d1526]/95 border border-violet-500/40 rounded-xl px-4 py-2.5 flex items-center gap-3 backdrop-blur-sm shadow-2xl min-w-[280px] max-w-[480px]">
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:selectedNode.color??NODE_COLORS[selectedNode.type]}}/>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-white truncate">{selectedNode.label}</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">
+                    {NODE_TYPE_LABELS[selectedNode.type]} · <span className="text-violet-400">{connectedNodes.length} linked node{connectedNodes.length!==1?"s":""}</span>
+                  </div>
                 </div>
+                {selectedNode.url && (
+                  <a href={selectedNode.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-200 bg-violet-500/10 hover:bg-violet-500/20 px-2 py-1 rounded-md transition-colors flex-shrink-0">
+                    <ExternalLink className="w-3 h-3"/> Open
+                  </a>
+                )}
+                <button onClick={()=>{setSelectedNode(null);selectedIdRef.current=null;}} className="text-gray-600 hover:text-gray-300 flex-shrink-0 text-xs">✕</button>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Legend — bottom-right (QB Brain style) */}
-          <div className="absolute bottom-4 right-4 z-10 flex flex-wrap justify-end gap-x-3 gap-y-1.5 max-w-xs">
-            {Object.entries(NODE_COLORS).map(([type,color])=>(
-              <button key={type} onClick={()=>toggleType(type)}
-                className={cn("flex items-center gap-1.5 text-[10px] transition-opacity hover:opacity-100", !activeTypes.has(type)&&"opacity-30")}>
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor:color}}/>
-                <span className="text-gray-400">{NODE_TYPE_LABELS[type]}</span>
-              </button>
-            ))}
+          {/* Timelapse progress bar */}
+          {timelapsePlaying && (
+            <div className="absolute bottom-[5.5rem] right-4 w-28 z-10">
+              <div className="w-full h-0.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-violet-500 rounded-full transition-all duration-100" style={{width:`${timelapseProgress}%`}}/>
+              </div>
+              <div className="text-right text-[9px] text-gray-600 mt-0.5">{timelapseProgress}%</div>
+            </div>
+          )}
+
+          {/* Timelapse button + Legend — bottom-right (QB Brain style) */}
+          <div className="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2">
+            {/* Timelapse */}
+            <button
+              onClick={timelapsePlaying?stopTimelapse:startTimelapse}
+              className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all backdrop-blur-sm shadow-lg",
+                timelapsePlaying
+                  ?"bg-violet-600/30 border-violet-400/50 text-violet-300 hover:bg-violet-600/40"
+                  :"bg-[#0d1526]/90 border-white/15 text-gray-400 hover:text-violet-300 hover:border-violet-400/50 hover:bg-violet-500/10")}>
+              {timelapsePlaying
+                ? <><span className="w-2.5 h-2.5 bg-current rounded-sm"/><span>Stop</span></>
+                : <><span className="w-0 h-0 border-y-[4px] border-y-transparent border-l-[7px] border-l-current"/><span>Timelapse</span></>}
+            </button>
+            {/* Legend */}
+            <div className="flex flex-wrap justify-end gap-x-3 gap-y-1 max-w-xs">
+              {Object.entries(NODE_COLORS).map(([type,color])=>(
+                <button key={type} onClick={()=>toggleType(type)}
+                  className={cn("flex items-center gap-1 text-[9px] transition-opacity hover:opacity-100",!activeTypes.has(type)&&"opacity-25")}>
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:color}}/>
+                  <span className="text-gray-500">{NODE_TYPE_LABELS[type]}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
