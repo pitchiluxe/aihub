@@ -51,37 +51,72 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = type === "skill" ? SKILL_GENERATION_PROMPT : AGENT_GENERATION_PROMPT;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://aihub.vercel.app",
-        "X-Title": "AIHub",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4-turbo",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt,
-          },
-          {
-            role: "user",
-            content: `Please generate a ${type} based on this request: ${prompt}`,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
+    // Use free models with fallback options
+    const models = [
+      "deepseek/deepseek-chat", // Fast and free, excellent for code generation
+      "meta-llama/llama-3-70b-instruct", // Open source, reliable
+      "openai/gpt-4-turbo-preview", // Fallback
+    ];
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("OpenRouter error:", error);
+    let response;
+    let lastError;
+
+    for (const model of models) {
+      try {
+        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "HTTP-Referer": "https://aihub.vercel.app",
+            "X-Title": "AIHub",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt,
+              },
+              {
+                role: "user",
+                content: `Please generate a ${type} based on this request: ${prompt}`,
+              },
+            ],
+            temperature: 0.7,
+            max_tokens: 2000,
+          }),
+        });
+
+        if (response.ok) {
+          break; // Model worked, exit loop
+        } else {
+          lastError = await response.text();
+          console.warn(`Model ${model} failed:`, lastError);
+          continue; // Try next model
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`Model ${model} error:`, err);
+        continue; // Try next model
+      }
+    }
+
+    if (!response?.ok) {
+      const error = lastError || "Unknown error";
+      console.error("All generation models failed:", error);
       return NextResponse.json(
-        { error: "Failed to generate" },
-        { status: response.status }
+        { error: "Failed to generate. Please ensure your OpenRouter API key is valid and has available credits." },
+        { status: 500 }
+      );
+    }
+
+    if (!response?.ok) {
+      const error = lastError || "Unknown error";
+      console.error("All generation models failed:", error);
+      return NextResponse.json(
+        { error: "Failed to generate. Please ensure your OpenRouter API key is valid and has available credits." },
+        { status: 500 }
       );
     }
 
@@ -89,8 +124,9 @@ export async function POST(req: NextRequest) {
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
+      console.error("No content in response:", data);
       return NextResponse.json(
-        { error: "No response from AI" },
+        { error: "No response from AI model" },
         { status: 500 }
       );
     }
