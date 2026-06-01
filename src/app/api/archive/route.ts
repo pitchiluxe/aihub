@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate unique ID for this shared item
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     
     // Add archival metadata
     const archivedItem = {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       id,
-      shareUrl: `/gallery/${id}`,
+      shareUrl: `/archive/${id}`,
       message: "Item archived and ready to share!",
     });
   } catch (error) {
@@ -49,7 +49,9 @@ export async function GET(req: NextRequest) {
 
     if (!id) {
       // Return all archived items
-      const items = Array.from(archivedItems.values());
+      const items = Array.from(archivedItems.values()).sort(
+        (a, b) => new Date(b.archivedAt).getTime() - new Date(a.archivedAt).getTime()
+      );
       return NextResponse.json({ items });
     }
 
@@ -67,6 +69,43 @@ export async function GET(req: NextRequest) {
     console.error("Fetch error:", error);
     return NextResponse.json(
       { error: "Fetch failed" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const action = searchParams.get("action");
+
+    if (!id || !action) {
+      return NextResponse.json(
+        { error: "Missing id or action" },
+        { status: 400 }
+      );
+    }
+
+    const item = archivedItems.get(id);
+    if (!item) {
+      return NextResponse.json(
+        { error: "Item not found" },
+        { status: 404 }
+      );
+    }
+
+    if (action === "download") {
+      item.downloads += 1;
+    } else if (action === "share") {
+      item.shares += 1;
+    }
+
+    return NextResponse.json(item);
+  } catch (error) {
+    console.error("Update error:", error);
+    return NextResponse.json(
+      { error: "Update failed" },
       { status: 500 }
     );
   }

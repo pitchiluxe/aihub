@@ -68,11 +68,33 @@ export async function POST(req: NextRequest) {
 
       console.log(`[Generate] Success: ${name}`);
 
+      // Automatically archive the generated item
+      const archiveRes = await fetch(new URL("/api/archive", req.url), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description,
+          code: content,
+          type,
+        }),
+      });
+
+      let archiveData = null;
+      if (archiveRes.ok) {
+        archiveData = await archiveRes.json();
+        console.log(`[Generate] Auto-archived as: ${archiveData.id}`);
+      } else {
+        console.warn("[Generate] Auto-archive failed, but generation succeeded");
+      }
+
       return NextResponse.json({
         name,
         description,
         code: content,
         type,
+        archivedId: archiveData?.id,
+        shareUrl: archiveData?.shareUrl,
       });
     } catch (error) {
       console.error(`[Generate] Model error: ${error}`);

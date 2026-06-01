@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader, Download, Share2, Sparkles, Code, Zap } from "lucide-react";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 interface GeneratedItem {
   id: string;
@@ -20,6 +21,8 @@ interface GeneratedItem {
   code: string;
   createdAt: Date;
   prompt: string;
+  archivedId?: string;
+  shareUrl?: string;
 }
 
 export default function GeneratorPage() {
@@ -58,12 +61,24 @@ export default function GeneratorPage() {
         code: data.code,
         createdAt: new Date(),
         prompt,
+        archivedId: data.archivedId,
+        shareUrl: data.shareUrl,
       };
 
       setGenerated((prev) => [newItem, ...prev]);
       setPreview(newItem);
       setPrompt("");
-      toast.success(`${activeTab === "skill" ? "Skill" : "Agent"} generated!`);
+      
+      if (data.archivedId) {
+        toast.success(
+          `${activeTab === "skill" ? "Skill" : "Agent"} created & auto-archived! Visit Archive to share.`,
+          {
+            duration: 4000,
+          }
+        );
+      } else {
+        toast.success(`${activeTab === "skill" ? "Skill" : "Agent"} generated!`);
+      }
     } catch (error) {
       console.error("Generation error:", error);
       toast.error("Failed to generate. Please try again.");
@@ -218,9 +233,14 @@ export default function GeneratorPage() {
                     {/* Header */}
                     <div>
                       <div className="flex items-start justify-between mb-2">
-                        <div>
+                        <div className="flex-1">
                           <h3 className="text-lg font-semibold">{preview.name}</h3>
                           <p className="text-sm text-muted-foreground">{preview.description}</p>
+                          {preview.archivedId && (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                              ✓ Auto-archived and ready to share
+                            </p>
+                          )}
                         </div>
                         <Badge variant={preview.type === "skill" ? "default" : "secondary"}>
                           {preview.type}
@@ -240,7 +260,7 @@ export default function GeneratorPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 pt-4 border-t">
+                    <div className="flex gap-2 pt-4 border-t flex-wrap">
                       <Button
                         onClick={() => handleDownload(preview)}
                         variant="default"
@@ -250,15 +270,28 @@ export default function GeneratorPage() {
                         <Download className="h-4 w-4" />
                         Download
                       </Button>
-                      <Button
-                        onClick={() => handleShare(preview)}
-                        variant="outline"
-                        className="flex-1 gap-2"
-                        size="sm"
-                      >
-                        <Share2 className="h-4 w-4" />
-                        Share
-                      </Button>
+                      {preview.archivedId ? (
+                        <Link href="/archive" className="flex-1">
+                          <Button
+                            variant="outline"
+                            className="w-full gap-2"
+                            size="sm"
+                          >
+                            <Share2 className="h-4 w-4" />
+                            View in Archive
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          onClick={() => handleShare(preview)}
+                          variant="outline"
+                          className="flex-1 gap-2"
+                          size="sm"
+                        >
+                          <Share2 className="h-4 w-4" />
+                          Share
+                        </Button>
+                      )}
                     </div>
 
                     {/* Original Prompt */}
