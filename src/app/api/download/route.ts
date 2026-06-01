@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import JSZip from "jszip";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,22 +12,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create a simple text-based ZIP using JSZip-like approach
-    // For simplicity, we'll return the content as a downloadable file
-    const filename = `${item.type}-${item.name.toLowerCase().replace(/\s+/g, "-")}.md`;
-    const content = item.code;
+    // Create zip archive
+    const zip = new JSZip();
 
-    // Return as downloadable file
-    return new NextResponse(content, {
+    // Add the generated file to the zip
+    const filename = `${item.type === "skill" ? "SKILL" : "AGENT"}.md`;
+    zip.file(filename, item.code);
+
+    // Add README with metadata
+    const readme = `# ${item.name}
+
+**Type:** ${item.type}
+**Description:** ${item.description || "No description provided"}
+**Generated:** ${new Date().toISOString()}
+
+## Contents
+
+- \`${filename}\` - Main ${item.type} file
+- \`README.md\` - This file
+
+## How to Use
+
+1. Extract this archive
+2. Copy \`${filename}\` to your AIHub installation
+3. Import or reference in your project
+`;
+    zip.file("README.md", readme);
+
+    // Generate the zip file
+    const buffer = await zip.generateAsync({ type: "arraybuffer" });
+
+    // Create proper filename
+    const zipFilename = `${item.name.toLowerCase().replace(/\s+/g, "-")}-${item.type}.zip`;
+
+    // Return zip file with correct headers
+    return new NextResponse(buffer, {
       headers: {
-        "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${zipFilename}"`,
+        "Content-Length": buffer.byteLength.toString(),
       },
     });
   } catch (error) {
     console.error("Download error:", error);
     return NextResponse.json(
-      { error: "Download failed" },
+      { error: "Download failed: " + String(error) },
       { status: 500 }
     );
   }
