@@ -3,7 +3,7 @@ import { fetchOpenRouterModels, getFreeModels } from "@/lib/openrouter";
 import { fetchOllamaModels } from "@/lib/ollama";
 import { AIModel } from "@/types";
 
-export const revalidate = 3600; // 1 hour
+export const revalidate = 0; // Always fetch fresh models - important for staying up-to-date
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

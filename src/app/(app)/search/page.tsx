@@ -75,7 +75,7 @@ function SearchContent() {
 
   // Load latest news for context
   useEffect(() => {
-    fetch("/api/news?limit=20")
+    fetch("/api/news?limit=20", { cache: "no-store" })
       .then(r => r.json())
       .then(d => setLatestNews(d.articles ?? []));
   }, []);

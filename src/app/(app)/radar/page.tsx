@@ -44,7 +44,7 @@ export default function RadarPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/news?limit=60");
+      const res = await fetch("/api/news?limit=60", { cache: "no-store" });
       const data = await res.json();
       const scored = (data.articles ?? [] as NewsArticle[]).map((a: NewsArticle) => ({
         ...a,

@@ -35,9 +35,9 @@ export default function DashboardPage() {
     async function load() {
       try {
         const [newsRes, modelsRes, trendsRes] = await Promise.allSettled([
-          fetch("/api/news?limit=12").then((r) => r.json()),
-          fetch("/api/models?free=true").then((r) => r.json()),
-          fetch("/api/trends").then((r) => r.json()),
+          fetch("/api/news?limit=12", { cache: "no-store" }).then((r) => r.json()),
+          fetch("/api/models?free=true", { cache: "no-store" }).then((r) => r.json()),
+          fetch("/api/trends", { cache: "no-store" }).then((r) => r.json()),
         ]);
 
         if (newsRes.status === "fulfilled") setNews(newsRes.value.articles ?? []);

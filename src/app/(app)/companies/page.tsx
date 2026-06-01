@@ -122,7 +122,7 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/news?limit=80")
+    fetch("/api/news?limit=80", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setNews(d.articles ?? []))
       .finally(() => setLoading(false));

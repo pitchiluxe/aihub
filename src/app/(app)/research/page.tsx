@@ -29,7 +29,7 @@ export default function ResearchPage() {
   async function loadPapers(q: string) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/research?q=${encodeURIComponent(q)}&limit=20`);
+      const res = await fetch(`/api/research?q=${encodeURIComponent(q)}&limit=20`, { cache: "no-store" });
       const data = await res.json();
       setPapers(data.papers ?? []);
     } finally {

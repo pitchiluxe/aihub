@@ -29,7 +29,7 @@ export function NotificationBell() {
   async function loadNotifications() {
     setLoading(true);
     try {
-      const res = await fetch("/api/news?limit=12");
+      const res = await fetch("/api/news?limit=12", { cache: "no-store" });
       const data = await res.json();
       const articles: NewsArticle[] = data.articles ?? [];
       const notifs: Notification[] = articles.slice(0, 10).map((a) => ({

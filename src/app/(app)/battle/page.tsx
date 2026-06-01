@@ -37,7 +37,7 @@ export default function BattlePage() {
   const [ratings, setRatings] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    fetch("/api/models?free=true")
+    fetch("/api/models?free=true", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         const models = (d.models ?? []) as Array<{ openRouterSlug?: string; name: string }>;

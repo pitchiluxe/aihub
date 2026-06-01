@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ResearchPaper } from "@/types";
 
-export const revalidate = 1800;
+export const revalidate = 300; // 5 minutes - research papers update periodically
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

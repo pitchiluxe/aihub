@@ -54,7 +54,7 @@ export default function NewsPage() {
   async function loadNews(showRefreshing = false) {
     if (showRefreshing) setRefreshing(true); else setLoading(true);
     try {
-      const res = await fetch("/api/news?limit=80");
+      const res = await fetch("/api/news?limit=80", { cache: "no-store" });
       const data = await res.json();
       setArticles(data.articles ?? []);
     } finally {

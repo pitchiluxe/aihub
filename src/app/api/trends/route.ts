@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { TrendItem } from "@/types";
 import { fetchNewsFromRSS } from "@/lib/news";
 
-export const revalidate = 600;
+export const revalidate = 60; // 1 minute - keep trends fresh and real-time
 
 export async function GET() {
   try {

@@ -32,7 +32,7 @@ export default function TrendsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/trends")
+    fetch("/api/trends", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setTrends(d.trends ?? []))
       .finally(() => setLoading(false));

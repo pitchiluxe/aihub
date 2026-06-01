@@ -34,7 +34,7 @@ export default function ModelsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/models");
+        const res = await fetch("/api/models", { cache: "no-store" });
         const data = await res.json();
         setModels(data.models ?? []);
       } finally {
