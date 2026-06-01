@@ -120,17 +120,17 @@ export function ChatBot() {
       {/* Floating Button */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg hover:shadow-xl transition-all"
+        className="fixed bottom-6 right-3 md:right-6 z-40 rounded-full shadow-lg hover:shadow-xl transition-all"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
       >
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-full animate-pulse opacity-30" />
-          <div className="relative bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-full p-4 flex items-center justify-center">
+          <div className="relative bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-full p-3 md:p-4 flex items-center justify-center">
             {isOpen ? (
-              <X className="h-6 w-6" />
+              <X className="h-5 w-5 md:h-6 md:w-6" />
             ) : (
-              <MessageCircle className="h-6 w-6" />
+              <MessageCircle className="h-5 w-5 md:h-6 md:w-6" />
             )}
           </div>
         </div>
@@ -144,7 +144,7 @@ export function ChatBot() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="fixed bottom-24 right-6 z-40 w-96 max-h-[600px] flex flex-col"
+            className="fixed bottom-24 right-3 left-3 z-40 md:left-auto md:w-96 max-h-[60vh] md:max-h-[600px] flex flex-col"
           >
             <Card className="flex flex-col h-full bg-background border-2 border-primary/20 shadow-2xl">
               {/* Header */}

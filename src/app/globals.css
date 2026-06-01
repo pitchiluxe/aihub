@@ -481,3 +481,60 @@ body {
   from { opacity: 0; transform: translateY(3px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE OPTIMIZATIONS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Mobile-first touch targets - minimum 44px for accessibility */
+@media (max-width: 640px) {
+  button, a[role="button"], input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Reduce padding on small screens */
+  .p-6 { @apply p-3; }
+  .px-6 { @apply px-3; }
+  .py-6 { @apply py-3; }
+
+  /* Improve text readability on mobile */
+  body { font-size: 16px; /* Prevent zoom on input focus */ }
+  
+  /* Better card spacing */
+  .card { margin-bottom: 0.75rem; }
+
+  /* Responsive gap sizes */
+  .gap-4 { @apply gap-3; }
+  .gap-6 { @apply gap-3; }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .space-y-6 { @apply space-y-4; }
+  .gap-6 { @apply gap-4; }
+}
+
+/* Better responsive typography */
+@media (max-width: 640px) {
+  h1 { @apply text-2xl; }
+  h2 { @apply text-xl; }
+  h3 { @apply text-lg; }
+  p { @apply text-sm; }
+}
+
+/* Improve form inputs on mobile */
+@media (max-width: 640px) {
+  input, textarea, select {
+    font-size: 16px; /* Prevent auto-zoom on iOS */
+    padding: 0.75rem;
+  }
+}
+
+/* Better modal/dialog sizing on mobile */
+@media (max-width: 640px) {
+  [role="dialog"] {
+    width: 95vw !important;
+    margin: auto !important;
+  }
+}

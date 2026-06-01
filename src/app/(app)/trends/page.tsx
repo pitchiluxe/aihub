@@ -94,7 +94,7 @@ export default function TrendsPage() {
         </Card>
 
         {/* Category Breakdown */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
           {Object.entries(grouped).map(([category, items]) => {
             const Icon = CATEGORY_ICONS[category] ?? Flame;
             const color = CATEGORY_COLORS[category] ?? "#6366f1";
