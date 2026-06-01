@@ -43,11 +43,11 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const MIN_ZOOM   = 0.06;
 const MAX_ZOOM   = 12;
-const LABEL_ZOOM = 0.55;
-const EDGE_LABEL_ZOOM = 1.4;
+const LABEL_ZOOM = 0.80;       // labels only appear when meaningfully zoomed in
+const EDGE_LABEL_ZOOM = 1.6;
 
 // ── Helpers ───────────────────────────────────────────────────
-function nodeRadius(size: number) { return Math.max(5, Math.round(size * 0.28)); }
+function nodeRadius(size: number) { return Math.max(7, Math.round(size * 0.42)); }
 function easeBackOut(t: number, ov = 1.8) {
   const c = ov + 1;
   return 1 + c * Math.pow(t - 1, 3) + ov * Math.pow(t - 1, 2);
@@ -220,22 +220,23 @@ export default function GraphPage() {
       }
     }
 
-    // Cluster halos
-    if (k > 0.25) {
+    // Cluster halos — flat tinted ring (no gradient object per frame = fast)
+    if (k > 0.30) {
       const groups: Record<string, {xs:number[];ys:number[]}> = {};
       for (const n of nodes) {
         if (!groups[n.type]) groups[n.type] = {xs:[],ys:[]};
         groups[n.type].xs.push(n.x??0); groups[n.type].ys.push(n.y??0);
       }
       for (const [type, {xs, ys}] of Object.entries(groups)) {
-        if (xs.length < 2) continue;
+        if (xs.length < 3) continue;
         const cx = xs.reduce((a,b)=>a+b,0)/xs.length;
         const cy = ys.reduce((a,b)=>a+b,0)/ys.length;
-        const r  = Math.max(...xs.map((x,i) => Math.hypot(x-cx,ys[i]-cy))) + 40;
+        const r  = Math.max(...xs.map((x,i) => Math.hypot(x-cx,ys[i]-cy))) + 30;
         const col = NODE_COLORS[type] ?? "#6366f1";
-        const grad = ctx.createRadialGradient(cx,cy,r*0.6,cx,cy,r);
-        grad.addColorStop(0, hexToRgba(col,0)); grad.addColorStop(1, hexToRgba(col,0.04));
-        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=grad; ctx.fill();
+        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+        ctx.strokeStyle = hexToRgba(col, 0.07);
+        ctx.lineWidth   = 12 / k;
+        ctx.stroke();
       }
     }
 
@@ -303,12 +304,16 @@ export default function GraphPage() {
       const fillA=isSel?1:isConn?0.88:0.12, strokeA=isSel?1:isConn?0.5:0.07;
       const realR=isSel?drawR*1.35:drawR;
 
-      if (isSel) { ctx.shadowColor=col; ctx.shadowBlur=22; }
-      const grad=ctx.createRadialGradient(nx-realR*0.28,ny-realR*0.28,0,nx,ny,realR);
-      grad.addColorStop(0,hexToRgba(col,Math.min(1,fillA+0.18)));
-      grad.addColorStop(1,hexToRgba(col,fillA));
+      if (isSel) { ctx.shadowColor=col; ctx.shadowBlur=20; }
+      // Flat fill (fast — no gradient object created per frame)
       ctx.beginPath(); ctx.arc(nx,ny,realR,0,Math.PI*2);
-      ctx.fillStyle=grad; ctx.fill();
+      ctx.fillStyle=hexToRgba(col,fillA); ctx.fill();
+      // Inner highlight dot for subtle depth
+      if (realR > 5) {
+        ctx.beginPath(); ctx.arc(nx-realR*0.28,ny-realR*0.28,realR*0.22,0,Math.PI*2);
+        ctx.fillStyle=`rgba(255,255,255,${fillA*0.22})`; ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(nx,ny,realR,0,Math.PI*2);
       ctx.strokeStyle=hexToRgba(col,strokeA); ctx.lineWidth=(isSel?2.5:1.2)/k; ctx.stroke();
       if (isSel) ctx.shadowBlur=0;
 
@@ -325,15 +330,22 @@ export default function GraphPage() {
     }
 
     if (k>=LABEL_ZOOM) {
-      ctx.font=`${Math.max(6,Math.min(12,9/k))}px Inter,system-ui,sans-serif`; ctx.textAlign="center";
+      const fSize = Math.max(7, Math.min(13, 10/k));
+      ctx.font=`500 ${fSize}px Inter,system-ui,sans-serif`; ctx.textAlign="center";
       for (const node of nodes) {
+        const r=nodeRadius(node.size??20);
+        // Skip labels for nodes that appear too small on screen
+        if (r*k < 6 && node.id !== selId) continue;
         const isConn=connectedIds?connectedIds.has(node.id):true;
         if (selId&&!isConn) continue;
         const matchQ=!q||node.label.toLowerCase().includes(q);
-        ctx.globalAlpha=q&&!matchQ?0.04:(node.id===selId?1:isConn?0.75:0.22);
-        const r=nodeRadius(node.size??20), lbl=node.label.length>20?node.label.slice(0,20)+"…":node.label;
-        ctx.fillStyle="#e2e8f0";
-        ctx.fillText(lbl,node.x??0,(node.y??0)+r+12/k);
+        ctx.globalAlpha=q&&!matchQ?0.04:(node.id===selId?1:isConn?0.80:0.28);
+        const lbl=node.label.length>22?node.label.slice(0,22)+"…":node.label;
+        // Text shadow for readability
+        ctx.fillStyle="rgba(0,0,0,0.6)";
+        ctx.fillText(lbl,(node.x??0)+0.5,(node.y??0)+r+13/k+0.5);
+        ctx.fillStyle=node.id===selId?"#ffffff":"#e2e8f0";
+        ctx.fillText(lbl,node.x??0,(node.y??0)+r+13/k);
         ctx.globalAlpha=1;
       }
     }
@@ -353,14 +365,7 @@ export default function GraphPage() {
       roundRectPath(ctx,MX,MY,MW,MH,MR);
       ctx.fillStyle="rgba(8,13,24,0.88)"; ctx.fill();
       ctx.strokeStyle="rgba(255,255,255,0.08)"; ctx.lineWidth=1; ctx.stroke();
-      ctx.globalAlpha=0.12;
-      for (const l of linksRef.current) {
-        ctx.strokeStyle="rgba(255,255,255,0.4)"; ctx.lineWidth=0.4;
-        ctx.beginPath();
-        ctx.moveTo(mmOX+((l.source.x??0)-mnX)*mmS, mmOY+((l.source.y??0)-mnY)*mmS);
-        ctx.lineTo(mmOX+((l.target.x??0)-mnX)*mmS, mmOY+((l.target.y??0)-mnY)*mmS);
-        ctx.stroke();
-      }
+      // Skip per-edge lines in mini-map (too expensive with 400+ links); dots suffice
       ctx.globalAlpha=1;
       for (const node of nodes) {
         const nx=mmOX+((node.x??0)-mnX)*mmS, ny=mmOY+((node.y??0)-mnY)*mmS;
@@ -379,10 +384,24 @@ export default function GraphPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, showMiniMap]);
 
-  // ── Loop ──────────────────────────────────────────────────
+  // ── Loop — adaptive framerate: 60fps while active, ~20fps when settled ──
   const startLoop = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    const loop = () => { draw(); rafRef.current = requestAnimationFrame(loop); };
+    let lastTs = 0;
+    const loop = (ts: number) => {
+      const alpha = simRef.current?.alpha() ?? 0;
+      const hasHover = !!hoveredRef.current;
+      const hasSel   = !!selectedIdRef.current;
+      const active   = entranceActiveRef.current;
+      // Throttle to ~20fps when sim settled and no active interaction
+      if (!active && alpha < 0.004 && !hasHover && !hasSel && ts - lastTs < 48) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+      lastTs = ts;
+      draw();
+      rafRef.current = requestAnimationFrame(loop);
+    };
     rafRef.current = requestAnimationFrame(loop);
   }, [draw]);
 
@@ -435,7 +454,7 @@ export default function GraphPage() {
     };
 
     const sim=d3.forceSimulation<ExtNode>(visNodes)
-      .alphaDecay(0.022).velocityDecay(0.38)
+      .alphaDecay(0.038).velocityDecay(0.44)
       .force("link",d3.forceLink(visLinks).id((d:unknown)=>(d as ExtNode).id).distance(Math.max(55,Math.min(110,55+n*0.22))).strength(0.45))
       .force("charge",d3.forceManyBody().strength(-Math.max(80,Math.min(320,300-n*0.5))).distanceMax(400))
       .force("center",d3.forceCenter(W/2,H/2).strength(0.04))
@@ -443,8 +462,8 @@ export default function GraphPage() {
       .force("cluster",(alpha:number)=>{
         for (const nd of visNodes) {
           const c=typeCentroids[nd.type]; if(!c) continue;
-          nd.vx=(nd.vx??0)+(c.x-(nd.x??W/2))*0.006*alpha;
-          nd.vy=(nd.vy??0)+(c.y-(nd.y??H/2))*0.006*alpha;
+          nd.vx=(nd.vx??0)+(c.x-(nd.x??W/2))*0.0025*alpha;
+          nd.vy=(nd.vy??0)+(c.y-(nd.y??H/2))*0.0025*alpha;
         }
       });
 
@@ -476,7 +495,19 @@ export default function GraphPage() {
     const onMouseMove=(e:MouseEvent)=>{ const ddx=e.clientX-mouseDownPos.x,ddy=e.clientY-mouseDownPos.y; if(Math.sqrt(ddx*ddx+ddy*ddy)>3) didDrag=true; if(draggingRef.current){const rect=canvas.getBoundingClientRect();const{x:tx2,y:ty2,k}=transformRef.current;draggingRef.current.fx=(e.clientX-rect.left-tx2)/k;draggingRef.current.fy=(e.clientY-rect.top-ty2)/k;}else if(isPanning){transformRef.current={k:panStartTx.k,x:panStartTx.x+(e.clientX-panStart.x),y:panStartTx.y+(e.clientY-panStart.y)};}else{const node=getNodeAt(e.clientX,e.clientY);if(node!==hoveredRef.current){hoveredRef.current=node;setHoveredNode(node);}} };
     const onMouseUp=()=>{ if(draggingRef.current){draggingRef.current.fx=null;draggingRef.current.fy=null;sim.alphaTarget(0.08);setTimeout(()=>simRef.current?.alphaTarget(0),500);draggingRef.current=null;}isPanning=false; };
     const onClick=(e:MouseEvent)=>{ if(didDrag) return; const node=getNodeAt(e.clientX,e.clientY); if(node){setSelectedNode(prev=>{const next=prev?.id===node.id?null:(node as GraphNode);selectedIdRef.current=next?.id??null;return next;});}else{setSelectedNode(null);selectedIdRef.current=null;} };
-    const onWheel=(e:WheelEvent)=>{ e.preventDefault(); const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left,my=e.clientY-rect.top,factor=e.deltaY>0?0.84:1.19; const{x:tx2,y:ty2,k}=transformRef.current; const newK=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,k*factor)); transformRef.current={k:newK,x:mx-(mx-tx2)*(newK/k),y:my-(my-ty2)*(newK/k)};setZoom(newK); };
+    const onWheel=(e:WheelEvent)=>{ e.preventDefault();
+      const rect=canvas.getBoundingClientRect();
+      const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+      // Normalize across deltaMode: 0=pixels, 1=lines, 2=pages
+      const raw = e.deltaMode===1 ? e.deltaY*20 : e.deltaMode===2 ? e.deltaY*300 : e.deltaY;
+      // clamp to avoid jumps from high-resolution trackpads
+      const clamped = Math.max(-120, Math.min(120, raw));
+      const factor = clamped > 0 ? 0.86 : 1.16;
+      const{x:tx2,y:ty2,k}=transformRef.current;
+      const newK=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,k*factor));
+      transformRef.current={k:newK,x:mx-(mx-tx2)*(newK/k),y:my-(my-ty2)*(newK/k)};
+      setZoom(newK);
+    };
 
     let lastTD=0;
     const onTouchStart=(e:TouchEvent)=>{ if(e.touches.length===2){const[a,b]=[e.touches[0],e.touches[1]];lastTD=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);}else if(e.touches.length===1){isPanning=true;panStart={x:e.touches[0].clientX,y:e.touches[0].clientY};panStartTx={...transformRef.current};didDrag=false;mouseDownPos={x:e.touches[0].clientX,y:e.touches[0].clientY};} };
@@ -526,11 +557,29 @@ export default function GraphPage() {
     prevTabRef.current=activeTab;
   }, [activeTab, startLoop, stopLoop]);
 
+  // Resize canvas + refit graph whenever the container grows/shrinks
   useEffect(() => {
     const ct=containerRef.current, cv=canvasRef.current; if(!ct||!cv) return;
-    const ro=new ResizeObserver(()=>{ cv.width=ct.clientWidth; cv.height=ct.clientHeight; });
+    const ro=new ResizeObserver(()=>{
+      if (activeTab!=="graph") return;
+      const W=ct.clientWidth, H=ct.clientHeight;
+      if (!W||!H) return;
+      cv.width=W; cv.height=H;
+      // Re-centre simulation forces
+      simRef.current?.force("center", d3.forceCenter(W/2,H/2).strength(0.04));
+      simRef.current?.alpha(0.08).restart();
+      // Refit view after a short settle
+      setTimeout(()=>{
+        const nds=nodesRef.current; if(!nds.length) return;
+        const xs=nds.map(n=>n.x??0), ys=nds.map(n=>n.y??0), pad=70;
+        const fk=Math.min((W-pad*2)/Math.max(Math.max(...xs)-Math.min(...xs),1),(H-pad*2)/Math.max(Math.max(...ys)-Math.min(...ys),1),2.2);
+        transformRef.current={k:fk,x:W/2-fk*(Math.min(...xs)+Math.max(...xs))/2,y:H/2-fk*(Math.min(...ys)+Math.max(...ys))/2};
+        setZoom(fk);
+      }, 300);
+    });
     ro.observe(ct); return ()=>ro.disconnect();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // ── Zoom ──────────────────────────────────────────────────
   const doZoom=(factor:number)=>{ const cv=canvasRef.current; if(!cv) return; const{x,y,k}=transformRef.current; const nk=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,k*factor)); const cx=cv.width/2,cy=cv.height/2; transformRef.current={k:nk,x:cx-(cx-x)*(nk/k),y:cy-(cy-y)*(nk/k)}; setZoom(nk); };
