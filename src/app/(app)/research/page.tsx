@@ -132,17 +132,12 @@ function PaperCard({ paper }: { paper: ResearchPaper }) {
       >
         <Card className="group h-full aspect-[2/1] hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col">
           <CardContent className="p-4 space-y-2 flex flex-col h-full">
-            {/* Header with icon and external link */}
+            {/* Header with icon */}
             <div className="flex items-start justify-between gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm flex-shrink-0">
                 📄
               </div>
-              <span
-                onClick={(e) => e.preventDefault()}
-                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </span>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
             </div>
 
             {/* Title - truncated */}
