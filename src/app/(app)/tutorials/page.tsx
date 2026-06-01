@@ -125,14 +125,20 @@ export default function TutorialsPage() {
       setAiExplanation(data.content);
     } catch (err) {
       const errorText = String(err);
-      if (errorText.includes("API key")) {
-        toast.error("AI explanation unavailable: API key not configured.");
-      } else if (errorText.includes("rate") || errorText.includes("502")) {
-        toast.error("AI tutor temporarily unavailable. Try again in a moment.");
-        setAiExplanation(`Step: ${step.title}\n\n${step.explanation}${step.tip ? `\n\nTip: ${step.tip}` : ""}`);
+      const baseExplanation = `📚 **${step.title}**\n\n${step.explanation}${step.tip ? `\n\n💡 **Tip:** ${step.tip}` : ""}`;
+      
+      if (errorText.includes("All models failed") || errorText.includes("rate-limited")) {
+        toast.error("⏳ AI models are rate-limited. Showing text explanation.");
+        setAiExplanation(baseExplanation);
+      } else if (errorText.includes("API key")) {
+        toast.error("🔑 API key not configured. Using text explanation.");
+        setAiExplanation(baseExplanation);
+      } else if (errorText.includes("Ollama")) {
+        toast.error("🖥️ Ollama not running. Using text explanation.");
+        setAiExplanation(baseExplanation);
       } else {
-        toast.error("Couldn't get AI explanation. Using text explanation instead.");
-        setAiExplanation(`Step: ${step.title}\n\n${step.explanation}${step.tip ? `\n\nTip: ${step.tip}` : ""}`);
+        toast.error("AI tutor temporarily unavailable. Showing text explanation.");
+        setAiExplanation(baseExplanation);
       }
     } finally {
       setAiExplaining(false);

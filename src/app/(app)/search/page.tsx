@@ -168,7 +168,19 @@ Your job:
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Request failed");
+      if (!res.ok) {
+        const errorMsg = data.error ?? "Request failed";
+        // Parse API error for better UX
+        let userFriendlyError = errorMsg;
+        if (errorMsg.includes("All models failed") || errorMsg.includes("rate-limited")) {
+          userFriendlyError = "🔄 **AI Models Currently Unavailable**\n\nOpenRouter is rate-limited and Ollama is not running.\n\n**Try one of these:**\n1. Wait 1-2 minutes and retry\n2. [Install Ollama](https://ollama.ai/download) for offline AI\n3. [Verify your API key](.env.local)";
+        } else if (errorMsg.includes("Ollama")) {
+          userFriendlyError = "🖥️ **Ollama Not Running**\n\nStart Ollama to use local AI:\n\n\`ollama serve\`\n\nOr [install it first](https://ollama.ai/download)";
+        } else if (errorMsg.includes("API key")) {
+          userFriendlyError = "🔑 **API Key Missing**\n\nAdd `OPENROUTER_API_KEY` to `.env.local` or install Ollama for offline mode.";
+        }
+        throw new Error(userFriendlyError);
+      }
 
       const assistantMsg: AgentMsg = {
         id: `a-${Date.now()}`,
@@ -183,7 +195,7 @@ Your job:
       const errMsg: AgentMsg = {
         id: `err-${Date.now()}`,
         role: "assistant",
-        content: `⚠️ **Error:** ${err instanceof Error ? err.message : "Failed to connect to AI. Make sure Ollama is running or OpenRouter is configured."}`,
+        content: `${err instanceof Error ? err.message : "Failed to connect to AI. Make sure Ollama is running or OpenRouter is configured."}`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errMsg]);

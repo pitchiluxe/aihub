@@ -64,8 +64,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Use AI to generate a summary answer for the query
+  // Use AI to generate a summary answer for the query (optional)
   let aiAnswer: string | undefined;
+  let aiUnavailable = false;
   try {
     const chatRes = await fetch(
       `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/chat`,
@@ -83,14 +84,21 @@ export async function GET(req: NextRequest) {
             { role: "user", content: query },
           ],
         }),
+        signal: AbortSignal.timeout(15000),
       }
     );
     if (chatRes.ok) {
       const chatData = await chatRes.json();
-      aiAnswer = chatData.content;
+      if (chatData.content) {
+        aiAnswer = chatData.content;
+      }
+    } else {
+      aiUnavailable = true;
     }
-  } catch {
-    // AI answer is optional
+  } catch (err) {
+    // AI answer is optional - still return search results
+    aiUnavailable = true;
+    console.warn("AI answer generation failed:", err);
   }
 
   results.sort((a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0));
@@ -98,8 +106,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     results: results.slice(0, 20),
     total: results.length,
-    query,
     aiAnswer,
+    aiUnavailable,
   });
 }
 
