@@ -125,7 +125,11 @@ function PaperCard({ paper }: { paper: ResearchPaper }) {
       }}
     >
       <Card className="group h-full aspect-[2/1] hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col"
-        onClick={() => window.open(paper.url, "_blank")}>
+        onClick={() => {
+          if (paper.url) {
+            window.open(paper.url, "_blank");
+          }
+        }}>
         <CardContent className="p-4 space-y-2 flex flex-col h-full">
           {/* Header with icon and external link */}
           <div className="flex items-start justify-between gap-2">
