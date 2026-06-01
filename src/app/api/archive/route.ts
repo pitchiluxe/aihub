@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  addItem,
-  getItem,
-  getAllItems,
+  initializeDatabase,
+  addArchivedItem,
+  getArchivedItem,
+  getAllArchivedItems,
   incrementDownloads,
   incrementShares,
-} from "@/lib/archive-file-storage";
+} from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,8 +19,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Add to file-based archive
-    const archivedItem = await addItem(item);
+    // Initialize database
+    await initializeDatabase();
+
+    // Add to database
+    const archivedItem = await addArchivedItem(item);
 
     return NextResponse.json({
       id: archivedItem.id,
@@ -29,7 +33,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Archive error:", error);
     return NextResponse.json(
-      { error: "Archive failed" },
+      { error: "Archive failed: " + String(error) },
       { status: 500 }
     );
   }
@@ -40,14 +44,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
+    // Initialize database
+    await initializeDatabase();
+
     if (!id) {
       // Return all archived items
-      const items = await getAllItems();
+      const items = await getAllArchivedItems();
       return NextResponse.json({ items });
     }
 
     // Return specific item
-    const item = await getItem(id);
+    const item = await getArchivedItem(id);
     if (!item) {
       return NextResponse.json(
         { error: "Item not found" },
@@ -59,7 +66,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Fetch error:", error);
     return NextResponse.json(
-      { error: "Fetch failed" },
+      { error: "Fetch failed: " + String(error) },
       { status: 500 }
     );
   }
@@ -77,6 +84,9 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Initialize database
+    await initializeDatabase();
 
     let item = null;
     if (action === "download") {
@@ -101,7 +111,7 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error("Update error:", error);
     return NextResponse.json(
-      { error: "Update failed" },
+      { error: "Update failed: " + String(error) },
       { status: 500 }
     );
   }
