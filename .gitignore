@@ -29,6 +29,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# local data storage
+/data/
+!data/.gitkeep
+
 # scripts
 /scripts
 

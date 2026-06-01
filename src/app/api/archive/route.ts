@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-
-// Simple in-memory archive (can be replaced with Supabase later)
-const archivedItems: Map<string, any> = new Map();
+import {
+  addItem,
+  getItem,
+  getAllItems,
+  incrementDownloads,
+  incrementShares,
+} from "@/lib/archive-file-storage";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,23 +18,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate unique ID for this shared item
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    
-    // Add archival metadata
-    const archivedItem = {
-      ...item,
-      id,
-      archivedAt: new Date().toISOString(),
-      downloads: 0,
-      shares: 0,
-    };
-
-    archivedItems.set(id, archivedItem);
+    // Add to file-based archive
+    const archivedItem = await addItem(item);
 
     return NextResponse.json({
-      id,
-      shareUrl: `/archive/${id}`,
+      id: archivedItem.id,
+      shareUrl: `/archive/${archivedItem.id}`,
       message: "Item archived and ready to share!",
     });
   } catch (error) {
@@ -49,14 +42,12 @@ export async function GET(req: NextRequest) {
 
     if (!id) {
       // Return all archived items
-      const items = Array.from(archivedItems.values()).sort(
-        (a, b) => new Date(b.archivedAt).getTime() - new Date(a.archivedAt).getTime()
-      );
+      const items = await getAllItems();
       return NextResponse.json({ items });
     }
 
     // Return specific item
-    const item = archivedItems.get(id);
+    const item = await getItem(id);
     if (!item) {
       return NextResponse.json(
         { error: "Item not found" },
@@ -87,18 +78,23 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const item = archivedItems.get(id);
+    let item = null;
+    if (action === "download") {
+      item = await incrementDownloads(id);
+    } else if (action === "share") {
+      item = await incrementShares(id);
+    } else {
+      return NextResponse.json(
+        { error: "Invalid action" },
+        { status: 400 }
+      );
+    }
+
     if (!item) {
       return NextResponse.json(
         { error: "Item not found" },
         { status: 404 }
       );
-    }
-
-    if (action === "download") {
-      item.downloads += 1;
-    } else if (action === "share") {
-      item.shares += 1;
     }
 
     return NextResponse.json(item);
