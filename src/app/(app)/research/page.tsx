@@ -124,7 +124,7 @@ function PaperCard({ paper }: { paper: ResearchPaper }) {
         show: { opacity: 1, scale: 1, transition: { type: "spring" as const, stiffness: 280, damping: 22 } },
       }}
     >
-      <Card className="group h-full aspect-square hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col"
+      <Card className="group h-full aspect-[2/1] hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col"
         onClick={() => window.open(paper.url, "_blank")}>
         <CardContent className="p-4 space-y-2 flex flex-col h-full">
           {/* Header with icon and external link */}
