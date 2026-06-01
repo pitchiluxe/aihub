@@ -399,7 +399,7 @@ function ArticleCard({
 
   return (
     <motion.div variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 280, damping: 22 } } }}>
-      <Card className="group h-full flex flex-col hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden cursor-pointer">
+      <Card onClick={onSelect} className="group h-full flex flex-col hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden cursor-pointer">
         {article.imageUrl && (
           <div className="h-36 overflow-hidden bg-muted flex-shrink-0">
             <img
@@ -419,11 +419,9 @@ function ArticleCard({
           </div>
 
           <div className="flex-1">
-            <button onClick={onSelect} className="text-left w-full">
-              <h3 className="text-sm font-semibold leading-snug line-clamp-3 hover:text-primary transition-colors">
-                {article.title}
-              </h3>
-            </button>
+            <h3 className="text-sm font-semibold leading-snug line-clamp-3 hover:text-primary transition-colors">
+              {article.title}
+            </h3>
             <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{truncate(article.summary, 160)}</p>
           </div>
 
@@ -441,16 +439,16 @@ function ArticleCard({
               <span>{formatDate(article.publishedAt)}</span>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={onObsidian} title="Add to Obsidian graph" className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
+              <button onClick={(e) => { e.stopPropagation(); onObsidian(); }} title="Add to Obsidian graph" className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
                 <Network className="h-3.5 w-3.5" />
               </button>
-              <button onClick={onAIHubLM} title="Add to AIHub LM" className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
+              <button onClick={(e) => { e.stopPropagation(); onAIHubLM(); }} title="Add to AIHub LM" className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
                 {addedToLM ? <CheckCircle className="h-3.5 w-3.5 text-green-500" /> : <Brain className="h-3.5 w-3.5" />}
               </button>
-              <button onClick={onSave} className="p-1 rounded hover:bg-accent transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-1 rounded hover:bg-accent transition-colors">
                 {isSaved ? <BookmarkCheck className="h-3.5 w-3.5 text-primary" /> : <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />}
               </button>
-              <button onClick={onSelect} className="p-1 rounded hover:bg-accent transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); onSelect(); }} className="p-1 rounded hover:bg-accent transition-colors">
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             </div>
