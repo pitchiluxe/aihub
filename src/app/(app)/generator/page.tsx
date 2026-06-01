@@ -143,9 +143,9 @@ export default function GeneratorPage() {
         description="Create custom AI skills and agents with natural language prompts"
       />
       
-      <div className="flex-1 p-3 md:p-6 space-y-4 md:space-y-6 max-w-7xl mx-auto w-full">
+      <div className="flex-1 p-3 md:p-6 space-y-6 max-w-7xl mx-auto w-full">
         {/* Generator Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Input Panel */}
           <Card className="lg:col-span-1 border-2 border-primary/20">
             <CardContent className="p-6 space-y-4">

@@ -157,7 +157,7 @@ export default function ArchivePage() {
 
         {/* Items Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map(i => (
               <Card key={i} className="animate-pulse">
                 <CardHeader className="h-24 bg-slate-200 dark:bg-slate-700 rounded" />
@@ -180,7 +180,7 @@ export default function ArchivePage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
           >
             {filteredItems.map((item, idx) => (
               <motion.div

@@ -385,7 +385,7 @@ Make it clear, engaging, and practical. Help me understand WHY this matters.`,
           </div>
 
           {/* Tutorials Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence mode="popLayout">
               {filteredTutorials.map((tutorial, idx) => (
                 <motion.div

@@ -39,15 +39,15 @@ export function TopBar({ title, description }: TopBarProps) {
 
       <div className="flex flex-1 items-center gap-4">
         {title && (
-          <div className="hidden sm:block">
+          <div className="hidden md:block">
             <h1 className="text-sm font-semibold">{title}</h1>
             {description && (
-              <p className="text-xs text-muted-foreground hidden md:block">{description}</p>
+              <p className="text-xs text-muted-foreground">{description}</p>
             )}
           </div>
         )}
 
-        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md hidden sm:block">
+        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
           <Input
             placeholder="Search AI news, models, research..."
             icon={<Search className="h-3.5 w-3.5" />}
@@ -58,7 +58,7 @@ export function TopBar({ title, description }: TopBarProps) {
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Command className="h-3 w-3" />
-                <span className="hidden md:inline">K</span>
+                <span>K</span>
               </button>
             }
             value={localSearch}
@@ -66,13 +66,6 @@ export function TopBar({ title, description }: TopBarProps) {
             className="h-8 text-xs"
           />
         </form>
-        {/* Mobile search button */}
-        <button
-          onClick={() => setCommandOpen(true)}
-          className="sm:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-        >
-          <Search className="w-4 h-4" />
-        </button>
       </div>
 
       <div className="flex items-center gap-2">
