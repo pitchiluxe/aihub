@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { callModel } from "@/lib/ai/client";
 
 export const maxDuration = 60;
 
@@ -36,114 +37,52 @@ export async function POST(req: NextRequest) {
 
     if (!prompt || !type) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields: type and prompt" },
         { status: 400 }
-      );
-    }
-
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-    if (!OPENROUTER_API_KEY) {
-      return NextResponse.json(
-        { error: "API key not configured" },
-        { status: 500 }
       );
     }
 
     const systemPrompt = type === "skill" ? SKILL_GENERATION_PROMPT : AGENT_GENERATION_PROMPT;
 
-    // Use free models with fallback options
-    const models = [
-      "deepseek/deepseek-chat", // Fast and free, excellent for code generation
-      "meta-llama/llama-3-70b-instruct", // Open source, reliable
-      "openai/gpt-4-turbo-preview", // Fallback
-    ];
+    console.log(`[Generate] Creating ${type} from prompt: "${prompt.substring(0, 100)}..."`);
 
-    let response;
-    let lastError;
-
-    for (const model of models) {
-      try {
-        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "HTTP-Referer": "https://aihub.vercel.app",
-            "X-Title": "AIHub",
+    try {
+      const content = await callModel(
+        [
+          {
+            role: "system",
+            content: systemPrompt,
           },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "system",
-                content: systemPrompt,
-              },
-              {
-                role: "user",
-                content: `Please generate a ${type} based on this request: ${prompt}`,
-              },
-            ],
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        });
+          {
+            role: "user",
+            content: `Please generate a ${type} based on this request: ${prompt}`,
+          },
+        ],
+        2000
+      );
 
-        if (response.ok) {
-          break; // Model worked, exit loop
-        } else {
-          lastError = await response.text();
-          console.warn(`Model ${model} failed:`, lastError);
-          continue; // Try next model
-        }
-      } catch (err) {
-        lastError = err;
-        console.warn(`Model ${model} error:`, err);
-        continue; // Try next model
-      }
-    }
+      // Parse the generated content to extract name, description, and code
+      const lines = content.split("\n");
+      const name = lines[0].replace(/^#+\s*/, "").trim() || `Generated ${type}`;
+      const description = lines.slice(1, 3).join(" ").slice(0, 200);
 
-    if (!response?.ok) {
-      const error = lastError || "Unknown error";
-      console.error("All generation models failed:", error);
+      console.log(`[Generate] Success: ${name}`);
+
+      return NextResponse.json({
+        name,
+        description,
+        code: content,
+        type,
+      });
+    } catch (error) {
+      console.error(`[Generate] Model error: ${error}`);
       return NextResponse.json(
-        { error: "Failed to generate. Please ensure your OpenRouter API key is valid and has available credits." },
-        { status: 500 }
+        { error: `Failed to generate ${type}. Please try again in a moment.` },
+        { status: 503 }
       );
     }
-
-    if (!response?.ok) {
-      const error = lastError || "Unknown error";
-      console.error("All generation models failed:", error);
-      return NextResponse.json(
-        { error: "Failed to generate. Please ensure your OpenRouter API key is valid and has available credits." },
-        { status: 500 }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      console.error("No content in response:", data);
-      return NextResponse.json(
-        { error: "No response from AI model" },
-        { status: 500 }
-      );
-    }
-
-    // Parse the generated content to extract name, description, and code
-    const lines = content.split("\n");
-    const name = lines[0].replace(/^#+\s*/, "").trim() || `Generated ${type}`;
-    const description = lines.slice(1, 3).join(" ").slice(0, 200);
-    
-    return NextResponse.json({
-      name,
-      description,
-      code: content,
-      type,
-    });
   } catch (error) {
-    console.error("Generation error:", error);
+    console.error("[Generate] Unexpected error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
