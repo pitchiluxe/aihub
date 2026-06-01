@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input";
 import { ResearchPaper } from "@/types";
 import { formatDate } from "@/lib/utils";
 import {
-  Search, ExternalLink, FlaskConical, BookOpen,
-  Users, Quote, RefreshCw, ChevronDown,
+  Search, ExternalLink, FlaskConical,
+  Quote, RefreshCw,
 } from "lucide-react";
 
 const RESEARCH_TOPICS = [
@@ -29,7 +29,7 @@ export default function ResearchPage() {
   async function loadPapers(q: string) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/research?q=${encodeURIComponent(q)}&limit=20`, { cache: "no-store" });
+      const res = await fetch(`/api/research?q=${encodeURIComponent(q)}&limit=50`, { cache: "no-store" });
       const data = await res.json();
       setPapers(data.papers ?? []);
     } finally {
@@ -86,17 +86,17 @@ export default function ResearchPage() {
 
         {/* Papers */}
         {loading ? (
-          <div className="space-y-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />
             ))}
           </div>
         ) : (
           <motion.div
-            className="space-y-4"
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
             initial="hidden"
             animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.03 } } }}
           >
             {papers.map((paper) => (
               <PaperCard key={paper.id} paper={paper} />
@@ -120,80 +120,47 @@ function PaperCard({ paper }: { paper: ResearchPaper }) {
   return (
     <motion.div
       variants={{
-        hidden: { opacity: 0, y: 12 },
-        show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 280, damping: 22 } },
+        hidden: { opacity: 0, scale: 0.95 },
+        show: { opacity: 1, scale: 1, transition: { type: "spring" as const, stiffness: 280, damping: 22 } },
       }}
     >
-      <Card className="hover:shadow-md transition-all duration-200">
-        <CardContent className="p-5 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <a
-                href={paper.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group"
-              >
-                <h3 className="text-sm font-semibold leading-snug group-hover:text-primary transition-colors">
-                  {paper.title}
-                </h3>
-              </a>
+      <Card className="group h-full aspect-square hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col"
+        onClick={() => window.open(paper.url, "_blank")}>
+        <CardContent className="p-4 space-y-2 flex flex-col h-full">
+          {/* Header with icon and external link */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm flex-shrink-0">
+              📄
             </div>
             <a
               href={paper.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => e.stopPropagation()}
+              className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
             >
-              <ExternalLink className="h-4 w-4" />
+              <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
 
-          {/* Authors */}
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="h-3 w-3" />
-            <span className="truncate">{paper.authors.slice(0, 3).join(", ")}{paper.authors.length > 3 ? ` +${paper.authors.length - 3}` : ""}</span>
+          {/* Title - truncated */}
+          <h3 className="text-xs font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors flex-1">
+            {paper.title}
+          </h3>
+
+          {/* Authors - compact */}
+          <div className="text-xs text-muted-foreground line-clamp-1">
+            {paper.authors.slice(0, 2).map((a) => a.split(",")[0]).join(", ")}{paper.authors.length > 2 ? "…" : ""}
           </div>
 
-          {/* TL;DR */}
-          {paper.tldr && (
-            <div className="flex items-start gap-2 bg-primary/5 border border-primary/20 rounded-lg p-3">
-              <span className="text-xs font-bold text-primary mt-0.5 flex-shrink-0">TL;DR</span>
-              <p className="text-xs text-foreground leading-relaxed">{paper.tldr}</p>
+          {/* Stats */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 border-t border-border mt-auto">
+            <div className="flex items-center gap-1">
+              <Quote className="h-3 w-3" />
+              <span>{(paper.citations ?? 0).toLocaleString()}</span>
             </div>
-          )}
-
-          {/* Abstract */}
-          <div>
-            <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? "line-clamp-3" : ""}`}>
-              {paper.abstract}
-            </p>
-            {paper.abstract.length > 300 && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline"
-              >
-                {expanded ? "Show less" : "Read more"}
-                <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-1 border-t border-border">
-            <div className="flex items-center gap-3">
-              {paper.arxivId && (
-                <Badge variant="secondary" className="text-xs font-mono">
-                  arXiv:{paper.arxivId.slice(-10)}
-                </Badge>
-              )}
-              {paper.citations !== undefined && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Quote className="h-3 w-3" />
-                  {paper.citations.toLocaleString()} citations
-                </div>
-              )}
-            </div>
-            <span className="text-xs text-muted-foreground">{formatDate(paper.publishedAt)}</span>
+            <span className="text-xs text-muted-foreground">•</span>
+            <span className="text-xs truncate">{paper.arxivId?.slice(-6) || "Paper"}</span>
           </div>
         </CardContent>
       </Card>
