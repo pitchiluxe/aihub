@@ -31,6 +31,37 @@ The agent should include:
 Format the output as a structured agent configuration with markdown documentation.
 Start with the agent name, then the full configuration and documentation.`;
 
+const IDEA_GENERATION_PROMPT = `You are a visionary product strategist and serial entrepreneur with deep AI expertise.
+
+Generate ONE completely original, never-before-seen idea for a web app, SaaS, AI tool, developer tool, or software product.
+
+The idea MUST be:
+- Genuinely novel — not a clone, variation, or minor twist on existing products
+- Technically feasible today using LLMs, embeddings, RAG, or AI agents
+- Commercially viable with a clear path to revenue
+- Solving a real, specific pain point that current tools miss entirely
+- The kind of idea that makes builders say "why hasn't anyone built this yet?"
+
+Return ONLY valid JSON — no markdown fences, no explanation, no extra text:
+{
+  "name": "Product name — 2-4 memorable words",
+  "tagline": "One sentence under 12 words",
+  "category": "Web App | SaaS | AI Tool | Developer Tool | Mobile App | Browser Extension | API",
+  "problem": "The specific pain point in 2-3 concrete sentences. Be specific about who suffers and how.",
+  "solution": "How AI makes this uniquely possible today in 2-3 sentences.",
+  "features": [
+    "Feature 1 — specific, concrete, differentiated from alternatives",
+    "Feature 2 — specific, concrete, differentiated from alternatives",
+    "Feature 3 — specific, concrete, differentiated from alternatives",
+    "Feature 4 — specific, concrete, differentiated from alternatives",
+    "Feature 5 — specific, concrete, differentiated from alternatives"
+  ],
+  "techStack": ["Next.js", "TypeScript", "OpenRouter", "Supabase", "pgvector"],
+  "monetization": "Specific pricing model and revenue strategy",
+  "uniqueAngle": "The single insight or technical approach that makes this impossible to replicate overnight",
+  "promptForGenerator": "Build [name]: [detailed product brief — describe the app, all core features, UX flows, tech stack, API integrations, data model, and what makes it special. This should be a complete spec ready to give a senior developer.]"
+}`;
+
 const PROMPT_GENERATION_PROMPT = `You are a world-class prompt engineer. Your job is to craft highly effective, production-ready AI prompts.
 
 Given a task description and optional parameters (role, context, output format, tone), generate an optimized prompt that:
@@ -62,6 +93,7 @@ export async function POST(req: NextRequest) {
     let systemPrompt: string;
     if (type === "skill") systemPrompt = SKILL_GENERATION_PROMPT;
     else if (type === "prompt") systemPrompt = PROMPT_GENERATION_PROMPT;
+    else if (type === "idea") systemPrompt = IDEA_GENERATION_PROMPT;
     else systemPrompt = AGENT_GENERATION_PROMPT;
 
     console.log(`[Generate] Creating ${type} from prompt: "${prompt.substring(0, 100)}..."`);
@@ -79,6 +111,18 @@ Output Format: ${config.format || "detailed paragraphs"}
 Tone: ${config.tone || "professional"}`.trim();
         } catch {
           userMessage = `Generate an optimized AI prompt for: ${prompt}`;
+        }
+      } else if (type === "idea") {
+        try {
+          const config = JSON.parse(prompt);
+          userMessage = `Generate a never-before-seen product idea with these preferences:
+Category: ${config.category || "any"}
+Domain/Niche: ${config.domain || "any — surprise me"}
+Scale: ${config.scale || "Full Product"}
+
+Make it truly original. Think deeply before responding.`;
+        } catch {
+          userMessage = `Generate a never-before-seen original product idea. Be bold and original.`;
         }
       } else {
         userMessage = `Please generate a ${type} based on this request: ${prompt}`;
@@ -109,6 +153,16 @@ Tone: ${config.tone || "professional"}`.trim();
           name = "Generated Prompt";
         }
         description = "AI-optimized prompt ready for immediate use";
+      } else if (type === "idea") {
+        try {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+          name = parsed?.name ?? "Original Idea";
+          description = parsed?.tagline ?? "A never-before-seen product concept";
+        } catch {
+          name = "Generated Idea";
+          description = "A never-before-seen product concept";
+        }
       } else {
         const lines = content.split("\n");
         name = lines[0].replace(/^#+\s*/, "").trim() || `Generated ${type}`;
