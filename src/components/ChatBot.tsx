@@ -136,37 +136,42 @@ export function ChatBot() {
         </div>
       </motion.button>
 
-      {/* Chat Window */}
+      {/* Chat Window — centered on the right side */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="fixed bottom-24 right-6 z-40 w-96 max-h-[600px] flex flex-col"
+            initial={{ opacity: 0, x: 24, scale: 0.97 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 24, scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 360, damping: 30 }}
+            className="fixed top-1/2 -translate-y-1/2 right-6 z-40 w-96 h-[600px] flex flex-col"
           >
-            <Card className="flex flex-col h-full bg-background border-2 border-primary/20 shadow-2xl">
+            <Card className="flex flex-col h-full bg-background border-2 border-primary/20 shadow-2xl overflow-hidden">
               {/* Header */}
-              <div className="bg-gradient-to-r from-primary to-primary/80 text-white p-4 rounded-t-lg">
-                <h3 className="font-semibold text-lg">AIHub Copilot</h3>
-                <p className="text-xs text-white/80">Always on — ask me anything</p>
+              <div className="bg-gradient-to-r from-primary to-primary/80 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h3 className="font-semibold text-base leading-tight">AIHub Copilot</h3>
+                  <p className="text-xs text-white/70">Ask me anything about AI</p>
+                </div>
+                <button onClick={() => setIsOpen(false)} className="text-white/70 hover:text-white transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {/* Messages — min-h-0 is required for flex children to scroll */}
+              <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-3">
                 {messages.map((message) => (
                   <motion.div
                     key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-xs px-4 py-2 rounded-lg text-sm ${
+                      className={`max-w-[78%] px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
                         message.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-none"
-                          : "bg-muted text-muted-foreground rounded-bl-none"
+                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          : "bg-muted text-foreground rounded-bl-sm"
                       }`}
                     >
                       {message.content}
@@ -174,14 +179,11 @@ export function ChatBot() {
                   </motion.div>
                 ))}
                 {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex justify-start"
-                  >
-                    <div className="bg-muted px-4 py-2 rounded-lg flex items-center gap-2">
-                      <Loader className="h-4 w-4 animate-spin" />
-                      <span className="text-xs text-muted-foreground">Thinking...</span>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                    <div className="bg-muted px-4 py-2.5 rounded-xl rounded-bl-sm flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </motion.div>
                 )}
@@ -189,19 +191,20 @@ export function ChatBot() {
               </div>
 
               {/* Input */}
-              <form onSubmit={handleSendMessage} className="border-t p-3 bg-muted/50 rounded-b-lg flex gap-2">
+              <form onSubmit={handleSendMessage} className="border-t border-border p-3 flex gap-2 flex-shrink-0 bg-background">
                 <Input
                   placeholder="Ask about AI, agents, skills..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   disabled={isLoading}
-                  className="text-xs h-9"
+                  className="text-sm h-9"
+                  autoFocus
                 />
                 <Button
                   type="submit"
                   disabled={isLoading || !inputValue.trim()}
                   size="sm"
-                  className="px-3 h-9"
+                  className="px-3 h-9 flex-shrink-0"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
