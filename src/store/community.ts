@@ -3263,6 +3263,20 @@ export const useCommunityStore = create<CommunityStore>()(
     }),
     {
       name: "aihub-community",
+      version: 3,
+      // Always merge new seed posts into persisted state so existing users see new content
+      merge: (persisted: unknown, current) => {
+        const p = persisted as Partial<typeof current> | null;
+        const existingIds = new Set((p?.posts ?? []).map((post) => post.id));
+        const newSeeds = SEED_POSTS.filter((post) => !existingIds.has(post.id));
+        return {
+          ...current,
+          ...(p ?? {}),
+          posts: [...newSeeds, ...(p?.posts ?? [])],
+          comments: p?.comments ?? [],
+          username: p?.username ?? "You",
+        };
+      },
       partialize: (s) => ({
         posts: s.posts,
         comments: s.comments,
