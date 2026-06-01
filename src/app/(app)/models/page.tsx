@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,8 @@ import { formatNumber } from "@/lib/utils";
 import { useStore } from "@/store";
 import {
   Search, Brain, Filter, ExternalLink, Cpu, Sparkles,
-  ChevronDown, ChevronUp, ArrowRight,
+  ChevronDown, ChevronUp, ArrowRight, Copy, Check, X,
+  Download, PlayCircle, Code, BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -26,6 +27,8 @@ export default function ModelsPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "context" | "provider">("context");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
+  const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
   const { selectedProvider, setSelectedProvider, freeOnly, setFreeOnly } = useStore();
 
   useEffect(() => {
@@ -157,7 +160,11 @@ export default function ModelsPage() {
                 variants={{ hidden: {}, show: { transition: { staggerChildren: 0.03 } } }}
               >
                 {filtered.slice(0, 60).map((model) => (
-                  <ModelGridCard key={model.id} model={model} />
+                  <ModelGridCard
+                    key={model.id}
+                    model={model}
+                    onClick={() => setSelectedModel(model)}
+                  />
                 ))}
               </motion.div>
             )}
@@ -249,11 +256,26 @@ export default function ModelsPage() {
           </p>
         )}
       </div>
+
+      {/* Model Detail Modal */}
+      <AnimatePresence>
+        {selectedModel && (
+          <ModelDetailModal
+            model={selectedModel}
+            onClose={() => setSelectedModel(null)}
+            onCopyCommand={(cmd) => {
+              setCopiedCommand(cmd);
+              setTimeout(() => setCopiedCommand(null), 2000);
+            }}
+            copiedCommand={copiedCommand}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function ModelGridCard({ model }: { model: AIModel }) {
+function ModelGridCard({ model, onClick }: { model: AIModel; onClick?: () => void }) {
   const providerColor: Record<string, string> = {
     "meta-llama": "from-blue-500 to-blue-600",
     mistralai: "from-orange-500 to-orange-600",
@@ -276,8 +298,9 @@ function ModelGridCard({ model }: { model: AIModel }) {
         hidden: { opacity: 0, scale: 0.95 },
         show: { opacity: 1, scale: 1, transition: { type: "spring" as const, stiffness: 300, damping: 24 } },
       }}
+      onClick={onClick}
     >
-      <Card className="group h-full hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden">
+      <Card className="group h-full hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden cursor-pointer">
         <CardContent className="p-4 flex flex-col gap-3">
           <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
             <Brain className="h-5 w-5 text-white" />
@@ -309,6 +332,300 @@ function ModelGridCard({ model }: { model: AIModel }) {
           </div>
         </CardContent>
       </Card>
+    </motion.div>
+  );
+}
+
+// Helper to get installation instructions
+function getModelInstructions(model: AIModel) {
+  const isOllama = model.provider === "ollama";
+  const modelSlug = isOllama ? model.ollamaSlug : model.openRouterSlug;
+
+  if (isOllama) {
+    return {
+      title: "Run Locally with Ollama",
+      steps: [
+        {
+          title: "1. Install Ollama",
+          description: "Download Ollama from https://ollama.ai",
+          command: "# macOS or Windows: Download from ollama.ai",
+        },
+        {
+          title: "2. Pull the Model",
+          description: `Download ${model.name}`,
+          command: `ollama pull ${modelSlug}`,
+        },
+        {
+          title: "3. Run the Model",
+          description: "Start a local server (runs on http://localhost:11434)",
+          command: `ollama run ${modelSlug}`,
+        },
+        {
+          title: "4. Use via API",
+          description: "Send requests to the local API endpoint",
+          command: `curl http://localhost:11434/api/generate -d '{\n  "model": "${modelSlug}",\n  "prompt": "Hello!"\n}'`,
+        },
+      ],
+      features: [
+        "✅ Completely free",
+        "✅ Runs locally - full privacy",
+        "✅ No API keys",
+        "✅ Works offline",
+      ],
+    };
+  }
+
+  return {
+    title: "Use via OpenRouter API",
+    steps: [
+      {
+        title: "1. Get API Key",
+        description: "Sign up at https://openrouter.ai",
+        command: "# Get your key from https://openrouter.ai/keys",
+      },
+      {
+        title: "2. Set Environment Variable",
+        description: "Store your API key",
+        command: 'export OPENROUTER_API_KEY="sk-..."',
+      },
+      {
+        title: "3. Make API Request",
+        description: "Use the model ID",
+        command: `curl https://openrouter.ai/api/v1/chat/completions \\
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model": "${modelSlug}", "messages": [{"role": "user", "content": "Hello!"}]}'`,
+      },
+    ],
+    features: [
+      `💰 Input: $${(model.pricing?.prompt || 0).toFixed(6)}/1k tokens`,
+      `💰 Output: $${(model.pricing?.completion || 0).toFixed(6)}/1k tokens`,
+      "🔑 Requires API key",
+      "📡 Cloud-based (instant access)",
+    ],
+  };
+}
+
+interface ModelDetailModalProps {
+  model: AIModel;
+  onClose: () => void;
+  onCopyCommand: (cmd: string) => void;
+  copiedCommand: string | null;
+}
+
+function ModelDetailModal({
+  model,
+  onClose,
+  onCopyCommand,
+  copiedCommand,
+}: ModelDetailModalProps) {
+  const instructions = getModelInstructions(model);
+  const isOllama = model.provider === "ollama";
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    onCopyCommand(text);
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="bg-background rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-background border-b border-border p-6 flex items-start justify-between">
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold">{model.name}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{model.id}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Description */}
+          {model.description && (
+            <div>
+              <h3 className="font-semibold mb-2">About</h3>
+              <p className="text-sm text-muted-foreground">{model.description}</p>
+            </div>
+          )}
+
+          {/* Specs */}
+          <div>
+            <h3 className="font-semibold mb-3">Specifications</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-accent/50 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">Context Window</p>
+                <p className="text-lg font-semibold">
+                  {model.contextWindow >= 1000
+                    ? `${(model.contextWindow / 1000).toFixed(0)}K`
+                    : model.contextWindow}
+                </p>
+              </div>
+              <div className="bg-accent/50 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">Provider</p>
+                <p className="text-lg font-semibold capitalize">
+                  {model.provider.split("/")[0]}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {model.isFree && <Badge>Free</Badge>}
+              {model.isOpenSource && <Badge variant="success">Open Source</Badge>}
+              {model.capabilities.map((cap) => (
+                <Badge key={cap} variant="secondary">
+                  {cap.replace("-", " ")}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {/* Installation */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <Download className="h-5 w-5" />
+              <h3 className="font-semibold text-lg">{instructions.title}</h3>
+            </div>
+
+            {instructions.features && (
+              <div className="bg-accent/30 rounded-lg p-3 mb-4 space-y-1">
+                {instructions.features.map((feature) => (
+                  <p key={feature} className="text-sm">
+                    {feature}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {instructions.steps.map((step, idx) => (
+                <div key={idx} className="border border-border rounded-lg p-4">
+                  <h4 className="font-semibold mb-1">{step.title}</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {step.description}
+                  </p>
+                  <div className="bg-muted rounded p-3 font-mono text-xs overflow-x-auto">
+                    <pre className="text-muted-foreground">{step.command}</pre>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(step.command)}
+                    className="mt-2 text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                  >
+                    {copiedCommand === step.command ? (
+                      <>
+                        <Check className="h-3 w-3" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        Copy Command
+                      </>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Next Steps */}
+          <div className="bg-accent/20 border border-border rounded-lg p-4">
+            <div className="flex gap-2 mb-2">
+              <BookOpen className="h-5 w-5 text-primary flex-shrink-0" />
+              <h4 className="font-semibold">Next Steps</h4>
+            </div>
+            <ul className="text-sm text-muted-foreground space-y-1 ml-7">
+              <li>
+                {isOllama
+                  ? "✅ Once installed, the model will be available locally"
+                  : "✅ After setup, you can start making API calls"}
+              </li>
+              <li>✅ Check the documentation for advanced options</li>
+              <li>✅ Explore other {isOllama ? "local" : "API"} models</li>
+            </ul>
+          </div>
+
+          {/* Resources */}
+          <div className="grid grid-cols-2 gap-3">
+            {isOllama ? (
+              <>
+                <a
+                  href="https://ollama.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Ollama Website
+                </a>
+                <a
+                  href="https://github.com/jmorganca/ollama"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
+                >
+                  <Code className="h-4 w-4" />
+                  GitHub
+                </a>
+              </>
+            ) : (
+              <>
+                <a
+                  href="https://openrouter.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  OpenRouter
+                </a>
+                <a
+                  href="https://openrouter.ai/docs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Docs
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-background border-t border-border p-4 flex gap-3">
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              const instructions = getModelInstructions(model);
+              copyToClipboard(instructions.steps.map((s) => s.command).join("\n\n"));
+            }}
+            className="flex-1 gap-2"
+          >
+            <Copy className="h-4 w-4" />
+            Copy All Commands
+          </Button>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

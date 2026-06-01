@@ -2532,7 +2532,7 @@ resource "aws_autoscaling_group" "app" {
 
 \`\`\`hcl
 resource "aws_s3_bucket" "assets" {
-  bucket = "my-app-assets-${data.aws_caller_identity.current.account_id}"
+  bucket = "my-app-assets-\${data.aws_caller_identity.current.account_id}"
 }
 
 resource "aws_s3_bucket_versioning" "assets" {
