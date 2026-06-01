@@ -42,6 +42,7 @@ const NAV_ITEMS: { href: string; label: string; icon: React.ElementType; desc: s
   { href: "/skills",     label: "Skills",          icon: BookOpen,        desc: "AI skill library",           badge: null },
   { href: "/workflows",  label: "Workflows",       icon: Zap,             desc: "Automation templates",       badge: null },
   { href: "/community",  label: "Community",       icon: Users,           desc: "Discussions & reviews",      badge: null },
+  { href: "/generator",  label: "Generator",       icon: Sparkles,        desc: "Create skills & agents",     badge: "NEW", highlight: true },
   { href: "/aihumlm",    label: "AIHub LM",        icon: NotebookPen,     desc: "AI assistant & digest",      badge: "AI",   highlight: true },
   { href: "/playground", label: "Playground",      icon: Code,            desc: "Model testing sandbox",      badge: "NEW" },
 ];

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { ChatBot } from "@/components/ChatBot";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
@@ -93,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           disableTransitionOnChange
         >
           {children}
+          <ChatBot />
           <Toaster
             position="bottom-right"
             toastOptions={{
