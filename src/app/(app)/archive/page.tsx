@@ -1,68 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, Share2, Eye, Code, Zap, Search, Calendar } from "lucide-react";
+import {
+  Download, Share2, Eye, Code, Zap, Search, Calendar,
+  Wand2, Lightbulb, Trash2, Package,
+} from "lucide-react";
 import toast from "react-hot-toast";
+import { useArchiveStore, ArchivedItem } from "@/store/archive";
+import Link from "next/link";
 
-interface ArchivedItem {
-  id: string;
-  name: string;
-  type: "skill" | "agent";
-  description: string;
-  code: string;
-  archivedAt: string;
-  downloads: number;
-  shares: number;
-}
+const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
+  skill:  { icon: Code,     color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800",   label: "Skill" },
+  agent:  { icon: Zap,      color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800", label: "Agent" },
+  prompt: { icon: Wand2,    color: "text-pink-600",   bg: "bg-pink-50 dark:bg-pink-950/40 border-pink-200 dark:border-pink-800",   label: "Prompt" },
+  idea:   { icon: Lightbulb,color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800", label: "Idea" },
+};
 
 export default function ArchivePage() {
-  const [items, setItems] = useState<ArchivedItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { items, removeItem, incrementDownloads, incrementShares } = useArchiveStore();
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "skill" | "agent">("all");
+  const [filterType, setFilterType] = useState<"all" | "skill" | "agent" | "prompt" | "idea">("all");
   const [previewId, setPreviewId] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadArchivedItems();
-  }, []);
-
-  async function loadArchivedItems() {
-    try {
-      setIsLoading(true);
-      const res = await fetch("/api/archive");
-      if (!res.ok) throw new Error("Failed to load items");
-      const data = await res.json();
-      setItems(data.items || []);
-    } catch (error) {
-      console.error("Load error:", error);
-      toast.error("Failed to load archived items");
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   async function handleDownload(item: ArchivedItem) {
     try {
-      // Increment download count
-      await fetch(`/api/archive?id=${item.id}&action=download`, {
-        method: "PATCH",
-      });
-
-      // Trigger download
+      incrementDownloads(item.id);
       const response = await fetch("/api/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item),
+        body: JSON.stringify({ item, format: "zip" }),
       });
-
       if (!response.ok) throw new Error("Download failed");
-
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -70,254 +44,211 @@ export default function ArchivePage() {
       a.download = `${item.name.replace(/\s+/g, "-").toLowerCase()}-${item.type}.zip`;
       a.click();
       window.URL.revokeObjectURL(url);
-
       toast.success("Downloaded!");
-
-      // Reload to show updated count
-      loadArchivedItems();
-    } catch (error) {
-      console.error("Download error:", error);
+    } catch {
       toast.error("Download failed");
     }
   }
 
   async function handleShare(item: ArchivedItem) {
-    try {
-      // Increment share count
-      await fetch(`/api/archive?id=${item.id}&action=share`, {
-        method: "PATCH",
-      });
-
-      const shareUrl = `${window.location.origin}/archive/${item.id}`;
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Share link copied!");
-
-      // Reload to show updated count
-      loadArchivedItems();
-    } catch (error) {
-      console.error("Share error:", error);
-      toast.error("Share failed");
-    }
+    incrementShares(item.id);
+    await navigator.clipboard.writeText(`${window.location.origin}/archive/${item.id}`);
+    toast.success("Share link copied to clipboard!");
   }
 
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredItems = items.filter((item) => {
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = !q ||
+      item.name.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q);
     const matchesType = filterType === "all" || item.type === filterType;
     return matchesSearch && matchesType;
   });
 
+  const typeFilters = [
+    { value: "all", label: `All (${items.length})` },
+    { value: "skill",  label: `Skills (${items.filter(i => i.type === "skill").length})` },
+    { value: "agent",  label: `Agents (${items.filter(i => i.type === "agent").length})` },
+    { value: "prompt", label: `Prompts (${items.filter(i => i.type === "prompt").length})` },
+    { value: "idea",   label: `Ideas (${items.filter(i => i.type === "idea").length})` },
+  ] as const;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <TopBar />
+    <div className="flex flex-col min-h-screen">
+      <TopBar title="Archive" description="Your generated skills, agents, prompts, and ideas — saved locally" />
 
-      <div className="container max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-4xl font-bold mb-2">Community Archive</h1>
-          <p className="text-slate-600 dark:text-slate-400 text-lg">
-            Discover, download, and share AI skills and agents created by the community
-          </p>
-        </motion.div>
-
-        {/* Search and Filter */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-8 flex flex-col sm:flex-row gap-4"
-        >
+      <div className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
+        {/* Search + Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search skills and agents..."
+              placeholder="Search your archive..."
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10"
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
             />
           </div>
-
-          <div className="flex gap-2">
-            {(["all", "skill", "agent"] as const).map(type => (
+          <div className="flex gap-1.5 flex-wrap">
+            {typeFilters.map((f) => (
               <Button
-                key={type}
-                variant={filterType === type ? "default" : "outline"}
-                onClick={() => setFilterType(type)}
-                className="capitalize"
+                key={f.value}
+                size="sm"
+                variant={filterType === f.value ? "default" : "outline"}
+                onClick={() => setFilterType(f.value as typeof filterType)}
+                className="text-xs"
               >
-                {type === "all" ? "All" : type === "skill" ? "Skills" : "Agents"}
+                {f.label}
               </Button>
             ))}
           </div>
-        </motion.div>
+        </div>
 
-        {/* Items Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader className="h-24 bg-slate-200 dark:bg-slate-700 rounded" />
-                <CardContent className="h-12 mt-4 bg-slate-100 dark:bg-slate-800 rounded" />
+        {/* Stats bar */}
+        {items.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Total Items", value: items.length },
+              { label: "Downloads", value: items.reduce((s, i) => s + i.downloads, 0) },
+              { label: "Shares", value: items.reduce((s, i) => s + i.shares, 0) },
+              { label: "This Month", value: items.filter(i => new Date(i.archivedAt) > new Date(Date.now() - 30 * 86400000)).length },
+            ].map((stat) => (
+              <Card key={stat.label}>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                </CardContent>
               </Card>
             ))}
           </div>
-        ) : filteredItems.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
-            <Code className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-700 mb-4" />
-            <p className="text-xl text-slate-600 dark:text-slate-400">
-              {searchTerm ? "No items found matching your search" : "No archived items yet"}
+        )}
+
+        {/* Empty state */}
+        {items.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <Package className="h-16 w-16 text-muted-foreground/20 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Your archive is empty</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+              Generate skills, agents, prompts, or ideas in the Generator — they'll appear here automatically.
             </p>
-          </motion.div>
-        ) : (
+            <Link href="/generator">
+              <Button className="gap-2 ai-gradient border-0">
+                <Wand2 className="h-4 w-4" />
+                Go to Generator
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {/* No results for filter */}
+        {items.length > 0 && filteredItems.length === 0 && (
+          <div className="py-16 text-center">
+            <Search className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">No items match your search.</p>
+          </div>
+        )}
+
+        {/* Grid */}
+        {filteredItems.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
           >
-            {filteredItems.map((item, idx) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-              >
-                <Card className="h-full hover:shadow-lg transition-all cursor-pointer overflow-hidden group">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {item.name}
-                        </CardTitle>
-                        <Badge
-                          variant={item.type === "skill" ? "default" : "secondary"}
-                          className="mt-2 capitalize"
-                        >
-                          {item.type === "skill" ? <Zap className="w-3 h-3 mr-1" /> : <Code className="w-3 h-3 mr-1" />}
-                          {item.type}
-                        </Badge>
-                      </div>
-                    </div>
-                    <CardDescription className="text-sm line-clamp-2 mt-2">
-                      {item.description}
-                    </CardDescription>
-                  </CardHeader>
+            <AnimatePresence>
+              {filteredItems.map((item, idx) => {
+                const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.skill;
+                const Icon = cfg.icon;
+                const isExpanded = previewId === item.id;
 
-                  <CardContent>
-                    {/* Stats */}
-                    <div className="grid grid-cols-3 gap-2 mb-4 text-xs">
-                      <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
-                        <Download className="w-3 h-3" />
-                        <span>{item.downloads}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
-                        <Share2 className="w-3 h-3" />
-                        <span>{item.shares}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
-                        <Calendar className="w-3 h-3" />
-                        <span>{new Date(item.archivedAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setPreviewId(previewId === item.id ? null : item.id)}
-                        className="flex-1"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        Preview
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDownload(item)}
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleShare(item)}
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    {/* Preview */}
-                    {previewId === item.id && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700"
-                      >
-                        <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded text-xs overflow-auto max-h-40 font-mono">
-                          {item.code.slice(0, 500)}...
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: idx * 0.04 }}
+                  >
+                    <Card className="h-full hover:shadow-md transition-all overflow-hidden group">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base line-clamp-2 group-hover:text-primary transition-colors">
+                              {item.name}
+                            </CardTitle>
+                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border mt-2 ${cfg.bg} ${cfg.color}`}>
+                              <Icon className="h-3 w-3" />
+                              {cfg.label}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all flex-shrink-0"
+                            title="Remove from archive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                      </motion.div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
+                        <CardDescription className="text-xs line-clamp-2 mt-2">
+                          {item.description}
+                        </CardDescription>
+                      </CardHeader>
 
-        {/* Stats Summary */}
-        {!isLoading && items.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4"
-          >
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Total Items
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{items.length}</div>
-              </CardContent>
-            </Card>
+                      <CardContent className="pt-0 space-y-3">
+                        {/* Stats */}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Download className="h-3 w-3" />
+                            {item.downloads}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Share2 className="h-3 w-3" />
+                            {item.shares}
+                          </span>
+                          <span className="flex items-center gap-1 ml-auto">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(item.archivedAt).toLocaleDateString()}
+                          </span>
+                        </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Total Downloads
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">
-                  {items.reduce((sum, item) => sum + item.downloads, 0)}
-                </div>
-              </CardContent>
-            </Card>
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setPreviewId(isExpanded ? null : item.id)} className="flex-1 gap-1 text-xs">
+                            <Eye className="h-3.5 w-3.5" />
+                            {isExpanded ? "Hide" : "Preview"}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDownload(item)} className="gap-1 text-xs">
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleShare(item)} className="gap-1 text-xs">
+                            <Share2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Total Shares
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">
-                  {items.reduce((sum, item) => sum + item.shares, 0)}
-                </div>
-              </CardContent>
-            </Card>
+                        {/* Preview */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="bg-[#1e1e2e] rounded-lg p-3 overflow-auto max-h-48">
+                                <pre className="text-xs font-mono text-[#cdd6f4] whitespace-pre-wrap break-words">
+                                  {item.code.slice(0, 800)}
+                                  {item.code.length > 800 && "\n\n..."}
+                                </pre>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </motion.div>
         )}
       </div>

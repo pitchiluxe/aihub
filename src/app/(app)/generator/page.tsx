@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { useArchiveStore } from "@/store/archive";
 
 type TabType = "skill" | "agent" | "prompt" | "idea";
 
@@ -114,6 +115,8 @@ function parseIdea(json: string): IdeaResult | null {
 }
 
 export default function GeneratorPage() {
+  const { addItem: saveToArchive } = useArchiveStore();
+
   const [activeTab, setActiveTab] = useState<TabType>("skill");
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -161,11 +164,8 @@ export default function GeneratorPage() {
       setGenerated((prev) => [newItem, ...prev]);
       setPreview(newItem);
       setPrompt("");
-      if (data.archivedId) {
-        toast.success(`${activeTab === "skill" ? "Skill" : "Agent"} created & auto-archived!`, { duration: 4000 });
-      } else {
-        toast.success(`${activeTab === "skill" ? "Skill" : "Agent"} generated!`);
-      }
+      saveToArchive({ name: data.name, type: activeTab as "skill" | "agent", description: data.description, code: data.code, prompt });
+      toast.success(`${activeTab === "skill" ? "Skill" : "Agent"} generated & saved to archive!`, { duration: 3000 });
     } catch {
       toast.error("Failed to generate. Please try again.");
     } finally {
@@ -198,7 +198,8 @@ export default function GeneratorPage() {
       };
       setGenerated((prev) => [newItem, ...prev]);
       setPreview(newItem);
-      toast.success("Prompt generated!");
+      saveToArchive({ name: data.name, type: "prompt", description: data.description, code: data.code, prompt: promptConfig.task });
+      toast.success("Prompt generated & saved to archive!");
     } catch {
       toast.error("Failed to generate prompt.");
     } finally {
@@ -235,7 +236,8 @@ export default function GeneratorPage() {
       };
       setGenerated((prev) => [newItem, ...prev]);
       setPreview(newItem);
-      toast.success("New idea generated! 🚀");
+      saveToArchive({ name: data.name, type: "idea", description: data.description, code: data.code, prompt: ideaConfig.domain || ideaConfig.category });
+      toast.success("New idea generated & saved to archive! 🚀");
     } catch {
       toast.error("Failed to generate idea.");
     } finally {
