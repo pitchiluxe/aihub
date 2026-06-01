@@ -124,50 +124,49 @@ function PaperCard({ paper }: { paper: ResearchPaper }) {
         show: { opacity: 1, scale: 1, transition: { type: "spring" as const, stiffness: 280, damping: 22 } },
       }}
     >
-      <Card className="group h-full aspect-[2/1] hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col"
-        onClick={() => {
-          if (paper.url) {
-            window.open(paper.url, "_blank");
-          }
-        }}>
-        <CardContent className="p-4 space-y-2 flex flex-col h-full">
-          {/* Header with icon and external link */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm flex-shrink-0">
-              📄
+      <a 
+        href={paper.url || "#"}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group h-full block"
+      >
+        <Card className="group h-full aspect-[2/1] hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden cursor-pointer flex flex-col">
+          <CardContent className="p-4 space-y-2 flex flex-col h-full">
+            {/* Header with icon and external link */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm flex-shrink-0">
+                📄
+              </div>
+              <span
+                onClick={(e) => e.preventDefault()}
+                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </span>
             </div>
-            <a
-              href={paper.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
 
-          {/* Title - truncated */}
-          <h3 className="text-xs font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors flex-1">
-            {paper.title}
-          </h3>
+            {/* Title - truncated */}
+            <h3 className="text-xs font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors flex-1">
+              {paper.title}
+            </h3>
 
-          {/* Authors - compact */}
-          <div className="text-xs text-muted-foreground line-clamp-1">
-            {paper.authors.slice(0, 2).map((a) => a.split(",")[0]).join(", ")}{paper.authors.length > 2 ? "…" : ""}
-          </div>
-
-          {/* Stats */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 border-t border-border mt-auto">
-            <div className="flex items-center gap-1">
-              <Quote className="h-3 w-3" />
-              <span>{(paper.citations ?? 0).toLocaleString()}</span>
+            {/* Authors - compact */}
+            <div className="text-xs text-muted-foreground line-clamp-1">
+              {paper.authors.slice(0, 2).map((a) => a.split(",")[0]).join(", ")}{paper.authors.length > 2 ? "…" : ""}
             </div>
-            <span className="text-xs text-muted-foreground">•</span>
-            <span className="text-xs truncate">{paper.arxivId?.slice(-6) || "Paper"}</span>
-          </div>
-        </CardContent>
-      </Card>
+
+            {/* Stats */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 border-t border-border mt-auto">
+              <div className="flex items-center gap-1">
+                <Quote className="h-3 w-3" />
+                <span>{(paper.citations ?? 0).toLocaleString()}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs truncate">{paper.arxivId?.slice(-6) || "Paper"}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </a>
     </motion.div>
   );
 }
