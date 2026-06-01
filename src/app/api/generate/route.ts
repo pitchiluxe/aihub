@@ -31,6 +31,23 @@ The agent should include:
 Format the output as a structured agent configuration with markdown documentation.
 Start with the agent name, then the full configuration and documentation.`;
 
+const PROMPT_GENERATION_PROMPT = `You are a world-class prompt engineer. Your job is to craft highly effective, production-ready AI prompts.
+
+Given a task description and optional parameters (role, context, output format, tone), generate an optimized prompt that:
+1. Opens with a clear role/persona assignment
+2. States the task with precision and zero ambiguity
+3. Provides relevant context and constraints
+4. Specifies the exact output format expected
+5. Includes chain-of-thought or step-by-step instructions where beneficial
+6. Adds guardrails to prevent hallucination or off-topic responses
+7. Ends with a clear instruction to begin
+
+Rules:
+- Output ONLY the final prompt text — no preamble, no explanation, no meta-commentary
+- Make it copy-paste ready for immediate use
+- Optimize for the requested tone and format
+- Use markdown formatting within the prompt where it improves clarity`;
+
 export async function POST(req: NextRequest) {
   try {
     const { type, prompt } = await req.json();
@@ -42,11 +59,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const systemPrompt = type === "skill" ? SKILL_GENERATION_PROMPT : AGENT_GENERATION_PROMPT;
+    let systemPrompt: string;
+    if (type === "skill") systemPrompt = SKILL_GENERATION_PROMPT;
+    else if (type === "prompt") systemPrompt = PROMPT_GENERATION_PROMPT;
+    else systemPrompt = AGENT_GENERATION_PROMPT;
 
     console.log(`[Generate] Creating ${type} from prompt: "${prompt.substring(0, 100)}..."`);
 
     try {
+      let userMessage: string;
+      if (type === "prompt") {
+        try {
+          const config = JSON.parse(prompt);
+          userMessage = `Generate an optimized AI prompt for the following:
+Task: ${config.task}
+${config.role ? `Role/Persona: ${config.role}` : ""}
+${config.context ? `Context: ${config.context}` : ""}
+Output Format: ${config.format || "detailed paragraphs"}
+Tone: ${config.tone || "professional"}`.trim();
+        } catch {
+          userMessage = `Generate an optimized AI prompt for: ${prompt}`;
+        }
+      } else {
+        userMessage = `Please generate a ${type} based on this request: ${prompt}`;
+      }
+
       const content = await callModel(
         [
           {
@@ -55,16 +92,28 @@ export async function POST(req: NextRequest) {
           },
           {
             role: "user",
-            content: `Please generate a ${type} based on this request: ${prompt}`,
+            content: userMessage,
           },
         ],
         2000
       );
 
       // Parse the generated content to extract name, description, and code
-      const lines = content.split("\n");
-      const name = lines[0].replace(/^#+\s*/, "").trim() || `Generated ${type}`;
-      const description = lines.slice(1, 3).join(" ").slice(0, 200);
+      let name: string;
+      let description: string;
+      if (type === "prompt") {
+        try {
+          const config = JSON.parse(prompt);
+          name = `Prompt: ${config.task.slice(0, 50)}`;
+        } catch {
+          name = "Generated Prompt";
+        }
+        description = "AI-optimized prompt ready for immediate use";
+      } else {
+        const lines = content.split("\n");
+        name = lines[0].replace(/^#+\s*/, "").trim() || `Generated ${type}`;
+        description = lines.slice(1, 3).join(" ").slice(0, 200);
+      }
 
       console.log(`[Generate] Success: ${name}`);
 

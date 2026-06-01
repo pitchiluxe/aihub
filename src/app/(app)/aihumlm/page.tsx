@@ -11,7 +11,7 @@ import {
   FileText, MessageSquare, Sparkles, Send,
   BookOpen, Lightbulb, Quote, Copy,
   Check, X, Globe, AlertCircle, Brain, Loader2,
-  Newspaper, RefreshCw,
+  Newspaper, RefreshCw, Download,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -55,6 +55,7 @@ export default function AIHubLMPage() {
   const [processingSource, setProcessingSource] = useState(false);
   const [copiedId, setCopiedId]     = useState<string | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [fetchingNews, setFetchingNews] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── Load from sessionStorage queue on mount ────────────────────────────
@@ -283,6 +284,43 @@ Help users deeply understand their documents through insightful analysis, synthe
     setInput("Generate a comprehensive overview of all my sources. Include: main themes, key insights, important concepts, and what I should focus on learning.");
   }
 
+  async function fetchNewsArticles() {
+    setFetchingNews(true);
+    try {
+      const res = await fetch("/api/news?limit=100");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      const articles: Array<{ id: string; title: string; url: string; summary: string; source: string; category: string }> = data.articles ?? [];
+      if (articles.length === 0) {
+        toast.error("No articles found");
+        return;
+      }
+      const existing = new Set(sources.map(s => s.content));
+      const newSources: Source[] = articles
+        .filter(a => a.url && !existing.has(a.url))
+        .map(a => ({
+          id: `src-news-${a.id}`,
+          type: "url" as const,
+          title: a.title,
+          content: a.url,
+          summary: a.summary || `Article from ${a.source} · ${a.category}`,
+          keyPoints: [],
+          wordCount: 0,
+          addedAt: new Date(),
+        }));
+      if (newSources.length === 0) {
+        toast("All fetched articles are already loaded", { icon: "ℹ️" });
+        return;
+      }
+      setSources(prev => [...prev, ...newSources]);
+      toast.success(`${newSources.length} articles fetched from the web!`);
+    } catch {
+      toast.error("Failed to fetch news articles");
+    } finally {
+      setFetchingNews(false);
+    }
+  }
+
   async function copyMsg(id: string, content: string) {
     await navigator.clipboard.writeText(content);
     setCopiedId(id);
@@ -328,6 +366,20 @@ Help users deeply understand their documents through insightful analysis, synthe
               >
                 <FileText className="h-3.5 w-3.5" />
                 Paste Text / Article
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={fetchNewsArticles}
+                disabled={fetchingNews}
+                className="w-full justify-start gap-2 text-xs border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+              >
+                {fetchingNews ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Newspaper className="h-3.5 w-3.5" />
+                )}
+                {fetchingNews ? "Fetching..." : "Fetch 100 AI Articles"}
               </Button>
               <Button
                 size="sm"
