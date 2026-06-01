@@ -269,3 +269,24 @@ export interface BattleResult {
   latencyMs?: number;
   rating?: number;
 }
+
+// ─── RepoHub ─────────────────────────────────────────────────
+export interface AIRepository {
+  id: string;
+  name: string;
+  owner: string;
+  description: string;
+  url: string;
+  platform: "github" | "gitlab" | "gitea";
+  stars: number;
+  forks: number;
+  language?: string;
+  license?: string;
+  tags: string[];
+  topics: string[];
+  updatedAt: string;
+  imageUrl?: string;
+  isNew?: boolean;
+  featured?: boolean;
+  category: "agent" | "framework" | "tool" | "model" | "dataset" | "tutorial" | "automation" | "other";
+}

@@ -26,6 +26,7 @@ import {
   ChevronRight,
   X,
   Archive,
+  Package,
 } from "lucide-react";
 
 type BadgeType = "HOT" | "NEW" | "AI" | null;
@@ -34,6 +35,7 @@ const NAV_ITEMS: { href: string; label: string; icon: React.ElementType; desc: s
   { href: "/dashboard",  label: "Dashboard",      icon: LayoutDashboard, desc: "AI intelligence overview",   badge: null },
   { href: "/news",       label: "News",            icon: Newspaper,       desc: "Real-time AI updates",       badge: "HOT",  highlight: true },
   { href: "/models",     label: "Models",          icon: Cpu,             desc: "AI model directory",         badge: null },
+  { href: "/repos",      label: "RepoHub",         icon: Package,         desc: "Discover AI repositories",   badge: "NEW", highlight: true },
   { href: "/research",   label: "Research",        icon: FlaskConical,    desc: "arXiv & Semantic Scholar",   badge: null },
   { href: "/tutorials",  label: "Tutorials",       icon: GraduationCap,   desc: "Learn AI development",       badge: "NEW" },
   { href: "/agents",     label: "Agents",          icon: Bot,             desc: "AI expert assistants",       badge: "AI",   highlight: true },
