@@ -43,8 +43,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const MIN_ZOOM   = 0.06;
 const MAX_ZOOM   = 12;
-const LABEL_ZOOM = 0.80;       // labels only appear when meaningfully zoomed in
-const EDGE_LABEL_ZOOM = 1.6;
+const LABEL_ZOOM = 2.2;        // labels only appear when very zoomed in
+const EDGE_LABEL_ZOOM = 3.0;
 
 // ── Helpers ───────────────────────────────────────────────────
 function nodeRadius(size: number) { return Math.max(7, Math.round(size * 0.42)); }
@@ -240,47 +240,32 @@ export default function GraphPage() {
       }
     }
 
-    // Edges
+    // Edges — straight lines (fast, matches QB-Brain dense style)
     for (const l of links) {
       const sx=l.source.x??0, sy=l.source.y??0, ex=l.target.x??0, ey=l.target.y??0;
       const src=l.source.id as string, tgt=l.target.id as string;
       const isTouching = selId && (src===selId||tgt===selId);
-      const dx=ex-sx, dy=ey-sy, len=Math.sqrt(dx*dx+dy*dy)||1;
-      const cpx=(sx+ex)/2+(-dy/len)*len*0.18, cpy=(sy+ey)/2+(dx/len)*len*0.18;
-
       if (selId) {
         if (isTouching) {
-          const sn = nodes.find(nd=>nd.id===selId);
-          const col = sn?(sn.color??NODE_COLORS[sn.type]??"#8b5cf6"):"#8b5cf6";
-          ctx.strokeStyle=hexToRgba(col,0.8*edgeAlpha); ctx.lineWidth=2/k;
-        } else { ctx.strokeStyle=`rgba(255,255,255,${0.025*edgeAlpha})`; ctx.lineWidth=0.6/k; }
-      } else { ctx.strokeStyle=`rgba(255,255,255,${0.1*edgeAlpha})`; ctx.lineWidth=0.8/k; }
+          const sn=nodes.find(nd=>nd.id===selId);
+          const col=sn?(sn.color??NODE_COLORS[sn.type]??"#8b5cf6"):"#8b5cf6";
+          ctx.strokeStyle=hexToRgba(col,0.9*edgeAlpha); ctx.lineWidth=1.8/k;
+        } else { ctx.strokeStyle=`rgba(255,255,255,${0.04*edgeAlpha})`; ctx.lineWidth=0.5/k; }
+      } else { ctx.strokeStyle=`rgba(255,255,255,${0.18*edgeAlpha})`; ctx.lineWidth=0.7/k; }
       ctx.globalAlpha=1;
-      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.quadraticCurveTo(cpx,cpy,ex,ey); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
 
-      if (isTouching && k>0.3) {
-        const sn=nodes.find(nd=>nd.id===selId);
-        const col=sn?(sn.color??NODE_COLORS[sn.type]??"#8b5cf6"):"#8b5cf6";
-        const tn=nodes.find(nd=>nd.id===tgt), tr=nodeRadius(tn?.size??20)+1;
-        const adx=ex-cpx, ady=ey-cpy, aLen=Math.sqrt(adx*adx+ady*ady)||1;
-        const ux=adx/aLen, uy=ady/aLen;
-        const tipX=ex-ux*tr, tipY=ey-uy*tr, as=7/k;
-        ctx.beginPath();
-        ctx.moveTo(tipX,tipY);
-        ctx.lineTo(tipX-ux*as+uy*as*0.45, tipY-uy*as-ux*as*0.45);
-        ctx.lineTo(tipX-ux*as-uy*as*0.45, tipY-uy*as+ux*as*0.45);
-        ctx.closePath(); ctx.fillStyle=hexToRgba(col,0.85); ctx.fill();
-      }
-
+      // Edge label only at extreme zoom (rarely seen — no clutter)
       if (k>=EDGE_LABEL_ZOOM && l.label && isTouching) {
-        const mx=0.25*sx+0.5*cpx+0.25*ex, my=0.25*sy+0.5*cpy+0.25*ey;
+        const mx=(sx+ex)/2, my=(sy+ey)/2;
         const sn=nodes.find(nd=>nd.id===selId);
         const col=sn?(sn.color??NODE_COLORS[sn.type]??"#8b5cf6"):"#8b5cf6";
-        ctx.font=`${Math.max(5,6/k)}px Inter,system-ui,sans-serif`;
+        ctx.font=`${Math.max(5,5/k)}px Inter,system-ui,sans-serif`;
         ctx.textAlign="center";
-        ctx.fillStyle=hexToRgba(col,0.85); ctx.globalAlpha=0.85;
+        ctx.fillStyle=hexToRgba(col,0.8); ctx.globalAlpha=0.8;
         ctx.fillText(l.label,mx,my-3/k); ctx.globalAlpha=1;
       }
+      void tgt; // suppress unused warning
     }
 
     // Nodes
@@ -304,17 +289,20 @@ export default function GraphPage() {
       const fillA=isSel?1:isConn?0.88:0.12, strokeA=isSel?1:isConn?0.5:0.07;
       const realR=isSel?drawR*1.35:drawR;
 
-      if (isSel) { ctx.shadowColor=col; ctx.shadowBlur=20; }
-      // Flat fill (fast — no gradient object created per frame)
+      if (isSel) { ctx.shadowColor=col; ctx.shadowBlur=18; }
+      // Solid fill
       ctx.beginPath(); ctx.arc(nx,ny,realR,0,Math.PI*2);
       ctx.fillStyle=hexToRgba(col,fillA); ctx.fill();
-      // Inner highlight dot for subtle depth
-      if (realR > 5) {
-        ctx.beginPath(); ctx.arc(nx-realR*0.28,ny-realR*0.28,realR*0.22,0,Math.PI*2);
-        ctx.fillStyle=`rgba(255,255,255,${fillA*0.22})`; ctx.fill();
+      // Inner concentric ring — QB Brain texture
+      if (realR*k > 5) {
+        ctx.beginPath(); ctx.arc(nx,ny,realR*0.58,0,Math.PI*2);
+        ctx.strokeStyle=`rgba(0,0,0,0.18)`;
+        ctx.lineWidth=Math.max(0.8,1.4/k); ctx.stroke();
       }
+      // Outer border
       ctx.beginPath(); ctx.arc(nx,ny,realR,0,Math.PI*2);
-      ctx.strokeStyle=hexToRgba(col,strokeA); ctx.lineWidth=(isSel?2.5:1.2)/k; ctx.stroke();
+      ctx.strokeStyle=hexToRgba(col,isSel?1:isConn?0.55:0.08);
+      ctx.lineWidth=(isSel?2.5:1)/k; ctx.stroke();
       if (isSel) ctx.shadowBlur=0;
 
       if (isSel) {
@@ -453,12 +441,17 @@ export default function GraphPage() {
       framework:{x:W*0.30,y:H*0.60},research:{x:W*0.75,y:H*0.65},tool:{x:W*0.25,y:H*0.35},news:{x:W*0.50,y:H*0.20},
     };
 
+    // Dense QB-Brain physics — tight packing, fast settle
+    const linkDist   = Math.max(20, Math.min(50, 22 + n * 0.06));
+    const chargeStr  = -Math.max(35, Math.min(110, 40 + n * 0.22));
+    const colRadius  = (d: unknown) => nodeRadius((d as ExtNode).size ?? 20) * 0.9 + 1;
+
     const sim=d3.forceSimulation<ExtNode>(visNodes)
       .alphaDecay(0.038).velocityDecay(0.44)
-      .force("link",d3.forceLink(visLinks).id((d:unknown)=>(d as ExtNode).id).distance(Math.max(55,Math.min(110,55+n*0.22))).strength(0.45))
-      .force("charge",d3.forceManyBody().strength(-Math.max(80,Math.min(320,300-n*0.5))).distanceMax(400))
-      .force("center",d3.forceCenter(W/2,H/2).strength(0.04))
-      .force("collision",d3.forceCollide().radius((d:unknown)=>nodeRadius((d as ExtNode).size??20)+5).strength(0.75))
+      .force("link",d3.forceLink(visLinks).id((d:unknown)=>(d as ExtNode).id).distance(linkDist).strength(0.6))
+      .force("charge",d3.forceManyBody().strength(chargeStr).distanceMax(280))
+      .force("center",d3.forceCenter(W/2,H/2).strength(0.06))
+      .force("collision",d3.forceCollide().radius(colRadius).strength(0.6))
       .force("cluster",(alpha:number)=>{
         for (const nd of visNodes) {
           const c=typeCentroids[nd.type]; if(!c) continue;
@@ -471,7 +464,8 @@ export default function GraphPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     linksRef.current=(sim.force("link") as any).links();
 
-    const ticks=Math.min(140,Math.max(50,n));
+    // More pre-ticks = better initial layout (dense graphs need more settling)
+    const ticks=Math.min(280,Math.max(80,n*0.9));
     for (let i=0;i<ticks;i++) sim.tick();
 
     const xs=visNodes.map(nd=>nd.x??0), ys=visNodes.map(nd=>nd.y??0), pad=70;
@@ -612,8 +606,8 @@ export default function GraphPage() {
 
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ── Column 1: Nav Sidebar ─────────────────────────── */}
-        <aside className="hidden md:flex w-52 flex-shrink-0 bg-[#080c17] border-r border-white/[0.06] flex-col h-full overflow-hidden">
+        {/* ── Column 1: Nav Sidebar — hidden in full-screen graph mode ── */}
+        <aside className={cn("hidden md:flex w-52 flex-shrink-0 bg-[#080c17] border-r border-white/[0.06] flex-col h-full overflow-hidden", activeTab==="graph" && "!hidden")}>
           <div className="px-3 py-3 border-b border-white/[0.06]">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
@@ -654,12 +648,12 @@ export default function GraphPage() {
               </span>
             </button>
 
-            {/* Graph View tab */}
+            {/* Graph View tab — goes fullscreen */}
             <button onClick={()=>setActiveTab("graph")}
-              className={cn("vault-nav-item w-full", activeTab==="graph"&&"vault-nav-active")}>
+              className={cn("vault-nav-item w-full group", activeTab==="graph"&&"vault-nav-active")}>
               <Share2 className="w-3.5 h-3.5 flex-shrink-0 text-violet-400" />
               <span className="flex-1 text-left">Graph View</span>
-              <span className={cn("text-[10px] px-1 rounded font-mono", activeTab==="graph"?"bg-violet-500/20 text-violet-400":"text-gray-600")}>D3</span>
+              <span className="text-[9px] text-gray-700 group-hover:text-gray-500">fullscreen</span>
             </button>
 
             {/* ── Folders ─────────────────────────────────── */}
@@ -815,25 +809,35 @@ export default function GraphPage() {
         >
           <canvas ref={canvasRef} className="w-full h-full" style={{cursor:"default"}} />
 
-          <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
-            <button onClick={()=>doZoom(1.4)} className="graph-control-btn"><ZoomIn className="w-3.5 h-3.5"/></button>
-            <button onClick={()=>doZoom(0.7)} className="graph-control-btn"><ZoomOut className="w-3.5 h-3.5"/></button>
-            <button onClick={doZoomFit} className="graph-control-btn" title="Fit"><Crosshair className="w-3.5 h-3.5"/></button>
-            <button onClick={()=>buildGraph()} className="graph-control-btn"><RefreshCw className="w-3.5 h-3.5"/></button>
-            <button onClick={()=>setShowMiniMap(m=>!m)} className={cn("graph-control-btn",showMiniMap&&"!text-violet-400 !border-violet-500/40")}><MapIcon className="w-3.5 h-3.5"/></button>
+          {/* Stats — top-right overlay (QB Brain style) */}
+          <div className="absolute top-4 right-16 z-10 text-right pointer-events-none">
+            <div className="text-[11px] font-medium text-gray-400">
+              {INITIAL_GRAPH_DATA.nodes.filter(n=>activeTypes.has(n.type)).length} nodes
+            </div>
+            <div className="text-[10px] text-gray-600">
+              {INITIAL_GRAPH_DATA.links.length} connections
+            </div>
+            <div className="text-[10px] text-gray-700 font-mono">
+              {Math.round(zoom*100)}%
+            </div>
+          </div>
+
+          {/* Controls — right side vertical stack */}
+          <div className="absolute top-4 right-4 flex flex-col gap-1.5 z-10">
+            <button onClick={()=>doZoom(1.4)}          className="graph-control-btn"><ZoomIn    className="w-3.5 h-3.5"/></button>
+            <button onClick={()=>doZoom(0.7)}          className="graph-control-btn"><ZoomOut   className="w-3.5 h-3.5"/></button>
+            <button onClick={doZoomFit}                 className="graph-control-btn" title="Fit all"><Crosshair className="w-3.5 h-3.5"/></button>
+            <button onClick={()=>buildGraph()}          className="graph-control-btn" title="Re-layout"><RefreshCw className="w-3.5 h-3.5"/></button>
+            <button onClick={()=>setShowMiniMap(m=>!m)} className={cn("graph-control-btn",showMiniMap&&"!text-violet-400 !border-violet-500/40")} title="Mini-map"><MapIcon className="w-3.5 h-3.5"/></button>
             <button onClick={()=>setFullscreen(f=>!f)} className="graph-control-btn">{fullscreen?<Minimize2 className="w-3.5 h-3.5"/>:<Maximize2 className="w-3.5 h-3.5"/>}</button>
+            {/* Switch to Articles reader */}
+            <div className="mt-1 h-px bg-white/10"/>
+            <button onClick={()=>setActiveTab("articles")} className="graph-control-btn" title="Open Articles">
+              <Newspaper className="w-3.5 h-3.5 text-pink-400"/>
+            </button>
           </div>
 
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 overflow-x-auto max-w-[calc(100vw-2rem)] px-2 scrollbar-hide">
-            {Object.entries(NODE_COLORS).map(([type,color])=>(
-              <button key={type} onClick={()=>toggleType(type)}
-                className={cn("graph-filter-btn flex items-center gap-1.5 whitespace-nowrap",activeTypes.has(type)&&"graph-filter-active")}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor:activeTypes.has(type)?color:"#555"}}/>
-                {NODE_TYPE_LABELS[type]}
-              </button>
-            ))}
-          </div>
-
+          {/* Hover tooltip — centered top */}
           <AnimatePresence>
             {hoveredNode && (
               <motion.div key={hoveredNode.id} initial={{opacity:0,y:4}} animate={{opacity:1,y:0}} exit={{opacity:0}}
@@ -847,9 +851,15 @@ export default function GraphPage() {
             )}
           </AnimatePresence>
 
-          <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
-            <Filter className="w-3 h-3 text-gray-600"/>
-            <span className="text-[10px] text-gray-600">{activeTypes.size}/{Object.keys(NODE_COLORS).length}</span>
+          {/* Legend — bottom-right (QB Brain style) */}
+          <div className="absolute bottom-4 right-4 z-10 flex flex-wrap justify-end gap-x-3 gap-y-1.5 max-w-xs">
+            {Object.entries(NODE_COLORS).map(([type,color])=>(
+              <button key={type} onClick={()=>toggleType(type)}
+                className={cn("flex items-center gap-1.5 text-[10px] transition-opacity hover:opacity-100", !activeTypes.has(type)&&"opacity-30")}>
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor:color}}/>
+                <span className="text-gray-400">{NODE_TYPE_LABELS[type]}</span>
+              </button>
+            ))}
           </div>
         </div>
 
