@@ -27,6 +27,7 @@ import {
   X,
   Archive,
   Package,
+  Lightbulb,
 } from "lucide-react";
 
 type BadgeType = "HOT" | "NEW" | "AI" | null;
@@ -48,7 +49,8 @@ const NAV_ITEMS: { href: string; label: string; icon: React.ElementType; desc: s
   { href: "/generator",  label: "Generator",       icon: Sparkles,        desc: "Create skills & agents",     badge: "NEW", highlight: true },
   { href: "/archive",    label: "Archive",         icon: Archive,         desc: "Community skills & agents",  badge: "NEW", highlight: true },
   { href: "/aihumlm",    label: "AIHub LM",        icon: NotebookPen,     desc: "AI assistant & digest",      badge: "AI",   highlight: true },
-  { href: "/playground", label: "Playground",      icon: Code,            desc: "Model testing sandbox",      badge: "NEW" },
+  { href: "/playground",     label: "Playground",      icon: Code,            desc: "Model testing sandbox",      badge: "NEW" },
+  { href: "/million-ideas",  label: "1M Ideas",        icon: Lightbulb,       desc: "World-changing AI tools",    badge: "HOT",  highlight: true },
 ];
 
 const BONUS_ITEMS: { href: string; label: string; icon: React.ElementType; desc: string; badge: BadgeType }[] = [
