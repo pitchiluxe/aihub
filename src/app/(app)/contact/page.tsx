@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
 import {
   Mail, Send, CheckCircle2, AlertCircle, User, MessageSquare,
-  Code2, AtSign, Briefcase, Globe, Sparkles, Clock, MapPin,
+  Code2, AtSign, Briefcase, Globe, Clock, MapPin,
 } from "lucide-react";
 
 const SUBJECTS = [
@@ -91,8 +91,12 @@ export default function ContactPage() {
             <div className="bg-[#0d1421] border border-white/8 rounded-2xl p-6">
               {/* Avatar */}
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 flex-shrink-0">
-                  <Sparkles className="w-6 h-6 text-white" />
+                <div className="relative flex-shrink-0">
+                  <img
+                    src="/erick.png"
+                    alt="Erick Omari"
+                    className="w-16 h-16 rounded-2xl object-cover object-top shadow-lg shadow-indigo-500/20 ring-2 ring-indigo-500/30"
+                  />
                 </div>
                 <div>
                   <p className="text-white font-bold text-base leading-none">Erick Omari</p>
