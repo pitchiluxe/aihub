@@ -19,10 +19,10 @@ const SUBJECTS = [
 ];
 
 const SOCIALS = [
-  { icon: Code2,     label: "GitHub",   href: "https://github.com", color: "#e2e8f0" },
-  { icon: AtSign,    label: "Twitter",  href: "https://twitter.com", color: "#1d9bf0" },
-  { icon: Briefcase, label: "LinkedIn", href: "https://linkedin.com", color: "#0a66c2" },
-  { icon: Globe,     label: "AIHub",    href: "/dashboard", color: "#6366f1" },
+  { icon: Code2,     label: "GitHub",   href: "https://github.com/pitchiluxe?tab=repositories", color: "#e2e8f0" },
+  { icon: AtSign,    label: "X",        href: "https://x.com/eomari",                           color: "#e2e8f0" },
+  { icon: Briefcase, label: "LinkedIn", href: "https://www.linkedin.com/in/erickomari",          color: "#0a66c2" },
+  { icon: Globe,     label: "AIHub",    href: "/dashboard",                                      color: "#6366f1" },
 ];
 
 export default function ContactPage() {
