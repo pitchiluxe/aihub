@@ -28,6 +28,7 @@ import {
   Archive,
   Package,
   Lightbulb,
+  Mail,
 } from "lucide-react";
 
 type BadgeType = "HOT" | "NEW" | "AI" | null;
@@ -57,6 +58,7 @@ const BONUS_ITEMS: { href: string; label: string; icon: React.ElementType; desc:
   { href: "/radar",     label: "AI Radar",        icon: Radar,     desc: "Ecosystem monitoring",      badge: "NEW" },
   { href: "/battle",    label: "Battle Arena",    icon: Swords,    desc: "Model comparisons",         badge: null },
   { href: "/companies", label: "Company Tracker", icon: Building2, desc: "AI company intelligence",   badge: null },
+  { href: "/contact",   label: "Contact Me",      icon: Mail,      desc: "Get in touch with Erick",   badge: null },
 ];
 
 function NavBadge({ type }: { type: BadgeType }) {
