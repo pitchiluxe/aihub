@@ -182,6 +182,7 @@ export function Sidebar() {
               <div className="text-[10px] text-gray-600 leading-none mt-0.5">The AI Homepage</div>
             </div>
           </div>
+        </div>
       </div>
     </>
   );
