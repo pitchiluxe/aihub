@@ -117,7 +117,7 @@ export default function GraphPage() {
   const hoveredRef    = useRef<ExtNode | null>(null);
   const selectedIdRef = useRef<string | null>(null);
   const showMiniMapRef = useRef(true);
-  const prevTabRef    = useRef<"graph" | "articles">("graph");
+  const prevTabRef    = useRef<"graph" | "articles">("articles");
   const entranceActiveRef = useRef(false);
   const entranceStartRef  = useRef(0);
   const entranceMapRef    = useRef<Map<string, { delay: number; duration: number }>>(new Map());
@@ -129,7 +129,7 @@ export default function GraphPage() {
   const timelapseTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── State ─────────────────────────────────────────────────
-  const [activeTab,        setActiveTab]        = useState<"graph" | "articles">("graph");
+  const [activeTab,        setActiveTab]        = useState<"graph" | "articles">("articles");
   const [activeTypes,      setActiveTypes]      = useState<Set<string>>(new Set(Object.keys(NODE_COLORS)));
   const [selectedNode,     setSelectedNode]     = useState<GraphNode | null>(null);
   const [hoveredNode,      setHoveredNode]      = useState<GraphNode | null>(null);
@@ -480,11 +480,22 @@ export default function GraphPage() {
     entranceMapRef.current=eMap; entranceStartRef.current=performance.now(); entranceActiveRef.current=true;
 
     let isPanning=false, panStart={x:0,y:0}, panStartTx={x:0,y:0,k:1}, mouseDownPos={x:0,y:0}, didDrag=false;
+    let clickTimer: ReturnType<typeof setTimeout> | null = null;
 
     const onMouseDown=(e:MouseEvent)=>{ if(e.button!==0) return; mouseDownPos={x:e.clientX,y:e.clientY}; didDrag=false; const node=getNodeAt(e.clientX,e.clientY); if(node){draggingRef.current=node;node.fx=node.x;node.fy=node.y;sim.alphaTarget(0.5).restart();}else{isPanning=true;panStart={x:e.clientX,y:e.clientY};panStartTx={...transformRef.current};} };
     const onMouseMove=(e:MouseEvent)=>{ const ddx=e.clientX-mouseDownPos.x,ddy=e.clientY-mouseDownPos.y; if(Math.sqrt(ddx*ddx+ddy*ddy)>3) didDrag=true; if(draggingRef.current){const rect=canvas.getBoundingClientRect();const{x:tx2,y:ty2,k}=transformRef.current;draggingRef.current.fx=(e.clientX-rect.left-tx2)/k;draggingRef.current.fy=(e.clientY-rect.top-ty2)/k;}else if(isPanning){transformRef.current={k:panStartTx.k,x:panStartTx.x+(e.clientX-panStart.x),y:panStartTx.y+(e.clientY-panStart.y)};}else{const node=getNodeAt(e.clientX,e.clientY);if(node!==hoveredRef.current){hoveredRef.current=node;setHoveredNode(node);}if(node) setHoveredPos({x:e.clientX,y:e.clientY});} };
     const onMouseUp=()=>{ if(draggingRef.current){draggingRef.current.fx=null;draggingRef.current.fy=null;sim.alphaTarget(0.08);setTimeout(()=>simRef.current?.alphaTarget(0),500);draggingRef.current=null;}isPanning=false; };
-    const onClick=(e:MouseEvent)=>{ if(didDrag) return; const node=getNodeAt(e.clientX,e.clientY); if(node){setSelectedNode(prev=>{const next=prev?.id===node.id?null:(node as GraphNode);selectedIdRef.current=next?.id??null;return next;});}else{setSelectedNode(null);selectedIdRef.current=null;} };
+    const onClick=(e:MouseEvent)=>{
+      if(didDrag) return;
+      const node=getNodeAt(e.clientX,e.clientY);
+      // Delay single-click 250ms so double-click can cancel it (prevents glitch)
+      if(clickTimer) clearTimeout(clickTimer);
+      clickTimer=setTimeout(()=>{
+        clickTimer=null;
+        if(node){setSelectedNode(prev=>{const next=prev?.id===node.id?null:(node as GraphNode);selectedIdRef.current=next?.id??null;return next;});}
+        else{setSelectedNode(null);selectedIdRef.current=null;}
+      },250);
+    };
     const onWheel=(e:WheelEvent)=>{ e.preventDefault();
       const rect=canvas.getBoundingClientRect();
       const mx=e.clientX-rect.left, my=e.clientY-rect.top;
@@ -504,8 +515,10 @@ export default function GraphPage() {
     const onTouchMove=(e:TouchEvent)=>{ e.preventDefault(); if(e.touches.length===2){const[a,b]=[e.touches[0],e.touches[1]];const dist=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY),factor=dist/Math.max(lastTD,1),mid={x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2};const rect=canvas.getBoundingClientRect();const mx=mid.x-rect.left,my=mid.y-rect.top;const{x:tx2,y:ty2,k}=transformRef.current;const newK=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,k*factor));transformRef.current={k:newK,x:mx-(mx-tx2)*(newK/k),y:my-(my-ty2)*(newK/k)};setZoom(newK);lastTD=dist;}else if(e.touches.length===1&&isPanning){const dx=e.touches[0].clientX-panStart.x,dy=e.touches[0].clientY-panStart.y;if(Math.sqrt(dx*dx+dy*dy)>3)didDrag=true;transformRef.current={k:panStartTx.k,x:panStartTx.x+dx,y:panStartTx.y+dy};} };
     const onTouchEnd=()=>{ isPanning=false; };
     const onLeave=()=>{ hoveredRef.current=null; setHoveredNode(null); };
-    // Double-click: open URL if available, or open article if news node
+    // Double-click: cancel pending single-click, then open URL or article
     const onDblClick=(e:MouseEvent)=>{
+      if(clickTimer){ clearTimeout(clickTimer); clickTimer=null; }
+      if(didDrag) return;
       const node=getNodeAt(e.clientX,e.clientY);
       if(!node) return;
       if(node.url) { window.open(node.url,"_blank","noopener noreferrer"); return; }
@@ -525,6 +538,7 @@ export default function GraphPage() {
     startLoop();
 
     return () => {
+      if(clickTimer) clearTimeout(clickTimer);
       stopLoop(); sim.stop();
       canvas.removeEventListener("mousedown",onMouseDown);
       canvas.removeEventListener("mousemove",onMouseMove);
