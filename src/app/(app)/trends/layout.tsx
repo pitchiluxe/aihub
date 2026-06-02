@@ -1,18 +1,12 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "AI Trends",
-  description:
-    "Track trending AI topics, companies, models, tools, and frameworks in real time. Heat maps, charts, and trend graphs for the AI industry.",
-  keywords: [
-    "AI trends", "trending AI", "AI industry trends", "AI heat map",
-    "AI topic trends", "AI technology trends",
-  ],
-  openGraph: {
-    title: "AI Trends | AIHub",
-    description: "Real-time trending AI topics, companies, models, and frameworks with heat maps and charts.",
-  },
-};
+  description: "Track trending AI topics, companies, models, tools, and frameworks in real time. Heat maps, trend charts, and graphs for the AI industry ecosystem.",
+  path: "/trends",
+  keywords: ["AI trends","trending AI models","AI industry trends","artificial intelligence trends 2025"],
+});
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

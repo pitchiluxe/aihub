@@ -1,18 +1,12 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "AI Models",
-  description:
-    "Explore, compare, and benchmark AI models. Browse GPT-4o, Claude 3.5, Gemini 2.0, Llama 3, Mistral, and hundreds more. Filter by context window, pricing, and performance.",
-  keywords: [
-    "AI models", "LLM comparison", "GPT-4", "Claude", "Gemini", "Llama",
-    "Mistral", "model benchmarks", "AI leaderboard", "context window",
-  ],
-  openGraph: {
-    title: "AI Models | AIHub",
-    description: "Explore and compare hundreds of AI models — benchmarks, pricing, context windows, and more.",
-  },
-};
+  description: "Explore, compare, and benchmark AI models. Browse GPT-4o, Claude 3.5, Gemini, Llama 3, Mistral, and hundreds more. Filter by context window, pricing, and performance.",
+  path: "/models",
+  keywords: ["AI models","LLM comparison","GPT-4o","Claude","Gemini","Llama","language model benchmarks","AI model directory"],
+});
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

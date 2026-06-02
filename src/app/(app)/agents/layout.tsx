@@ -1,18 +1,12 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "AI Agents",
-  description:
-    "Chat with specialized AI experts — a News Analyst, Model Expert, Prompt Engineer, Workflow Architect, Research Assistant, and more. AI-only agents for AI professionals.",
-  keywords: [
-    "AI agents", "AI assistant", "prompt engineer", "AI workflow", "AI expert chat",
-    "AI research assistant", "AI coding mentor",
-  ],
-  openGraph: {
-    title: "AI Agents | AIHub",
-    description: "Chat with specialized AI experts — News Analyst, Model Expert, Prompt Engineer, and more.",
-  },
-};
+  description: "Chat with specialized AI expert agents — a News Analyst, Model Expert, Prompt Engineer, Workflow Architect, Research Assistant, and more.",
+  path: "/agents",
+  keywords: ["AI agents","AI expert chat","prompt engineer AI","AI workflow agent","LLM agents"],
+});
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

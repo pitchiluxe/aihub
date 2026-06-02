@@ -1,18 +1,12 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "AI Companies",
-  description:
-    "Track leading AI companies — OpenAI, Anthropic, Google DeepMind, Meta AI, xAI, Mistral, Cohere, and hundreds more. Company profiles, funding, products, and news.",
-  keywords: [
-    "AI companies", "OpenAI", "Anthropic", "Google DeepMind", "Meta AI",
-    "xAI", "Mistral AI", "AI startups", "AI funding", "AI industry",
-  ],
-  openGraph: {
-    title: "AI Companies | AIHub",
-    description: "Track AI companies — profiles, funding, products, and latest news.",
-  },
-};
+  description: "Track leading AI companies — OpenAI, Anthropic, Google DeepMind, Meta AI, xAI, Mistral, Cohere, and hundreds more. Company profiles, funding, products, and news.",
+  path: "/companies",
+  keywords: ["AI companies","OpenAI","Anthropic","Google DeepMind","Meta AI","xAI Grok","AI startup tracker"],
+});
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
