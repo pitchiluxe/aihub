@@ -18,6 +18,9 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   "Home Services": Hammer, Construction: Building, Food: Sparkles, Agriculture: Leaf,
   HR: Users, "Mental Health": Heart, "Real Estate": Building, Retail: ShoppingCart,
   "Web Design": Globe, Government: Building, Logistics: Truck,
+  Automation: Zap, Marketing: TrendingUp, Automotive: Truck, "Beauty & Wellness": Sparkles,
+  Insurance: Building, "E-commerce": ShoppingCart, "Property Mgmt": Building,
+  Accounting: DollarSign, "Non-profit": Heart, "Pet Care": Heart,
 };
 
 // ─── Difficulty colours ────────────────────────────────────────────────────
@@ -608,7 +611,7 @@ export default function MillionIdeasPage() {
                   { icon: Flame, label: `${hotCount} Hot Picks`, color: "#ef4444" },
                   { icon: Star, label: `${featuredCount} Featured`, color: "#f59e0b" },
                   { icon: Download, label: "Free Starter Kits", color: "#10b981" },
-                  { icon: Globe, label: "15 Industries", color: "#a855f7" },
+                  { icon: Globe, label: "20+ Industries", color: "#a855f7" },
                 ].map(({ icon: Icon, label, color }) => (
                   <div key={label} className="flex items-center gap-2 bg-white/5 border border-white/8 px-4 py-2 rounded-full">
                     <Icon className="w-3.5 h-3.5" style={{ color }} />
