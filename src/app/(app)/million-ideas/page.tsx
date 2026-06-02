@@ -9,6 +9,7 @@ import {
   Globe, Code2, FileText, Terminal, Star, ArrowRight, Filter,
   Rocket, DollarSign, Users, Building, Heart, Hammer,
   ShoppingCart, Truck, BookOpen, Briefcase, Leaf,
+  Send, MessageSquare, ThumbsUp, Palette, Package,
 } from "lucide-react";
 import { IDEAS, CATEGORIES, CATEGORY_META, type Idea } from "./ideas-data";
 import type { GeneratedIdea } from "@/app/api/daily-ideas/route";
@@ -355,7 +356,12 @@ function CodeModal({ idea, onClose }: { idea: Idea; onClose: () => void }) {
 }
 
 // ─── Idea Card ─────────────────────────────────────────────────────────────
-function IdeaCard({ idea, index, onGetCode }: { idea: Idea; index: number; onGetCode: (idea: Idea) => void }) {
+function IdeaCard({ idea, index, onGetCode, onReview, rating }: {
+  idea: Idea; index: number;
+  onGetCode: (idea: Idea) => void;
+  onReview: (idea: Idea) => void;
+  rating?: IdeaRating;
+}) {
   const CatIcon = CATEGORY_ICONS[idea.category] ?? Lightbulb;
   const meta = CATEGORY_META[idea.category];
 
@@ -443,6 +449,26 @@ function IdeaCard({ idea, index, onGetCode }: { idea: Idea; index: number; onGet
         </div>
       </div>
 
+      {/* Rating row */}
+      <div className="px-5 pb-3 flex items-center justify-between flex-shrink-0">
+        {rating && rating.count > 0 ? (
+          <div className="flex items-center gap-2">
+            <StarDisplay rating={rating.avg} />
+            <span className="text-xs text-amber-400 font-semibold">{rating.avg}</span>
+            <span className="text-xs text-slate-600">({rating.count} review{rating.count !== 1 ? "s" : ""})</span>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-600">No reviews yet</span>
+        )}
+        <button
+          onClick={() => onReview(idea)}
+          className="flex items-center gap-1 text-xs text-slate-500 hover:text-amber-400 transition-colors"
+        >
+          <MessageSquare className="w-3 h-3" />
+          Rate
+        </button>
+      </div>
+
       {/* Actions */}
       <div className="px-5 pb-5 flex gap-2 flex-shrink-0">
         <button
@@ -464,18 +490,270 @@ function IdeaCard({ idea, index, onGetCode }: { idea: Idea; index: number; onGet
   );
 }
 
+// ─── Star Rating display ───────────────────────────────────────────────────
+function StarDisplay({ rating, size = "sm" }: { rating: number; size?: "sm" | "md" }) {
+  const px = size === "sm" ? "w-3 h-3" : "w-4 h-4";
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star key={s} className={`${px} ${s <= Math.round(rating) ? "text-amber-400 fill-amber-400" : "text-slate-700"}`} />
+      ))}
+    </div>
+  );
+}
+
+// ─── Review Modal ──────────────────────────────────────────────────────────
+function ReviewModal({ idea, onClose, onSubmitted }: { idea: Idea; onClose: () => void; onSubmitted: (ideaId: string, avg: number, count: number) => void }) {
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+
+  async function submit() {
+    if (!rating) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ideaId: idea.id, rating, comment }),
+      });
+      const data = await res.json();
+      onSubmitted(idea.id, data.avgRating, data.count);
+      setDone(true);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 16 }}
+        className="w-full max-w-md bg-[#0d1421] border border-white/10 rounded-2xl p-6"
+      >
+        {done ? (
+          <div className="text-center py-6">
+            <div className="text-4xl mb-3">🎉</div>
+            <p className="text-white font-bold text-lg mb-1">Thanks for your feedback!</p>
+            <p className="text-slate-400 text-sm">Your review helps others discover great ideas.</p>
+            <button onClick={onClose} className="mt-5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors">Done</button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <p className="text-xs text-slate-500 mb-1">Rate this idea</p>
+                <p className="font-bold text-white text-base leading-tight">{idea.title}</p>
+              </div>
+              <button onClick={onClose} className="p-1.5 text-slate-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex items-center gap-2 mb-5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button key={s} onMouseEnter={() => setHover(s)} onMouseLeave={() => setHover(0)} onClick={() => setRating(s)}>
+                  <Star className={`w-8 h-8 transition-all ${s <= (hover || rating) ? "text-amber-400 fill-amber-400 scale-110" : "text-slate-700"}`} />
+                </button>
+              ))}
+              {rating > 0 && (
+                <span className="text-sm text-amber-400 font-medium ml-1">
+                  {["", "Poor", "Fair", "Good", "Great", "Excellent!"][rating]}
+                </span>
+              )}
+            </div>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value.slice(0, 280))}
+              placeholder="Share your thoughts (optional)..."
+              rows={3}
+              className="w-full bg-white/4 border border-white/8 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/40 resize-none mb-1"
+            />
+            <p className="text-right text-xs text-slate-600 mb-4">{comment.length}/280</p>
+            <button
+              onClick={submit}
+              disabled={!rating || submitting}
+              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+            >
+              {submitting ? <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <Send className="w-4 h-4" />}
+              Submit Review
+            </button>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Website Generator Modal ───────────────────────────────────────────────
+type GenStep = "idle" | "generating" | "done" | "error";
+const GEN_STEPS = ["Choosing design style", "Writing HTML & components", "Styling with Tailwind", "Packaging files"];
+
+function WebsiteGeneratorModal({
+  businessType, businessName, tagline, city, onClose,
+}: {
+  businessType: string; businessName: string; tagline: string; city: string; onClose: () => void;
+}) {
+  const [step, setStep] = useState<GenStep>("generating");
+  const [stepIdx, setStepIdx] = useState(0);
+  const [blob, setBlob] = useState<Blob | null>(null);
+  const [designStyle, setDesignStyle] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const slugRef = useRef(`${(businessName || "website").toLowerCase().replace(/[^a-z0-9]/g, "-")}-website.zip`);
+
+  useEffect(() => {
+    // Animate steps while generating
+    const interval = setInterval(() => setStepIdx((p) => Math.min(p + 1, GEN_STEPS.length - 1)), 4500);
+
+    fetch("/api/generate-website", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessType, businessName, tagline, city }),
+    })
+      .then(async (res) => {
+        clearInterval(interval);
+        if (!res.ok) throw new Error(await res.text());
+        const style = res.headers.get("X-Design-Style") ?? "";
+        setDesignStyle(style);
+        const b = await res.blob();
+        setBlob(b);
+        setStepIdx(GEN_STEPS.length - 1);
+        setStep("done");
+        // Track download
+        fetch("/api/track-download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "website", itemId: businessType, itemTitle: businessName || businessType }),
+        }).catch(() => {});
+      })
+      .catch((e) => { clearInterval(interval); setErrorMsg(String(e)); setStep("error"); });
+
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function download() {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = slugRef.current; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+      onClick={(e) => e.target === e.currentTarget && step !== "generating" && onClose()}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
+        className="w-full max-w-lg bg-[#0d1421] border border-white/10 rounded-2xl overflow-hidden"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+              <Globe className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white leading-none">{businessName || businessType} Website</p>
+              <p className="text-xs text-slate-500 mt-0.5">{businessType} · {city || "Your City"}</p>
+            </div>
+          </div>
+          {step !== "generating" && (
+            <button onClick={onClose} className="p-2 text-slate-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+          )}
+        </div>
+
+        <div className="p-6">
+          {step === "generating" && (
+            <div className="py-4">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-5 h-5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin flex-shrink-0" />
+                <p className="text-white font-semibold">Building your {businessType} website…</p>
+              </div>
+              <div className="space-y-3">
+                {GEN_STEPS.map((s, i) => (
+                  <div key={s} className={`flex items-center gap-3 text-sm transition-all ${i <= stepIdx ? "text-white" : "text-slate-600"}`}>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${i < stepIdx ? "bg-emerald-500" : i === stepIdx ? "border-2 border-indigo-400 border-t-transparent animate-spin" : "border border-white/10"}`}>
+                      {i < stepIdx && <Check className="w-3 h-3 text-white" />}
+                    </div>
+                    {s}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-6 text-center">This takes 20–40 seconds. AI is writing real code for you.</p>
+            </div>
+          )}
+
+          {step === "done" && (
+            <div className="py-2">
+              <div className="flex items-center gap-3 mb-5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+                <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                <div>
+                  <p className="text-emerald-300 font-semibold text-sm">Website ready to download!</p>
+                  {designStyle && <p className="text-emerald-400/70 text-xs mt-0.5">Design style: {designStyle}</p>}
+                </div>
+              </div>
+              <div className="space-y-2 mb-6 text-sm">
+                {[
+                  "Complete Next.js 15 + Tailwind CSS codebase",
+                  "Fully responsive, mobile-first design",
+                  "Unique AI-designed layout — not a template",
+                  "Deploy instantly with `vercel --prod`",
+                  "100% yours — no attribution required",
+                ].map((f) => (
+                  <div key={f} className="flex items-center gap-2 text-slate-300">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
+                    {f}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={download}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-indigo-500/20"
+                >
+                  <Package className="w-4 h-4" />
+                  Download ZIP
+                </button>
+                <button onClick={onClose} className="px-5 py-3 bg-white/5 hover:bg-white/10 border border-white/8 text-slate-300 rounded-xl text-sm transition-colors">
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === "error" && (
+            <div className="py-4 text-center">
+              <p className="text-red-400 font-semibold mb-2">Generation failed</p>
+              <p className="text-slate-400 text-sm mb-4">{errorMsg || "Please try again."}</p>
+              <button onClick={onClose} className="bg-white/8 hover:bg-white/12 text-white text-sm font-medium px-6 py-2.5 rounded-xl transition-colors">Close</button>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ─── Website Builder Section ───────────────────────────────────────────────
 const SITE_TYPES = [
-  { icon: Hammer, label: "Trade Business", desc: "Plumber · Electrician · HVAC · Roofer", color: "#f97316", features: ["Online booking", "Service area map", "Emergency call button", "Review aggregation"] },
-  { icon: Heart, label: "Medical Practice", desc: "Doctor · Dentist · Therapist · Clinic", color: "#ef4444", features: ["Appointment booking", "Insurance forms", "Patient chatbot", "After-hours automation"] },
-  { icon: Briefcase, label: "Law Firm", desc: "Solo · Boutique · Personal Injury · Family", color: "#6366f1", features: ["Lead qualification bot", "Consultation scheduling", "Case result showcase", "Retainer conversion"] },
-  { icon: Sparkles, label: "Restaurant / Cafe", desc: "Any dining concept or food business", color: "#f59e0b", features: ["Online ordering", "Reservation system", "Menu showcase", "Loyalty integration"] },
-  { icon: Code2, label: "Freelancer Portfolio", desc: "Developer · Designer · Consultant", color: "#10b981", features: ["Project showcase", "Testimonials", "Contact form", "Calendly integration"] },
+  { icon: Hammer,   label: "Trade Business",      desc: "Plumber · Electrician · HVAC · Roofer",   color: "#f97316" },
+  { icon: Heart,    label: "Medical Practice",     desc: "Doctor · Dentist · Therapist · Clinic",   color: "#ef4444" },
+  { icon: Briefcase,label: "Law Firm",             desc: "Solo · Boutique · Personal Injury",        color: "#6366f1" },
+  { icon: Sparkles, label: "Restaurant / Cafe",    desc: "Any dining concept or food business",      color: "#f59e0b" },
+  { icon: Code2,    label: "Freelancer Portfolio", desc: "Developer · Designer · Consultant",        color: "#10b981" },
 ];
 
 function WebsiteBuilderSection() {
   const [selected, setSelected] = useState<number | null>(null);
   const [formData, setFormData] = useState({ businessName: "", tagline: "", city: "" });
+  const [genOpen, setGenOpen] = useState(false);
 
   const selectedType = selected !== null ? SITE_TYPES[selected] : null;
 
@@ -485,13 +763,13 @@ function WebsiteBuilderSection() {
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold px-4 py-2 rounded-full mb-4">
             <Globe className="w-3.5 h-3.5" />
-            Website Builder
+            AI Website Builder
           </div>
           <h2 className="text-3xl font-black text-white mb-3">
-            Launch Your Business Online <span className="text-purple-400">in 2 Minutes</span>
+            AI Builds Your Full Website <span className="text-purple-400">— Download the Code</span>
           </h2>
           <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed">
-            Pick your industry. Fill 3 fields. Get a complete, production-ready website with booking, SEO, and conversion tools — deployed instantly.
+            Pick your industry, fill 3 fields, and AI generates a complete, production-ready Next.js codebase with a unique design — download and deploy in minutes.
           </p>
         </div>
 
@@ -503,7 +781,7 @@ function WebsiteBuilderSection() {
               <button
                 key={i}
                 onClick={() => setSelected(selected === i ? null : i)}
-                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border text-center transition-all ${selected === i ? "border-white/20 bg-white/8 shadow-lg" : "border-white/5 bg-white/2 hover:border-white/10 hover:bg-white/4"}`}
+                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border text-center transition-all ${selected === i ? "border-purple-500/40 bg-purple-500/10 shadow-lg shadow-purple-500/10" : "border-white/5 bg-white/2 hover:border-white/10 hover:bg-white/4"}`}
               >
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${type.color}20` }}>
                   <Icon className="w-5 h-5" style={{ color: type.color }} />
@@ -515,93 +793,83 @@ function WebsiteBuilderSection() {
           })}
         </div>
 
-        {/* Form + features */}
+        {/* Form */}
         <AnimatePresence>
           {selectedType && (
             <motion.div
               initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
-              className="bg-[#0d1421] border border-white/8 rounded-2xl overflow-hidden"
+              className="bg-[#0d1421] border border-white/8 rounded-2xl p-6"
             >
-              <div className="p-6 grid md:grid-cols-2 gap-8">
-                {/* Left: form */}
+              <div className="grid md:grid-cols-3 gap-4 mb-5">
                 <div>
-                  <h3 className="text-base font-bold text-white mb-4">Configure Your Site</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs text-slate-500 font-medium mb-1.5 block">Business Name</label>
-                      <input
-                        value={formData.businessName}
-                        onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                        placeholder={`e.g. "${selectedType.label === "Trade Business" ? "Johnson Plumbing" : selectedType.label === "Medical Practice" ? "Riverside Medical" : selectedType.label === "Law Firm" ? "Webb & Associates" : selectedType.label === "Restaurant / Cafe" ? "The Corner Bistro" : "Alex Rivera Design"}"`}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-slate-500 font-medium mb-1.5 block">Tagline</label>
-                      <input
-                        value={formData.tagline}
-                        onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                        placeholder="Your short value proposition..."
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-slate-500 font-medium mb-1.5 block">City / Service Area</label>
-                      <input
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        placeholder="e.g. Austin, TX"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      const prompt = encodeURIComponent(
-                        `Build me a complete ${selectedType.label} website for "${formData.businessName || "My Business"}" in ${formData.city || "my city"}. Tagline: "${formData.tagline || selectedType.desc}". Include: ${selectedType.features.join(", ")}. Use a stunning, never-seen-before UI design — not generic. Production-ready Next.js + Tailwind + shadcn.`
-                      );
-                      window.location.href = `/agents?prompt=${prompt}`;
-                    }}
-                    className="mt-5 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-indigo-500/20"
-                  >
-                    <Zap className="w-4 h-4" />
-                    Generate My Website
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  <label className="text-xs text-slate-500 font-medium mb-1.5 block">Business Name</label>
+                  <input
+                    value={formData.businessName}
+                    onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                    placeholder="e.g. Johnson Plumbing"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-purple-500/50 transition-colors"
+                  />
                 </div>
-
-                {/* Right: features */}
                 <div>
-                  <h3 className="text-base font-bold text-white mb-4">What You Get</h3>
-                  <div className="space-y-3">
-                    {selectedType.features.map((f, i) => (
-                      <div key={i} className="flex items-center gap-3 bg-white/3 border border-white/5 rounded-xl px-4 py-3">
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: selectedType.color }} />
-                        <span className="text-sm text-slate-300">{f}</span>
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-3 bg-white/3 border border-white/5 rounded-xl px-4 py-3">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0 bg-indigo-400" />
-                      <span className="text-sm text-slate-300">Full source code — yours forever</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white/3 border border-white/5 rounded-xl px-4 py-3">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0 bg-purple-400" />
-                      <span className="text-sm text-slate-300">One-click Vercel deployment</span>
-                    </div>
-                  </div>
+                  <label className="text-xs text-slate-500 font-medium mb-1.5 block">Tagline</label>
+                  <input
+                    value={formData.tagline}
+                    onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
+                    placeholder="Your value proposition"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-purple-500/50 transition-colors"
+                  />
                 </div>
+                <div>
+                  <label className="text-xs text-slate-500 font-medium mb-1.5 block">City / Area</label>
+                  <input
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    placeholder="e.g. Austin, TX"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-purple-500/50 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setGenOpen(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold py-3 px-8 rounded-xl transition-all hover:shadow-lg hover:shadow-purple-500/20 text-sm"
+                >
+                  <Palette className="w-4 h-4" />
+                  Generate My Website
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  AI picks a unique design style and writes the full codebase. Every generation is different.
+                </p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      {/* Generator modal */}
+      <AnimatePresence>
+        {genOpen && selectedType && (
+          <WebsiteGeneratorModal
+            businessType={selectedType.label}
+            businessName={formData.businessName}
+            tagline={formData.tagline}
+            city={formData.city}
+            onClose={() => setGenOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </section>
   );
 }
 
+// ─── Review state type ─────────────────────────────────────────────────────
+interface IdeaRating { avg: number; count: number }
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 const LS_KEY = (date: string) => `aihub_daily_ideas_${date}`;
+const LS_REVIEWS = "aihub_reviews";
 
 export default function MillionIdeasPage() {
   const [activeCategory, setActiveCategory] = useState("All");
@@ -610,6 +878,8 @@ export default function MillionIdeasPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [dailyIdeas, setDailyIdeas] = useState<Idea[]>([]);
   const [aiIdeas, setAiIdeas] = useState<Idea[]>([]);
+  const [ratings, setRatings] = useState<Record<string, IdeaRating>>({});
+  const [reviewTarget, setReviewTarget] = useState<Idea | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [countdown, setCountdown] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -662,7 +932,6 @@ export default function MillionIdeasPage() {
       if (allIdeas.length > 0) {
         try {
           localStorage.setItem(cacheKey, JSON.stringify(allIdeas));
-          // Purge previous days
           for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);
             if (k?.startsWith("aihub_daily_ideas_") && k !== cacheKey) localStorage.removeItem(k);
@@ -671,6 +940,31 @@ export default function MillionIdeasPage() {
       }
     });
   }, []);
+
+  // 3. Load ratings from localStorage + server
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LS_REVIEWS);
+      if (stored) setRatings(JSON.parse(stored));
+    } catch { /* ignore */ }
+    fetch("/api/reviews?all=1")
+      .then((r) => r.json())
+      .then((data: Record<string, { avgRating: number; count: number }>) => {
+        const mapped: Record<string, IdeaRating> = {};
+        for (const [id, v] of Object.entries(data)) mapped[id] = { avg: v.avgRating, count: v.count };
+        setRatings((prev) => ({ ...prev, ...mapped }));
+      })
+      .catch(() => {});
+  }, []);
+
+  function handleReviewSubmitted(ideaId: string, avg: number, count: number) {
+    setRatings((prev) => {
+      const next = { ...prev, [ideaId]: { avg, count } };
+      try { localStorage.setItem(LS_REVIEWS, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    setReviewTarget(null);
+  }
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -784,7 +1078,7 @@ export default function MillionIdeasPage() {
             ) : aiIdeas.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {aiIdeas.map((idea, i) => (
-                  <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} />
+                  <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} onReview={setReviewTarget} rating={ratings[idea.id]} />
                 ))}
               </div>
             ) : (
@@ -867,7 +1161,7 @@ export default function MillionIdeasPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map((idea, i) => (
-                <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} />
+                <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} onReview={setReviewTarget} rating={ratings[idea.id]} />
               ))}
             </div>
           )}
@@ -904,6 +1198,17 @@ export default function MillionIdeasPage() {
       {/* ── Code Modal ────────────────────────────────────────────── */}
       <AnimatePresence>
         {selectedIdea && <CodeModal idea={selectedIdea} onClose={() => setSelectedIdea(null)} />}
+      </AnimatePresence>
+
+      {/* ── Review Modal ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {reviewTarget && (
+          <ReviewModal
+            idea={reviewTarget}
+            onClose={() => setReviewTarget(null)}
+            onSubmitted={handleReviewSubmitted}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
