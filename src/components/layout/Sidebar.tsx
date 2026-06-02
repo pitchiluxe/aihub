@@ -100,7 +100,7 @@ export function Sidebar() {
           <div className="min-w-0">
             <div className="text-[11px] font-semibold text-indigo-400/80 uppercase tracking-widest leading-none mb-1">Intelligence Hub</div>
             <div className="font-black text-xl leading-none bg-gradient-to-r from-white via-white to-indigo-300 bg-clip-text text-transparent">AIHub</div>
-            <div className="text-[10px] text-gray-500 leading-none mt-1">by Erick Omari</div>
+            <div className="text-[10px] text-indigo-400/70 leading-none mt-1 font-medium tracking-wide">by Erick Omari</div>
           </div>
         </Link>
         {/* Close button — mobile only */}
@@ -182,8 +182,6 @@ export function Sidebar() {
               <div className="text-[10px] text-gray-600 leading-none mt-0.5">The AI Homepage</div>
             </div>
           </div>
-          <div className="text-[10px] text-gray-600">v1.0 · OpenRouter &amp; Ollama</div>
-        </div>
       </div>
     </>
   );
