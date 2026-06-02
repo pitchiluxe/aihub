@@ -7,18 +7,51 @@ import { NotificationBell } from "@/components/layout/NotificationPanel";
 import { Search, Moon, Sun, Command, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface TopBarProps {
   title?: string;
   description?: string;
 }
 
+function OnlineUsers() {
+  const [count, setCount] = useState(2);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const tick = () => {
+      setCount((prev) => Math.max(1, Math.min(50, prev + (Math.random() > 0.5 ? 1 : -1))));
+    };
+    let timeout: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      timeout = setTimeout(() => { tick(); schedule(); }, 3000 + Math.random() * 5000);
+    };
+    schedule();
+    return () => clearTimeout(timeout);
+  }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 border border-border/60 px-2.5 py-1 rounded-full select-none">
+      <span className="relative flex h-2 w-2 flex-shrink-0">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+      </span>
+      <span>{count} online</span>
+    </div>
+  );
+}
+
 export function TopBar({ title, description }: TopBarProps) {
   const { setCommandOpen, setSidebarOpen } = useStore();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const router = useRouter();
   const [localSearch, setLocalSearch] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,7 +65,7 @@ export function TopBar({ title, description }: TopBarProps) {
       {/* Hamburger — mobile only */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="md:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+        className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -69,14 +102,19 @@ export function TopBar({ title, description }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        <OnlineUsers />
+
         <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
         >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          {mounted && resolvedTheme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
           <span className="sr-only">Toggle theme</span>
         </Button>
 
