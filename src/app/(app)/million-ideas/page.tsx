@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
 import {
@@ -11,6 +11,45 @@ import {
   ShoppingCart, Truck, BookOpen, Briefcase, Leaf,
 } from "lucide-react";
 import { IDEAS, CATEGORIES, CATEGORY_META, type Idea } from "./ideas-data";
+
+// ─── Daily-seeded shuffle ──────────────────────────────────────────────────
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function mulberry32(seed: number) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function getDailyIdeas(): Idea[] {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD — changes at UTC midnight
+  const rng = mulberry32(hashStr(today));
+  const arr = [...IDEAS];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function msUntilMidnightUTC(): number {
+  const now = new Date();
+  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return midnight.getTime() - now.getTime();
+}
+
+function formatCountdown(ms: number): string {
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return `${h}h ${m}m`;
+}
 
 // ─── Category Icon Map ─────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -555,19 +594,40 @@ export default function MillionIdeasPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [dailyIdeas, setDailyIdeas] = useState<Idea[]>([]);
+  const [countdown, setCountdown] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Compute today's shuffled order on mount; refresh when the day rolls over
+  useEffect(() => {
+    setDailyIdeas(getDailyIdeas());
+    setCountdown(formatCountdown(msUntilMidnightUTC()));
+
+    // Schedule a refresh exactly at UTC midnight
+    const refreshTimer = setTimeout(() => {
+      setDailyIdeas(getDailyIdeas());
+    }, msUntilMidnightUTC());
+
+    // Countdown ticker — updates every minute
+    const ticker = setInterval(() => {
+      const ms = msUntilMidnightUTC();
+      setCountdown(formatCountdown(ms));
+    }, 60_000);
+
+    return () => { clearTimeout(refreshTimer); clearInterval(ticker); };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return IDEAS.filter((idea) => {
+    return dailyIdeas.filter((idea) => {
       const matchCat = activeCategory === "All" || idea.category === activeCategory;
       const matchQ = !q || idea.title.toLowerCase().includes(q) || idea.problem.toLowerCase().includes(q) || idea.category.toLowerCase().includes(q) || idea.tagline.toLowerCase().includes(q);
       return matchCat && matchQ;
     });
-  }, [activeCategory, searchQuery]);
+  }, [dailyIdeas, activeCategory, searchQuery]);
 
-  const hotCount = IDEAS.filter((i) => i.isHot).length;
-  const featuredCount = IDEAS.filter((i) => i.isFeatured).length;
+  const hotCount = dailyIdeas.filter((i) => i.isHot).length;
+  const featuredCount = dailyIdeas.filter((i) => i.isFeatured).length;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#070b12]">
@@ -618,6 +678,13 @@ export default function MillionIdeasPage() {
                     <span className="text-sm font-medium text-white">{label}</span>
                   </div>
                 ))}
+                {/* Daily refresh countdown */}
+                {countdown && (
+                  <div className="flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 px-4 py-2 rounded-full">
+                    <Clock className="w-3.5 h-3.5 text-violet-400" />
+                    <span className="text-sm font-medium text-violet-300">New order in {countdown}</span>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

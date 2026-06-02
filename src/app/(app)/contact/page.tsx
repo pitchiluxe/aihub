@@ -93,7 +93,7 @@ export default function ContactPage() {
               <div className="flex items-center gap-4 mb-6">
                 <div className="relative flex-shrink-0">
                   <img
-                    src="/erick.png"
+                    src="/Erick.png"
                     alt="Erick Omari"
                     className="w-16 h-16 rounded-2xl object-cover object-top shadow-lg shadow-indigo-500/20 ring-2 ring-indigo-500/30"
                   />
