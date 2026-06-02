@@ -150,21 +150,39 @@ export default function GraphPage() {
   const [articleCategory, setArticleCategory] = useState("all");
   const [readerMode,     setReaderMode]     = useState<"raw" | "preview">("raw");
   const [folderOpen,     setFolderOpen]     = useState(false);
+  const [showIntro,      setShowIntro]      = useState(true);
 
   useEffect(() => { showMiniMapRef.current = showMiniMap; }, [showMiniMap]);
   useEffect(() => { selectedIdRef.current = selectedNode?.id ?? null; }, [selectedNode]);
 
-  // ── Fetch articles ────────────────────────────────────────
+  // ── Fetch articles — real-time, 100 articles, auto-refresh ──────────────
   useEffect(() => {
-    fetch("/api/news?limit=60")
-      .then(r => r.json())
-      .then(data => {
+    let cancelled = false;
+    async function loadArticles() {
+      try {
+        const res = await fetch("/api/news?limit=100", { cache: "no-store" });
+        const data = await res.json();
+        if (cancelled) return;
         const list: NewsArticle[] = Array.isArray(data) ? data : (data.articles ?? []);
         setArticles(list);
         if (list.length > 0 && !selectedArticle) setSelectedArticle(list[0]);
-      })
-      .catch(() => {})
-      .finally(() => setArticlesLoading(false));
+        // Feed live articles into the knowledge graph as news nodes
+        const graphNodes = list.slice(0, 40).map(a => ({
+          id: a.id,
+          title: a.title,
+          summary: a.summary,
+          source: a.source,
+        }));
+        setGraphArticles(graphNodes);
+        // Store in sessionStorage for cross-tab access
+        try { sessionStorage.setItem("graph_articles", JSON.stringify(graphNodes)); } catch {}
+      } catch {/* silent */}
+      finally { if (!cancelled) setArticlesLoading(false); }
+    }
+    loadArticles();
+    // Auto-refresh every 5 minutes
+    const timer = setInterval(loadArticles, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(timer); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -228,25 +246,7 @@ export default function GraphPage() {
       }
     }
 
-    // Cluster halos — flat tinted ring (no gradient object per frame = fast)
-    if (k > 0.30) {
-      const groups: Record<string, {xs:number[];ys:number[]}> = {};
-      for (const n of nodes) {
-        if (!groups[n.type]) groups[n.type] = {xs:[],ys:[]};
-        groups[n.type].xs.push(n.x??0); groups[n.type].ys.push(n.y??0);
-      }
-      for (const [type, {xs, ys}] of Object.entries(groups)) {
-        if (xs.length < 3) continue;
-        const cx = xs.reduce((a,b)=>a+b,0)/xs.length;
-        const cy = ys.reduce((a,b)=>a+b,0)/ys.length;
-        const r  = Math.max(...xs.map((x,i) => Math.hypot(x-cx,ys[i]-cy))) + 30;
-        const col = NODE_COLORS[type] ?? "#6366f1";
-        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-        ctx.strokeStyle = hexToRgba(col, 0.07);
-        ctx.lineWidth   = 12 / k;
-        ctx.stroke();
-      }
-    }
+    // Cluster halos removed — cleaner look
 
     // Edges — straight lines (fast, matches QB-Brain dense style)
     for (const l of links) {
@@ -344,37 +344,9 @@ export default function GraphPage() {
 
     ctx.restore();
 
-    // Mini-map
-    if (showMiniMapRef.current && nodes.length>0) {
-      const MW=160, MH=100, MP=6, MR=6;
-      const MX=canvas.width-MW-12, MY=canvas.height-MH-12;
-      const allXs=nodes.map(n=>n.x??0), allYs=nodes.map(n=>n.y??0);
-      const mnX=Math.min(...allXs), mxX=Math.max(...allXs);
-      const mnY=Math.min(...allYs), mxY=Math.max(...allYs);
-      const dW=mxX-mnX||1, dH=mxY-mnY||1;
-      const mmS=Math.min((MW-MP*2)/dW,(MH-MP*2)/dH);
-      const mmOX=MX+MP+(MW-MP*2-dW*mmS)/2, mmOY=MY+MP+(MH-MP*2-dH*mmS)/2;
-      roundRectPath(ctx,MX,MY,MW,MH,MR);
-      ctx.fillStyle="rgba(8,13,24,0.88)"; ctx.fill();
-      ctx.strokeStyle="rgba(255,255,255,0.08)"; ctx.lineWidth=1; ctx.stroke();
-      // Skip per-edge lines in mini-map (too expensive with 400+ links); dots suffice
-      ctx.globalAlpha=1;
-      for (const node of nodes) {
-        const nx=mmOX+((node.x??0)-mnX)*mmS, ny=mmOY+((node.y??0)-mnY)*mmS;
-        const col=node.color??NODE_COLORS[node.type]??"#6366f1";
-        ctx.beginPath(); ctx.arc(nx,ny,node.id===selectedIdRef.current?2:Math.max(1.2,(node.size??20)*0.045),0,Math.PI*2);
-        ctx.fillStyle=col; ctx.globalAlpha=node.id===selectedIdRef.current?1:0.72; ctx.fill(); ctx.globalAlpha=1;
-      }
-      const {x:vx,y:vy,k:vk}=transformRef.current;
-      const vpX=mmOX+(-vx/vk-mnX)*mmS, vpY=mmOY+(-vy/vk-mnY)*mmS;
-      const vpW=(canvas.width/vk)*mmS, vpH=(canvas.height/vk)*mmS;
-      ctx.strokeStyle="rgba(139,92,246,0.75)"; ctx.lineWidth=1;
-      roundRectPath(ctx,vpX,vpY,vpW,vpH,2); ctx.stroke();
-      ctx.font="9px Inter,system-ui,sans-serif"; ctx.fillStyle="rgba(255,255,255,0.3)"; ctx.textAlign="left";
-      ctx.fillText("OVERVIEW",MX+6,MY+10);
-    }
+    // Mini-map removed
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, showMiniMap]);
+  }, [search]);
 
   // ── Loop — adaptive framerate: 60fps while active, ~20fps when settled ──
   const startLoop = useCallback(() => {
@@ -468,14 +440,34 @@ export default function GraphPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     linksRef.current=(sim.force("link") as any).links();
 
-    // More pre-ticks = better initial layout (dense graphs need more settling)
-    const ticks=Math.min(280,Math.max(80,n*0.9));
-    for (let i=0;i<ticks;i++) sim.tick();
-
-    const xs=visNodes.map(nd=>nd.x??0), ys=visNodes.map(nd=>nd.y??0), pad=70;
-    const fitK=Math.min((W-pad*2)/Math.max(Math.max(...xs)-Math.min(...xs),1),(H-pad*2)/Math.max(Math.max(...ys)-Math.min(...ys),1),2.2);
-    transformRef.current={k:fitK,x:W/2-fitK*(Math.min(...xs)+Math.max(...xs))/2,y:H/2-fitK*(Math.min(...ys)+Math.max(...ys))/2};
-    setZoom(fitK);
+    // ── Big Bang entrance — nodes start at center and explode outward ────────
+    // Minimal pre-tick for stable link topology (not final positions)
+    for (let i = 0; i < 12; i++) sim.tick();
+    // Override positions: all nodes start near center with random velocities
+    for (const nd of visNodes) {
+      nd.x  = W / 2 + (Math.random() - 0.5) * 60;
+      nd.y  = H / 2 + (Math.random() - 0.5) * 60;
+      nd.vx = (Math.random() - 0.5) * 12;
+      nd.vy = (Math.random() - 0.5) * 12;
+    }
+    // Start at a mid zoom centered on canvas
+    transformRef.current = { k: 0.5, x: W * 0.25, y: H * 0.25 };
+    setZoom(0.5);
+    // Dismiss intro after the explosion starts
+    setTimeout(() => setShowIntro(false), 900);
+    // Auto-fit zoom after the simulation settles
+    setTimeout(() => {
+      const nds = nodesRef.current;
+      if (!nds.length) return;
+      const fxs = nds.map(nd => nd.x ?? 0), fys = nds.map(nd => nd.y ?? 0), fpad = 80;
+      const fk = Math.min(
+        (W - fpad * 2) / Math.max(Math.max(...fxs) - Math.min(...fxs), 1),
+        (H - fpad * 2) / Math.max(Math.max(...fys) - Math.min(...fys), 1),
+        2.2
+      );
+      transformRef.current = { k: fk, x: W/2 - fk*(Math.min(...fxs)+Math.max(...fxs))/2, y: H/2 - fk*(Math.min(...fys)+Math.max(...fys))/2 };
+      setZoom(fk);
+    }, 3200);
 
     const linkCount:Record<string,number>={};
     for (const l of INITIAL_GRAPH_DATA.links) {
@@ -870,6 +862,119 @@ export default function GraphPage() {
         >
           <canvas ref={canvasRef} className="w-full h-full" style={{cursor:"default"}} />
 
+          {/* ── Big Bang Intro Overlay ──────────────────────────────────── */}
+          <AnimatePresence>
+            {showIntro && (
+              <motion.div
+                initial={{ opacity: 1 }}
+                exit={{ opacity: 0, scale: 1.04 }}
+                transition={{ duration: 0.7, ease: "easeInOut" }}
+                className="absolute inset-0 z-50 flex items-center justify-center bg-[#07090f] overflow-hidden"
+              >
+                {/* Animated background particles */}
+                {[...Array(28)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                      width: `${Math.random() * 3 + 1}px`,
+                      height: `${Math.random() * 3 + 1}px`,
+                      backgroundColor: `hsl(${255 + Math.random() * 60}, 85%, ${60 + Math.random() * 20}%)`,
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                    }}
+                    animate={{
+                      opacity: [0, 0.9, 0],
+                      scale: [0, 1.8, 0],
+                      y: [0, -(Math.random() * 120 + 40)],
+                      x: [(Math.random() - 0.5) * 60],
+                    }}
+                    transition={{
+                      duration: Math.random() * 1.8 + 1,
+                      delay: Math.random() * 0.6,
+                      repeat: Infinity,
+                      repeatDelay: Math.random() * 2.5,
+                      ease: "easeOut",
+                    }}
+                  />
+                ))}
+
+                {/* Glowing ring pulse */}
+                {[1, 1.6, 2.2].map((scale, i) => (
+                  <motion.div
+                    key={`ring-${i}`}
+                    className="absolute rounded-full border border-violet-500/20 pointer-events-none"
+                    style={{ width: 160, height: 160, marginLeft: -80, marginTop: -80, top: "50%", left: "50%" }}
+                    animate={{ scale: [scale, scale + 1.2, scale + 2.4], opacity: [0.4, 0.15, 0] }}
+                    transition={{ duration: 2.4, delay: i * 0.55, repeat: Infinity, ease: "easeOut" }}
+                  />
+                ))}
+
+                {/* Center content */}
+                <div className="relative z-10 text-center select-none">
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180, opacity: 0 }}
+                    animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 220, damping: 14, delay: 0.1 }}
+                    className="w-24 h-24 rounded-3xl bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600 flex items-center justify-center mx-auto mb-5 shadow-2xl shadow-violet-500/50"
+                  >
+                    <Brain className="w-12 h-12 text-white" />
+                  </motion.div>
+
+                  <motion.h1
+                    initial={{ opacity: 0, y: 24, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ type: "spring", stiffness: 280, damping: 20, delay: 0.35 }}
+                    className="text-4xl font-black text-white mb-1 tracking-tight"
+                  >
+                    AI Brain
+                  </motion.h1>
+
+                  <motion.p
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.55 }}
+                    className="text-sm text-gray-500 mb-6"
+                  >
+                    Building knowledge graph…
+                  </motion.p>
+
+                  {/* Bouncing dots loader */}
+                  <div className="flex justify-center gap-2">
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <motion.div
+                        key={i}
+                        className="rounded-full"
+                        style={{
+                          width: 8, height: 8,
+                          background: `hsl(${255 + i * 15}, 80%, 65%)`,
+                        }}
+                        animate={{ y: [0, -18, 0], scale: [1, 1.3, 1] }}
+                        transition={{
+                          duration: 0.65,
+                          delay: i * 0.1,
+                          repeat: Infinity,
+                          repeatType: "loop",
+                          ease: "easeInOut",
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Node count hint */}
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                    className="text-xs text-gray-700 mt-4 font-mono"
+                  >
+                    {INITIAL_GRAPH_DATA.nodes.length} nodes · {INITIAL_GRAPH_DATA.links.length} connections
+                  </motion.p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Stats — top-right overlay (QB Brain style) */}
           <div className="absolute top-4 right-16 z-10 text-right pointer-events-none">
             <div className="text-[11px] font-medium text-gray-400">
@@ -889,7 +994,6 @@ export default function GraphPage() {
             <button onClick={()=>doZoom(0.7)}          className="graph-control-btn"><ZoomOut   className="w-3.5 h-3.5"/></button>
             <button onClick={doZoomFit}                 className="graph-control-btn" title="Fit all"><Crosshair className="w-3.5 h-3.5"/></button>
             <button onClick={()=>buildGraph()}          className="graph-control-btn" title="Re-layout"><RefreshCw className="w-3.5 h-3.5"/></button>
-            <button onClick={()=>setShowMiniMap(m=>!m)} className={cn("graph-control-btn",showMiniMap&&"!text-violet-400 !border-violet-500/40")} title="Mini-map"><MapIcon className="w-3.5 h-3.5"/></button>
             <button onClick={()=>setFullscreen(f=>!f)} className="graph-control-btn">{fullscreen?<Minimize2 className="w-3.5 h-3.5"/>:<Maximize2 className="w-3.5 h-3.5"/>}</button>
             {/* Switch to Articles reader */}
             <div className="mt-1 h-px bg-white/10"/>
