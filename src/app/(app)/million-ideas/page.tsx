@@ -11,6 +11,18 @@ import {
   ShoppingCart, Truck, BookOpen, Briefcase, Leaf,
 } from "lucide-react";
 import { IDEAS, CATEGORIES, CATEGORY_META, type Idea } from "./ideas-data";
+import type { GeneratedIdea } from "@/app/api/daily-ideas/route";
+
+// Merge AI-generated idea into the Idea shape (colour falls back to indigo)
+function toIdea(g: GeneratedIdea): Idea {
+  const meta = CATEGORY_META[g.category];
+  return {
+    ...g,
+    color: meta?.color ?? "#6366f1",
+    gradient: meta?.gradient ?? "from-indigo-500/20 to-indigo-900/10",
+    isHot: true,
+  };
+}
 
 // ─── Daily-seeded shuffle ──────────────────────────────────────────────────
 function hashStr(s: string): number {
@@ -589,32 +601,61 @@ function WebsiteBuilderSection() {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
+const LS_KEY = (date: string) => `aihub_daily_ideas_${date}`;
+
 export default function MillionIdeasPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [dailyIdeas, setDailyIdeas] = useState<Idea[]>([]);
+  const [aiIdeas, setAiIdeas] = useState<Idea[]>([]);
+  const [aiLoading, setAiLoading] = useState(true);
   const [countdown, setCountdown] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Compute today's shuffled order on mount; refresh when the day rolls over
+  // 1. Seeded shuffle of base ideas (changes each day)
   useEffect(() => {
     setDailyIdeas(getDailyIdeas());
     setCountdown(formatCountdown(msUntilMidnightUTC()));
-
-    // Schedule a refresh exactly at UTC midnight
-    const refreshTimer = setTimeout(() => {
-      setDailyIdeas(getDailyIdeas());
-    }, msUntilMidnightUTC());
-
-    // Countdown ticker — updates every minute
-    const ticker = setInterval(() => {
-      const ms = msUntilMidnightUTC();
-      setCountdown(formatCountdown(ms));
-    }, 60_000);
-
+    const refreshTimer = setTimeout(() => setDailyIdeas(getDailyIdeas()), msUntilMidnightUTC());
+    const ticker = setInterval(() => setCountdown(formatCountdown(msUntilMidnightUTC())), 60_000);
     return () => { clearTimeout(refreshTimer); clearInterval(ticker); };
+  }, []);
+
+  // 2. Fetch / cache AI-generated ideas for today
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const cacheKey = LS_KEY(today);
+
+    // Try localStorage first
+    try {
+      const stored = localStorage.getItem(cacheKey);
+      if (stored) {
+        const parsed: GeneratedIdea[] = JSON.parse(stored);
+        setAiIdeas(parsed.map(toIdea));
+        setAiLoading(false);
+        return;
+      }
+    } catch { /* ignore */ }
+
+    // Fetch from API
+    setAiLoading(true);
+    fetch(`/api/daily-ideas?date=${today}`)
+      .then((r) => r.json())
+      .then(({ ideas }: { ideas: GeneratedIdea[] }) => {
+        if (Array.isArray(ideas) && ideas.length > 0) {
+          setAiIdeas(ideas.map(toIdea));
+          try { localStorage.setItem(cacheKey, JSON.stringify(ideas)); } catch { /* ignore */ }
+          // Purge previous days from localStorage
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k?.startsWith("aihub_daily_ideas_") && k !== cacheKey) localStorage.removeItem(k);
+          }
+        }
+      })
+      .catch(console.error)
+      .finally(() => setAiLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
@@ -688,6 +729,48 @@ export default function MillionIdeasPage() {
               </div>
             </div>
           </motion.div>
+
+          {/* ── AI-Generated Today's Picks ───────────────────────── */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-2 bg-violet-500/15 border border-violet-500/25 text-violet-300 text-xs font-bold px-3 py-1.5 rounded-full">
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                AI-Generated · Today&apos;s Fresh Ideas
+              </div>
+              {!aiLoading && aiIdeas.length > 0 && (
+                <span className="text-xs text-slate-500">{aiIdeas.length} new ideas generated just for today</span>
+              )}
+            </div>
+
+            {aiLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="bg-[#0d1421] border border-white/5 rounded-2xl p-5 animate-pulse">
+                    <div className="h-3 bg-white/8 rounded w-16 mb-3" />
+                    <div className="h-4 bg-white/8 rounded w-full mb-2" />
+                    <div className="h-3 bg-white/5 rounded w-3/4" />
+                  </div>
+                ))}
+              </div>
+            ) : aiIdeas.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {aiIdeas.map((idea, i) => (
+                  <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500 text-sm bg-white/2 border border-white/5 rounded-2xl">
+                AI ideas unavailable right now — showing today&apos;s curated set below.
+              </div>
+            )}
+          </div>
+
+          {/* ── Divider ──────────────────────────────────────────── */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-px flex-1 bg-white/5" />
+            <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">100 Curated Ideas · Random Daily Order</span>
+            <div className="h-px flex-1 bg-white/5" />
+          </div>
 
           {/* ── Search + Filter bar ───────────────────────────────── */}
           <div className="flex flex-col sm:flex-row gap-3 mb-6">

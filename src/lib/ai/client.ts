@@ -116,7 +116,7 @@ export async function callModel(
         const content: string = data.choices?.[0]?.message?.content ?? "";
         if (!content) throw new Error(`${model} returned empty content`);
 
-        console.log(`[AI] Success with model: ${model}`);
+        console.log(`[AI] Success with model: ${model.split('/')[0]}`);
         return content;
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));

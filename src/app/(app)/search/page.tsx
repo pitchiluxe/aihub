@@ -52,25 +52,53 @@ function SearchContent() {
   // Check Ollama status via server-side proxy (avoids CORS / production issues)
   useEffect(() => {
     async function checkOllama() {
-      try {
-        const res = await fetch("/api/ollama/status", { signal: AbortSignal.timeout(5000) });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.running) {
-            setOllamaModels(data.models ?? []);
-            setOllamaStatus("online");
-            if (data.models?.length > 0) setSelectedModel(`ollama:${data.models[0]}`);
-          } else {
-            setOllamaStatus("offline");
+      const maxRetries = 3;
+      let lastError: string | null = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
+          const res = await fetch("/api/ollama/status", { 
+            signal: controller.signal,
+            cache: "no-store"
+          });
+          clearTimeout(timeoutId);
+          
+          if (res.ok) {
+            const data = await res.json();
+            if (data.running && Array.isArray(data.models)) {
+              setOllamaModels(data.models ?? []);
+              setOllamaStatus("online");
+              if (data.models?.length > 0) setSelectedModel(`ollama:${data.models[0]}`);
+              return; // Success!
+            } else {
+              setOllamaStatus("offline");
+              return;
+            }
           }
-        } else {
-          setOllamaStatus("offline");
+          lastError = `HTTP ${res.status}`;
+        } catch (err) {
+          lastError = String(err);
+          // Only retry if it's a network error, not if it's an abort
+          if (attempt < maxRetries && !lastError.includes("AbortError")) {
+            await new Promise(r => setTimeout(r, 1000 * attempt)); // Exponential backoff
+            continue;
+          }
         }
-      } catch {
-        setOllamaStatus("offline");
       }
+      
+      // All retries exhausted
+      console.warn(`[Ollama Status] Failed after ${maxRetries} attempts:`, lastError);
+      setOllamaStatus("offline");
     }
+    
     checkOllama();
+    
+    // Recheck every 30 seconds in case Ollama comes online
+    const interval = setInterval(checkOllama, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Load latest news for context

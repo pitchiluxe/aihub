@@ -91,11 +91,11 @@ export default function ContactPage() {
             <div className="bg-[#0d1421] border border-white/8 rounded-2xl p-6">
               {/* Avatar */}
               <div className="flex items-center gap-4 mb-6">
-                <div className="relative flex-shrink-0">
+                <div className="relative flex-shrink-0 w-16 h-16 rounded-2xl overflow-hidden ring-2 ring-indigo-500/40 shadow-lg shadow-indigo-500/20 bg-[#1a2540]">
                   <img
                     src="/Erick.png"
                     alt="Erick Omari"
-                    className="w-16 h-16 rounded-2xl object-cover object-top shadow-lg shadow-indigo-500/20 ring-2 ring-indigo-500/30"
+                    className="w-full h-full object-cover object-[center_10%]"
                   />
                 </div>
                 <div>
