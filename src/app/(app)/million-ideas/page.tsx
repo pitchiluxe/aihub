@@ -623,39 +623,53 @@ export default function MillionIdeasPage() {
     return () => { clearTimeout(refreshTimer); clearInterval(ticker); };
   }, []);
 
-  // 2. Fetch / cache AI-generated ideas for today
+  // 2. Fetch 100 AI ideas via 5 parallel batches of 20, with localStorage cache
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     const cacheKey = LS_KEY(today);
 
-    // Try localStorage first
+    // Serve from localStorage if today's full set is already cached
     try {
       const stored = localStorage.getItem(cacheKey);
       if (stored) {
         const parsed: GeneratedIdea[] = JSON.parse(stored);
-        setAiIdeas(parsed.map(toIdea));
-        setAiLoading(false);
-        return;
+        if (parsed.length >= 80) { // accept if most batches completed
+          setAiIdeas(parsed.map(toIdea));
+          setAiLoading(false);
+          return;
+        }
       }
     } catch { /* ignore */ }
 
-    // Fetch from API
+    // Fire all 5 batches in parallel; append ideas as each batch lands
     setAiLoading(true);
-    fetch(`/api/daily-ideas?date=${today}`)
-      .then((r) => r.json())
-      .then(({ ideas }: { ideas: GeneratedIdea[] }) => {
-        if (Array.isArray(ideas) && ideas.length > 0) {
-          setAiIdeas(ideas.map(toIdea));
-          try { localStorage.setItem(cacheKey, JSON.stringify(ideas)); } catch { /* ignore */ }
-          // Purge previous days from localStorage
-          for (let i = 0; i < localStorage.length; i++) {
+    const allIdeas: GeneratedIdea[] = [];
+
+    const fetchBatch = (batch: number) =>
+      fetch(`/api/daily-ideas?date=${today}&batch=${batch}`)
+        .then((r) => r.json())
+        .then(({ ideas }: { ideas: GeneratedIdea[] }) => {
+          if (Array.isArray(ideas) && ideas.length > 0) {
+            allIdeas.push(...ideas);
+            // Show progressively — update state as each batch arrives
+            setAiIdeas([...allIdeas].map(toIdea));
+          }
+        })
+        .catch((err) => console.error(`[daily-ideas] batch ${batch} failed:`, err));
+
+    Promise.all([0, 1, 2, 3, 4].map(fetchBatch)).finally(() => {
+      setAiLoading(false);
+      if (allIdeas.length > 0) {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(allIdeas));
+          // Purge previous days
+          for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);
             if (k?.startsWith("aihub_daily_ideas_") && k !== cacheKey) localStorage.removeItem(k);
           }
-        }
-      })
-      .catch(console.error)
-      .finally(() => setAiLoading(false));
+        } catch { /* ignore quota errors */ }
+      }
+    });
   }, []);
 
   const filtered = useMemo(() => {
@@ -737,18 +751,33 @@ export default function MillionIdeasPage() {
                 <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                 AI-Generated · Today&apos;s Fresh Ideas
               </div>
-              {!aiLoading && aiIdeas.length > 0 && (
-                <span className="text-xs text-slate-500">{aiIdeas.length} new ideas generated just for today</span>
-              )}
+              <span className="text-xs text-slate-500">
+                {aiLoading && aiIdeas.length === 0
+                  ? "Generating 100 fresh ideas across 5 industry groups…"
+                  : aiLoading
+                  ? `${aiIdeas.length} ideas loaded, generating more…`
+                  : `${aiIdeas.length} AI-generated ideas for today`}
+              </span>
             </div>
 
-            {aiLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="bg-[#0d1421] border border-white/5 rounded-2xl p-5 animate-pulse">
-                    <div className="h-3 bg-white/8 rounded w-16 mb-3" />
-                    <div className="h-4 bg-white/8 rounded w-full mb-2" />
-                    <div className="h-3 bg-white/5 rounded w-3/4" />
+            {aiLoading && aiIdeas.length === 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <div key={i} className="bg-[#0d1421] border border-white/5 rounded-2xl p-5 animate-pulse space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-white/8 flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-2 bg-white/8 rounded w-20" />
+                        <div className="h-3 bg-white/8 rounded w-full" />
+                      </div>
+                    </div>
+                    <div className="h-3 bg-white/5 rounded w-full" />
+                    <div className="h-3 bg-white/5 rounded w-4/5" />
+                    <div className="h-3 bg-white/5 rounded w-3/5" />
+                    <div className="flex gap-1.5">
+                      {[40, 56, 44].map((w) => <div key={w} className={`h-5 bg-white/5 rounded-full w-${w === 40 ? "10" : w === 56 ? "14" : "11"}`} />)}
+                    </div>
+                    <div className="h-8 bg-indigo-600/20 rounded-xl w-full mt-2" />
                   </div>
                 ))}
               </div>
