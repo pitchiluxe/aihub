@@ -1014,40 +1014,56 @@ export default function MillionIdeasPage() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Check payment access: Stripe redirect → localStorage → trusted network → WebRTC hotspot
+  // Check payment access: trusted network → localStorage (with expiry) → subscription status
   useEffect(() => {
     async function checkAccess() {
       try {
-        // Returning from Stripe successful payment
-        if (window.location.search.includes("success=1")) {
-          localStorage.setItem(LS_ACCESS_KEY, "true");
-          window.history.replaceState({}, "", window.location.pathname);
-          setLocked(false);
-          return;
-        }
-        // Previously granted access stored locally
-        if (localStorage.getItem(LS_ACCESS_KEY) === "true") {
-          setLocked(false);
-          return;
-        }
-        // Server-side: match against owner's configured public IPs (home WiFi / wired)
+        // 1. Owner's trusted network (WiFi / wired / iPhone hotspot) — always bypass
         try {
-          const res = await fetch("/api/check-network", { cache: "no-store" });
-          if (res.ok) {
-            const { trusted } = (await res.json()) as { trusted: boolean };
+          const netRes = await fetch("/api/check-network", { cache: "no-store" });
+          if (netRes.ok) {
+            const { trusted } = (await netRes.json()) as { trusted: boolean };
             if (trusted) { setLocked(false); return; }
           }
         } catch { /* network error — continue */ }
-        // Client-side: iPhone hotspot auto-detection (Apple assigns 172.20.10.x)
+
+        // 2. iPhone hotspot auto-detection (172.20.10.x)
         const localIP = await getLocalIPViaWebRTC();
-        if (localIP?.startsWith("172.20.10.")) {
-          setLocked(false);
-          return;
+        if (localIP?.startsWith("172.20.10.")) { setLocked(false); return; }
+
+        // 3. Check localStorage for valid, non-expired access record
+        const raw = localStorage.getItem(LS_ACCESS_KEY);
+        if (raw) {
+          try {
+            // New format: JSON with expiresAt
+            const record = JSON.parse(raw) as { granted: boolean; expiresAt: number; subscriptionId?: string | null };
+            if (record.granted && record.expiresAt > Date.now()) {
+              // 4. If we have a subscriptionId, verify it hasn't been cancelled server-side
+              if (record.subscriptionId) {
+                try {
+                  const subRes = await fetch(`/api/check-subscription?id=${record.subscriptionId}`, { cache: "no-store" });
+                  if (subRes.ok) {
+                    const { active } = (await subRes.json()) as { active: boolean };
+                    if (!active) {
+                      // Subscription cancelled — revoke local access immediately
+                      localStorage.removeItem(LS_ACCESS_KEY);
+                      return; // stays locked
+                    }
+                  }
+                } catch { /* DB error — give benefit of the doubt */ }
+              }
+              setLocked(false);
+              return;
+            }
+            // Expired — clear it
+            localStorage.removeItem(LS_ACCESS_KEY);
+          } catch {
+            // Legacy "true" string — clear and re-lock (no expiry data)
+            localStorage.removeItem(LS_ACCESS_KEY);
+          }
         }
       } catch { /* ignore — stay locked */ }
-      finally {
-        setCheckingAccess(false);
-      }
+      finally { setCheckingAccess(false); }
     }
     checkAccess();
   }, []);
