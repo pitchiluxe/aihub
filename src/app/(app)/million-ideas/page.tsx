@@ -973,10 +973,18 @@ function PaymentGateModal({ onGoBack }: { onGoBack: () => void }) {
             Powered by Stripe · 256-bit SSL encryption · Cancel anytime
           </p>
 
+          {/* Already paid fallback */}
+          <button
+            onClick={() => { window.location.href = "/million-ideas/success"; }}
+            className="w-full text-center text-xs text-slate-500 hover:text-indigo-400 transition-colors mt-2 py-1.5"
+          >
+            Already paid? Click here to activate access
+          </button>
+
           {/* Go back */}
           <button
             onClick={onGoBack}
-            className="w-full flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors mt-3 py-2"
+            className="w-full flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors mt-1 py-2"
           >
             <ChevronRight className="w-3.5 h-3.5 rotate-180" />
             Go back to AIHub
