@@ -867,6 +867,98 @@ function WebsiteBuilderSection() {
 // ─── Review state type ─────────────────────────────────────────────────────
 interface IdeaRating { avg: number; count: number }
 
+// ─── Stripe Payment Gate ────────────────────────────────────────────────────
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/your_link_here";
+const LS_ACCESS_KEY = "aihub_million_ideas_access";
+
+function PaymentGateModal() {
+  const benefits = [
+    "100+ AI business ideas refreshed daily",
+    "Production-ready starter kits (ZIP download)",
+    "AI-generated fresh ideas every 24 hours",
+    "Code templates across 20+ industries",
+    "Revenue & difficulty analysis per idea",
+    "AI Website Builder included",
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ background: "rgba(7, 11, 18, 0.82)" }}
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0, y: 24 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.92, opacity: 0, y: 24 }}
+        transition={{ type: "spring", stiffness: 280, damping: 28 }}
+        className="w-full max-w-lg bg-[#0d1421] border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+      >
+        {/* Top gradient accent */}
+        <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500" />
+
+        <div className="p-8">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-amber-500/15 border border-amber-500/25 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full mb-6">
+            <Lightbulb className="w-3.5 h-3.5" />
+            Premium Access Required
+          </div>
+
+          {/* Headline */}
+          <h2 className="text-3xl font-black text-white mb-2 leading-tight">
+            Unlock{" "}
+            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+              1M Ideas
+            </span>
+          </h2>
+          <p className="text-slate-400 text-sm leading-relaxed mb-6">
+            Get full access to 100+ world-changing AI business ideas, production-ready starter kits, and fresh AI-generated ideas every single day.
+          </p>
+
+          {/* Price card */}
+          <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-2xl p-5 mb-6">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-5xl font-black text-white">$19.99</span>
+              <span className="text-slate-400 text-sm font-medium">/month</span>
+            </div>
+            <p className="text-xs text-slate-500">Cancel anytime · Instant access after payment</p>
+          </div>
+
+          {/* Feature list */}
+          <div className="space-y-2.5 mb-7">
+            {benefits.map((b) => (
+              <div key={b} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-indigo-400" />
+                </div>
+                <span className="text-sm text-slate-300">{b}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <a
+            href={STRIPE_PAYMENT_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-4 px-6 rounded-2xl transition-all hover:shadow-xl hover:shadow-indigo-500/25 text-base"
+          >
+            <Zap className="w-5 h-5" />
+            Get Access — $19.99/month
+            <ArrowRight className="w-5 h-5" />
+          </a>
+
+          <p className="text-center text-xs text-slate-600 mt-4">
+            Powered by Stripe · 256-bit SSL encryption · Cancel anytime
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 const LS_KEY = (date: string) => `aihub_daily_ideas_${date}`;
 const LS_REVIEWS = "aihub_reviews";
@@ -882,7 +974,21 @@ export default function MillionIdeasPage() {
   const [reviewTarget, setReviewTarget] = useState<Idea | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [countdown, setCountdown] = useState("");
+  const [locked, setLocked] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Check payment access (Stripe success redirect or existing localStorage key)
+  useEffect(() => {
+    try {
+      if (window.location.search.includes("success=1")) {
+        localStorage.setItem(LS_ACCESS_KEY, "true");
+        window.history.replaceState({}, "", window.location.pathname);
+        setLocked(false);
+        return;
+      }
+      if (localStorage.getItem(LS_ACCESS_KEY) === "true") setLocked(false);
+    } catch { /* ignore */ }
+  }, []);
 
   // 1. Seeded shuffle of base ideas (changes each day)
   useEffect(() => {
@@ -982,7 +1088,11 @@ export default function MillionIdeasPage() {
     <div className="flex flex-col min-h-screen bg-[#070b12]">
       <TopBar title="1M Ideas" description="World-changing AI tools waiting to be built" />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto"
+        style={locked ? { filter: "blur(10px)", pointerEvents: "none", userSelect: "none" } : undefined}
+      >
         <div className="px-4 md:px-8 py-8 max-w-7xl mx-auto">
 
           {/* ── Hero ─────────────────────────────────────────────── */}
@@ -1194,6 +1304,11 @@ export default function MillionIdeasPage() {
 
         </div>
       </div>
+
+      {/* ── Payment Gate ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {locked && <PaymentGateModal />}
+      </AnimatePresence>
 
       {/* ── Code Modal ────────────────────────────────────────────── */}
       <AnimatePresence>
