@@ -871,7 +871,26 @@ interface IdeaRating { avg: number; count: number }
 const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/your_link_here";
 const LS_ACCESS_KEY = "aihub_million_ideas_access";
 
-function PaymentGateModal() {
+// Attempt to read the device's local IP via WebRTC (detects iPhone hotspot 172.20.10.x)
+function getLocalIPViaWebRTC(): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel("");
+      pc.createOffer()
+        .then((o) => pc.setLocalDescription(o))
+        .catch(() => resolve(null));
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) return;
+        const m = /(\d{1,3}(\.\d{1,3}){3})/.exec(e.candidate.candidate);
+        if (m) { resolve(m[1]); pc.close(); }
+      };
+      setTimeout(() => resolve(null), 1500);
+    } catch { resolve(null); }
+  });
+}
+
+function PaymentGateModal({ onGoBack }: { onGoBack: () => void }) {
   const benefits = [
     "100+ AI business ideas refreshed daily",
     "Production-ready starter kits (ZIP download)",
@@ -953,6 +972,15 @@ function PaymentGateModal() {
           <p className="text-center text-xs text-slate-600 mt-4">
             Powered by Stripe · 256-bit SSL encryption · Cancel anytime
           </p>
+
+          {/* Go back */}
+          <button
+            onClick={onGoBack}
+            className="w-full flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors mt-3 py-2"
+          >
+            <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+            Go back to AIHub
+          </button>
         </div>
       </motion.div>
     </motion.div>
@@ -975,19 +1003,45 @@ export default function MillionIdeasPage() {
   const [aiLoading, setAiLoading] = useState(true);
   const [countdown, setCountdown] = useState("");
   const [locked, setLocked] = useState(true);
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Check payment access (Stripe success redirect or existing localStorage key)
+  // Check payment access: Stripe redirect → localStorage → trusted network → WebRTC hotspot
   useEffect(() => {
-    try {
-      if (window.location.search.includes("success=1")) {
-        localStorage.setItem(LS_ACCESS_KEY, "true");
-        window.history.replaceState({}, "", window.location.pathname);
-        setLocked(false);
-        return;
+    async function checkAccess() {
+      try {
+        // Returning from Stripe successful payment
+        if (window.location.search.includes("success=1")) {
+          localStorage.setItem(LS_ACCESS_KEY, "true");
+          window.history.replaceState({}, "", window.location.pathname);
+          setLocked(false);
+          return;
+        }
+        // Previously granted access stored locally
+        if (localStorage.getItem(LS_ACCESS_KEY) === "true") {
+          setLocked(false);
+          return;
+        }
+        // Server-side: match against owner's configured public IPs (home WiFi / wired)
+        try {
+          const res = await fetch("/api/check-network", { cache: "no-store" });
+          if (res.ok) {
+            const { trusted } = (await res.json()) as { trusted: boolean };
+            if (trusted) { setLocked(false); return; }
+          }
+        } catch { /* network error — continue */ }
+        // Client-side: iPhone hotspot auto-detection (Apple assigns 172.20.10.x)
+        const localIP = await getLocalIPViaWebRTC();
+        if (localIP?.startsWith("172.20.10.")) {
+          setLocked(false);
+          return;
+        }
+      } catch { /* ignore — stay locked */ }
+      finally {
+        setCheckingAccess(false);
       }
-      if (localStorage.getItem(LS_ACCESS_KEY) === "true") setLocked(false);
-    } catch { /* ignore */ }
+    }
+    checkAccess();
   }, []);
 
   // 1. Seeded shuffle of base ideas (changes each day)
@@ -1305,9 +1359,28 @@ export default function MillionIdeasPage() {
         </div>
       </div>
 
+      {/* ── Access checking overlay (prevents flash while verifying network) */}
+      <AnimatePresence>
+        {checkingAccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[201] bg-[#070b12]/90 flex items-center justify-center"
+          >
+            <div className="flex items-center gap-3 text-slate-400 text-sm">
+              <span className="w-4 h-4 rounded-full border-2 border-indigo-500/40 border-t-indigo-400 animate-spin" />
+              Verifying access…
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Payment Gate ──────────────────────────────────────────── */}
       <AnimatePresence>
-        {locked && <PaymentGateModal />}
+        {locked && !checkingAccess && (
+          <PaymentGateModal onGoBack={() => window.history.back()} />
+        )}
       </AnimatePresence>
 
       {/* ── Code Modal ────────────────────────────────────────────── */}
