@@ -868,7 +868,7 @@ function WebsiteBuilderSection() {
 interface IdeaRating { avg: number; count: number }
 
 // ─── Stripe Payment Gate ────────────────────────────────────────────────────
-const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/your_link_here";
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/3cIeVd8vG2AJ6eM3EQdMI04";
 const LS_ACCESS_KEY = "aihub_million_ideas_access";
 
 // Attempt to read the device's local IP via WebRTC (detects iPhone hotspot 172.20.10.x)
