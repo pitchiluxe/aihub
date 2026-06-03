@@ -12,9 +12,10 @@ import { AgentProfile, AgentMessage } from "@/types";
 import { useStore } from "@/store";
 import {
   Send, Bot, Sparkles, ChevronLeft, Trash2, Copy, Check,
-  Zap, Brain, Pen, Code, Microscope, Newspaper, RotateCcw, X,
+  Zap, Brain, Pen, Code, Microscope, Newspaper, RotateCcw, X, ExternalLink, Heart,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import type { CommunityAgent } from "@/app/api/agents/route";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Newspaper, Brain, Pen, Bot, Zap, Microscope, Code,
@@ -29,6 +30,8 @@ export default function AgentsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showOllamaHelp, setShowOllamaHelp] = useState(false);
   const [ollamaHelpMessage, setOllamaHelpMessage] = useState("");
+  const [communityAgents, setCommunityAgents] = useState<CommunityAgent[]>([]);
+  const [communityLoading, setCommunityLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { createConversation, addMessage } = useStore();
@@ -52,6 +55,14 @@ export default function AgentsPage() {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }
   }, [localMessages]);
+
+  useEffect(() => {
+    fetch("/api/agents")
+      .then((r) => r.json())
+      .then((d) => setCommunityAgents(d.spaces ?? []))
+      .catch(() => {})
+      .finally(() => setCommunityLoading(false));
+  }, []);
 
   async function sendMessage() {
     if (!input.trim() || !selectedAgent || loading) return;
@@ -472,6 +483,47 @@ export default function AgentsPage() {
             );
           })}
         </motion.div>
+
+        {/* Community Agents from HuggingFace Spaces */}
+        <div className="mt-10 max-w-5xl mx-auto">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-pink-400 bg-pink-500/10 border border-pink-500/20 px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse" />
+              LIVE · HuggingFace Community
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {communityLoading ? "Loading trending AI spaces…" : `${communityAgents.length} live agents`}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            {communityLoading
+              ? Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
+                ))
+              : communityAgents.slice(0, 16).map((agent) => (
+                  <a
+                    key={agent.id}
+                    href={agent.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group block bg-card border border-border hover:border-pink-500/30 rounded-xl p-4 transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground capitalize">{agent.author}</span>
+                      <span className="text-[10px] text-pink-400 flex items-center gap-0.5">
+                        <Heart className="h-2.5 w-2.5" /> {agent.likes}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold line-clamp-1 group-hover:text-primary transition-colors">{agent.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{agent.description}</p>
+                    <div className="flex items-center gap-1 mt-2">
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground">Open in HuggingFace</span>
+                    </div>
+                  </a>
+                ))}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 ﻿"use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { LiveSkill } from "@/app/api/skills/route";
 import { TopBar } from "@/components/layout/TopBar";
 import {
   Search, Copy, Check, X, Download, Terminal, FolderOpen,
@@ -4726,6 +4727,16 @@ export default function SkillsPage() {
   const [activeCategory, setCategory] = useState<CategoryKey>("all");
   const [selectedSkill, setSelected]  = useState<Skill | null>(null);
   const [showHowTo, setShowHowTo]     = useState(false);
+  const [liveSkills, setLiveSkills]   = useState<LiveSkill[]>([]);
+  const [liveLoading, setLiveLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/skills")
+      .then((r) => r.json())
+      .then((d) => setLiveSkills(d.skills ?? []))
+      .catch(() => {})
+      .finally(() => setLiveLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -4826,6 +4837,47 @@ export default function SkillsPage() {
               ))}
             </div>
           </div>
+
+          {/* Live skills from GitHub */}
+          {(liveLoading || liveSkills.length > 0) && (
+            <div className="px-4 md:px-6 pt-4 pb-2 border-b border-white/5 flex-shrink-0">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  LIVE · GitHub Community
+                </span>
+                <span className="text-[11px] text-gray-600">{liveLoading ? "fetching…" : `${liveSkills.length} repos`}</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {liveLoading
+                  ? Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex-shrink-0 w-52 h-24 rounded-xl bg-white/5 animate-pulse" />
+                    ))
+                  : liveSkills.slice(0, 20).map((s) => (
+                      <a
+                        key={s.id}
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-shrink-0 w-52 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-xl p-3 transition-all group"
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <img src={s.avatarUrl} alt={s.owner} className="w-5 h-5 rounded-full" />
+                          <span className="text-[10px] text-gray-500 truncate">{s.owner}</span>
+                          <span className="ml-auto text-[10px] text-amber-400 flex items-center gap-0.5">
+                            <Star className="w-2.5 h-2.5" />{s.stars}
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-white truncate group-hover:text-violet-300 transition-colors">{s.name}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{s.description}</p>
+                        {s.language && (
+                          <span className="mt-1.5 inline-block text-[9px] text-gray-600 bg-white/5 px-1.5 py-0.5 rounded">{s.language}</span>
+                        )}
+                      </a>
+                    ))}
+              </div>
+            </div>
+          )}
 
           {/* Grid */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-hide">

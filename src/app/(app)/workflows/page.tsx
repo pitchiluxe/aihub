@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Copy, Search, X, ArrowRight, ExternalLink, Clock,
+  Copy, Search, X, ArrowRight, ExternalLink, Clock, Zap, GitBranch, Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { WORKFLOWS, Workflow } from "@/lib/workflows";
+import type { LiveWorkflow } from "@/app/api/workflows/route";
 
 const STEP_COLORS: Record<string, string> = {
   trigger: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -31,6 +32,16 @@ export default function WorkflowsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showCloneGuide, setShowCloneGuide] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const [liveWorkflows, setLiveWorkflows] = useState<LiveWorkflow[]>([]);
+  const [liveLoading, setLiveLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/workflows")
+      .then((r) => r.json())
+      .then((d) => setLiveWorkflows(d.workflows ?? []))
+      .catch(() => {})
+      .finally(() => setLiveLoading(false));
+  }, []);
 
   const filtered = WORKFLOWS.filter(
     (w) =>
@@ -68,6 +79,69 @@ export default function WorkflowsPage() {
           </div>
           <Badge variant="secondary" className="text-xs">{filtered.length} results</Badge>
         </div>
+
+        {/* Live Templates from n8n.io + GitHub */}
+        {(liveLoading || liveWorkflows.length > 0) && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                LIVE · n8n.io + GitHub
+              </span>
+              <span className="text-xs text-muted-foreground">{liveLoading ? "fetching…" : `${liveWorkflows.length} templates`}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {liveLoading
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
+                  ))
+                : liveWorkflows.slice(0, 12).map((w) => (
+                    <a
+                      key={w.id}
+                      href={w.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block bg-card border border-border hover:border-blue-500/30 rounded-xl p-4 transition-all hover:shadow-md"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <span className="flex items-center gap-1.5">
+                          {w.source === "n8n" ? (
+                            <Zap className="h-3.5 w-3.5 text-orange-400 flex-shrink-0" />
+                          ) : (
+                            <GitBranch className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                          )}
+                          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                            {w.source === "n8n" ? "n8n" : "GitHub"}
+                          </span>
+                        </span>
+                        {w.views != null && (
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <Eye className="h-2.5 w-2.5" />{w.views.toLocaleString()}
+                          </span>
+                        )}
+                        {w.stars != null && (
+                          <span className="text-[10px] text-amber-400 flex items-center gap-0.5">
+                            ★ {w.stars}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold line-clamp-1 group-hover:text-primary transition-colors">{w.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{w.description}</p>
+                      {w.tools.length > 0 && (
+                        <div className="flex gap-1 mt-2 flex-wrap">
+                          {w.tools.slice(0, 4).map((t) => (
+                            <span key={t} className="text-[9px] bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{t}</span>
+                          ))}
+                        </div>
+                      )}
+                    </a>
+                  ))}
+            </div>
+            <div className="border-t border-border mt-5 pt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Curated Blueprints</p>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           {filtered.map((workflow, i) => (

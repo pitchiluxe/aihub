@@ -10,16 +10,18 @@ export async function GET(req: NextRequest) {
   const query = searchParams.get("q") ?? "large language models";
   const limit = parseInt(searchParams.get("limit") ?? "30");
 
-  const [arxiv, semantic, hfDaily] = await Promise.allSettled([
-    fetchArxiv(query, Math.ceil(limit * 0.5)),
-    fetchSemanticScholar(query, Math.ceil(limit * 0.3)),
+  const [arxiv, semantic, hfDaily, pwc] = await Promise.allSettled([
+    fetchArxiv(query, Math.ceil(limit * 0.4)),
+    fetchSemanticScholar(query, Math.ceil(limit * 0.25)),
     fetchHuggingFaceDaily(query),
+    fetchPapersWithCode(query, 10),
   ]);
 
   const papers: ResearchPaper[] = [];
 
   // HuggingFace daily papers first — freshest content
   if (hfDaily.status === "fulfilled") papers.push(...hfDaily.value);
+  if (pwc.status === "fulfilled") papers.push(...pwc.value);
   if (arxiv.status === "fulfilled") papers.push(...arxiv.value);
   if (semantic.status === "fulfilled") papers.push(...semantic.value);
 
@@ -158,6 +160,49 @@ async function fetchHuggingFaceDaily(query: string): Promise<ResearchPaper[]> {
           isHot: true,
         };
       });
+  } catch {
+    return [];
+  }
+}
+
+// ── Papers With Code: trending ML papers with implementations ──
+async function fetchPapersWithCode(query: string, limit: number): Promise<ResearchPaper[]> {
+  try {
+    const q = encodeURIComponent(query);
+    const res = await fetch(
+      `https://paperswithcode.com/api/v1/papers/?format=json&q=${q}&ordering=-published&page=1`,
+      {
+        cache: "no-store",
+        headers: { "User-Agent": "AIHub/2.0 Research Reader" },
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results = Array.isArray(data.results) ? data.results : [];
+
+    return results.slice(0, limit).map((p: {
+      id?: string;
+      arxiv_id?: string;
+      title?: string;
+      abstract?: string;
+      authors?: string[];
+      published?: string;
+      url_abs?: string;
+      url_pdf?: string;
+      github_href?: string;
+    }): ResearchPaper => ({
+      id: `pwc-${p.arxiv_id ?? p.id ?? Math.random()}`,
+      title: p.title ?? "Untitled",
+      authors: (p.authors ?? []).slice(0, 6),
+      abstract: (p.abstract ?? "").slice(0, 600) + ((p.abstract?.length ?? 0) > 600 ? "…" : ""),
+      url: p.url_abs ?? `https://paperswithcode.com`,
+      arxivId: p.arxiv_id,
+      publishedAt: p.published ?? new Date().toISOString(),
+      categories: ["ML", "Papers With Code"],
+      codeUrl: p.github_href ?? undefined,
+      source: "Papers With Code",
+      isHot: false,
+    }));
   } catch {
     return [];
   }
