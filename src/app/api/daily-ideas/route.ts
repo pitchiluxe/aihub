@@ -32,8 +32,8 @@ const BATCH_GROUPS: Record<number, string[]> = {
   4: ["Marketing", "E-commerce", "Retail", "Food", "Beauty & Wellness"],
 };
 
-// Llama 3.3 70B: high rate limits, reliable JSON output, proven on OpenRouter
-const IDEAS_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+// Confirmed available on OpenRouter June 2026
+const IDEAS_MODEL = "openai/gpt-oss-120b:free";
 
 function systemPrompt(batch: number, date: string): string {
   const industries = BATCH_GROUPS[batch]?.join(", ") ?? "any industry";

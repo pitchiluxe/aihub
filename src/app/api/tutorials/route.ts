@@ -69,7 +69,7 @@ Requirements:
         { role: "user", content: prompt },
       ],
       4096,
-      "meta-llama/llama-3.3-70b-instruct:free",
+      "openai/gpt-oss-120b:free",
     );
 
     // Extract JSON from the response (handle cases where model adds markdown)

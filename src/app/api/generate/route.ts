@@ -140,7 +140,7 @@ Make it truly original. Think deeply before responding.`;
           },
         ],
         3000,
-        "meta-llama/llama-3.3-70b-instruct:free",
+        "openai/gpt-oss-120b:free",
       );
 
       // Parse the generated content to extract name, description, and code

@@ -98,7 +98,7 @@ export default function AIHubLMPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "deepseek/deepseek-v3-base:free",
+          model: "openai/gpt-oss-120b:free",
           messages: [
             {
               role: "system",
@@ -140,7 +140,7 @@ export default function AIHubLMPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "deepseek/deepseek-v3-base:free",
+          model: "openai/gpt-oss-120b:free",
           messages: [
             {
               role: "system",
@@ -220,7 +220,7 @@ Make the summary and key points specific and actionable.`,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "deepseek/deepseek-v3-base:free",
+          model: "openai/gpt-oss-120b:free",
           messages: [
             {
               role: "system",

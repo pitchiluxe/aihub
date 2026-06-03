@@ -36,7 +36,7 @@ export const TEMPLATES: PlaygroundProject[] = [
     type: "chatbot",
     language: "typescript",
     isTemplate: true,
-    model: "deepseek/deepseek-v3-base:free",
+    model: "openai/gpt-oss-120b:free",
     tags: ["beginner", "chatbot", "OpenRouter"],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -44,7 +44,7 @@ export const TEMPLATES: PlaygroundProject[] = [
 // Paste in a Next.js API route or Node.js script
 
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
-const MODEL = "deepseek/deepseek-v3-base:free"; // Free!
+const MODEL = "openai/gpt-oss-120b:free"; // Free!
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -99,7 +99,7 @@ sendMessage("What is the capital of France?");
     type: "agent",
     language: "python",
     isTemplate: true,
-    model: "deepseek/deepseek-v3-base:free",
+    model: "openai/gpt-oss-120b:free",
     tags: ["intermediate", "agent", "tools", "ReAct"],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -170,7 +170,7 @@ Think step-by-step before acting."""},
 
     for step in range(max_steps):
         response = client.chat.completions.create(
-            model="deepseek/deepseek-v3-base:free",
+            model="openai/gpt-oss-120b:free",
             messages=messages,
             tools=TOOLS,
             tool_choice="auto"
@@ -217,7 +217,7 @@ result = run_agent("What are the latest AI models released this week and how man
     type: "rag",
     language: "python",
     isTemplate: true,
-    model: "deepseek/deepseek-v3-base:free",
+    model: "openai/gpt-oss-120b:free",
     tags: ["intermediate", "RAG", "embeddings", "vector"],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -289,7 +289,7 @@ def rag_query(question: str) -> str:
 
     # 2. Generate answer with context
     response = client.chat.completions.create(
-        model="deepseek/deepseek-v3-base:free",
+        model="openai/gpt-oss-120b:free",
         messages=[
             {
                 "role": "system",
@@ -343,7 +343,7 @@ print(f"Answer: {answer}")
     type: "workflow",
     language: "typescript",
     isTemplate: true,
-    model: "deepseek/deepseek-v3-base:free",
+    model: "openai/gpt-oss-120b:free",
     tags: ["advanced", "workflow", "orchestration"],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -362,7 +362,7 @@ interface WorkflowResult {
   error?: string;
 }
 
-async function callAI(prompt: string, model = "deepseek/deepseek-v3-base:free"): Promise<string> {
+async function callAI(prompt: string, model = "openai/gpt-oss-120b:free"): Promise<string> {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {

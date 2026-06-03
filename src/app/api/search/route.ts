@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
         { role: "user", content: query },
       ],
       256,
-      "deepseek/deepseek-chat-v3-0324:free",
+      "openai/gpt-oss-20b:free",
     );
     if (answer) aiAnswer = answer;
   } catch (err) {

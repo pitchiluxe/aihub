@@ -14,9 +14,9 @@ import {
 import toast from "react-hot-toast";
 
 const PRESET_BATTLES = [
-  { name: "Coding Giants", models: ["deepseek/deepseek-v3-base:free", "meta-llama/llama-3.2-3b-instruct:free"], label: "Code Test" },
-  { name: "Free Champions", models: ["google/gemma-3-1b-it:free", "qwen/qwen-2.5-vl-3b-instruct:free"], label: "General Test" },
-  { name: "Reasoning Duel", models: ["deepseek/deepseek-v3-base:free", "google/gemma-3-4b-it:free"], label: "Reasoning Test" },
+  { name: "Coding Giants", models: ["openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free"], label: "Code Test" },
+  { name: "Free Champions", models: ["openai/gpt-oss-20b:free", "openai/gpt-oss-20b:free"], label: "General Test" },
+  { name: "Reasoning Duel", models: ["openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free"], label: "Reasoning Test" },
 ];
 
 const PROMPT_SUGGESTIONS = [

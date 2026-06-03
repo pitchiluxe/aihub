@@ -100,7 +100,7 @@ export default function ResearchPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           provider: "openrouter",
-          model: "deepseek/deepseek-chat-v3-0324:free",
+          model: "openai/gpt-oss-120b:free",
           messages: [
             {
               role: "system",
@@ -172,7 +172,7 @@ Keep it concise and actionable for AI practitioners.`,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "deepseek/deepseek-v3-base:free",
+          model: "openai/gpt-oss-120b:free",
           messages: [{
             role: "system",
             content: `You are a world-class AI research explainer. Break down research papers into clear, actionable insights for AI practitioners.

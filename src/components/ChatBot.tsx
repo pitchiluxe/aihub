@@ -96,7 +96,7 @@ export function ChatBot() {
               content: m.content,
             })),
           ],
-          model: "deepseek/deepseek-chat-v3-0324:free",
+          model: "openai/gpt-oss-120b:free",
           provider: "openrouter",
         }),
       });

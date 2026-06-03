@@ -448,7 +448,7 @@ const toolCall = response.tool_calls[0];
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-v3-base:free',
+      model: 'openai/gpt-oss-120b:free',
       messages,
       tools,
       tool_choice: 'auto', // let model decide when to use tools
@@ -641,7 +641,7 @@ export async function POST(req: Request) {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'deepseek/deepseek-v3-base:free', messages: [{ role: 'user', content: message }], stream: true }),
+        body: JSON.stringify({ model: 'openai/gpt-oss-120b:free', messages: [{ role: 'user', content: message }], stream: true }),
       });
 
       const reader = response.body!.getReader();
@@ -1115,11 +1115,11 @@ function classifyTask(prompt: string): TaskType {
   return 'chat';
 }`, language: "typescript" },
       { title: "Free Model Map", explanation: "Map each task type to the best free model available on OpenRouter. Update this as new models are released.", code: `const FREE_MODELS: Record<TaskType, string> = {
-  code:      'deepseek/deepseek-coder-v2-lite-instruct:free',
-  reasoning: 'deepseek/deepseek-r1:free',
+  code:      'openai/gpt-oss-120b:free',
+  reasoning: 'openai/gpt-oss-120b:free',
   creative:  'meta-llama/llama-3.1-70b-instruct:free',
-  classify:  'meta-llama/llama-3.1-8b-instruct:free',
-  chat:      'deepseek/deepseek-v3-base:free',
+  classify:  'openai/gpt-oss-20b:free',
+  chat:      'openai/gpt-oss-120b:free',
 };
 
 export async function smartCall(prompt: string): Promise<string> {
@@ -1129,9 +1129,9 @@ export async function smartCall(prompt: string): Promise<string> {
   return callOpenRouter(model, prompt);
 }`, language: "typescript", tip: "Log every routing decision — after a week you'll see patterns to improve your classifier." },
       { title: "Fallback Chain", explanation: "When a model fails or rate-limits, automatically try the next model in the chain.", code: `const FALLBACK_CHAIN: string[] = [
-  'deepseek/deepseek-v3-base:free',
+  'openai/gpt-oss-120b:free',
   'meta-llama/llama-3.1-70b-instruct:free',
-  'google/gemma-2-9b-it:free',
+  'openai/gpt-oss-20b:free',
   'qwen/qwen-2-7b-instruct:free',
 ];
 
@@ -1172,8 +1172,8 @@ async function callWithFallback(prompt: string): Promise<string> {
 
 const PRICING: Record<string, [number, number]> = {
   'gpt-4o': [5.00, 15.00],
-  'deepseek/deepseek-v3-base:free': [0, 0],
-  'meta-llama/llama-3.1-8b-instruct:free': [0, 0],
+  'openai/gpt-oss-120b:free': [0, 0],
+  'openai/gpt-oss-20b:free': [0, 0],
 };
 
 export async function trackedCall(model: string, messages: any[], feature: string, userId?: string): Promise<string> {
@@ -1538,7 +1538,7 @@ export async function POST(req: Request) {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_API_KEY}\` },
-    body: JSON.stringify({ model: 'deepseek/deepseek-v3-base:free', messages }),
+    body: JSON.stringify({ model: 'openai/gpt-oss-120b:free', messages }),
   });
   return Response.json(await response.json());
 }`, language: "typescript" },
@@ -1551,7 +1551,7 @@ export async function POST(req: Request) {
   const upstreamRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_API_KEY}\`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'deepseek/deepseek-v3-base:free', messages: [{ role: 'user', content: message }], stream: true }),
+    body: JSON.stringify({ model: 'openai/gpt-oss-120b:free', messages: [{ role: 'user', content: message }], stream: true }),
   });
   // Pipe upstream stream directly to client
   return new Response(upstreamRes.body, {

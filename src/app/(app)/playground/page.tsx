@@ -58,7 +58,7 @@ export default function PlaygroundPage() {
     const id = saveProject({
       ...newForm,
       code: `// ${newForm.name}\n// Start coding here\n`,
-      model: "meta-llama/llama-3.2-3b-instruct:free",
+      model: "openai/gpt-oss-20b:free",
       tags: [newForm.type, newForm.language],
     });
     setNewProject(false);
@@ -113,7 +113,7 @@ export default function PlaygroundPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.2-3b-instruct:free",
+          model: "openai/gpt-oss-20b:free",
           messages: [
             {
               role: "system",
@@ -140,7 +140,7 @@ export default function PlaygroundPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.2-3b-instruct:free",
+          model: "openai/gpt-oss-20b:free",
           messages: [
             {
               role: "system",

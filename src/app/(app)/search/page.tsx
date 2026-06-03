@@ -128,7 +128,7 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
       }));
 
       const provider = "openrouter";
-      const model = "meta-llama/llama-3.2-3b-instruct:free";
+      const model = "openai/gpt-oss-20b:free";
 
       const res = await fetch("/api/chat", {
         method: "POST",

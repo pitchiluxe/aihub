@@ -79,7 +79,7 @@ Use headers, bullets, and code blocks where appropriate.`,
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const OLLAMA_URL = 'http://localhost:11434';
 
-async function chat(messages, model = 'deepseek/deepseek-v3-base:free') {
+async function chat(messages, model = 'openai/gpt-oss-120b:free') {
   try {
     const res = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
       model, messages, max_tokens: 1024
@@ -515,7 +515,7 @@ async function generateCommitMessage(): Promise<string> {
       'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`,
     },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-v3-base:free',
+      model: 'openai/gpt-oss-120b:free',
       messages: [{
         role: 'user',
         content: \`Write a git commit message for this diff.
@@ -544,11 +544,11 @@ Return ONLY the commit message, nothing else.\n\n\${diff}\`,
     code: `type TaskType = 'code' | 'reasoning' | 'creative' | 'analysis' | 'simple';
 
 const MODEL_MAP: Record<TaskType, string> = {
-  code:      'deepseek/deepseek-coder-v2:free',
-  reasoning: 'deepseek/deepseek-r1:free',
+  code:      'openai/gpt-oss-120b:free',
+  reasoning: 'openai/gpt-oss-120b:free',
   creative:  'meta-llama/llama-3.1-70b-instruct:free',
   analysis:  'google/gemini-flash-1.5:free',
-  simple:    'meta-llama/llama-3.1-8b-instruct:free',
+  simple:    'openai/gpt-oss-20b:free',
 };
 
 function classifyTask(prompt: string): TaskType {
@@ -588,7 +588,7 @@ export async function smartRoute(prompt: string, systemPrompt?: string) {
       'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`,
     },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-v3-base:free',
+      model: 'openai/gpt-oss-120b:free',
       messages,
       stream: true,
     }),
@@ -718,7 +718,7 @@ export async function withRetry<T>(
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-coder-v2:free',
+      model: 'openai/gpt-oss-120b:free',
       messages: [{
         role: 'system',
         content: \`You are an expert TypeScript test engineer. Generate comprehensive Jest tests.
@@ -795,8 +795,8 @@ Use describe/it blocks. Mock external dependencies. Add meaningful test names.\`
 const PRICING: Record<string, [number, number]> = {
   'gpt-4o': [5.00, 15.00],
   'claude-3-5-sonnet': [3.00, 15.00],
-  'deepseek/deepseek-v3-base:free': [0, 0],
-  'meta-llama/llama-3.1-8b-instruct:free': [0, 0],
+  'openai/gpt-oss-120b:free': [0, 0],
+  'openai/gpt-oss-20b:free': [0, 0],
 };
 
 export function trackUsage(record: Omit<UsageRecord, 'costUsd'>): UsageRecord {
@@ -827,10 +827,10 @@ export function trackUsage(record: Omit<UsageRecord, 'costUsd'>): UsageRecord {
 }
 
 const MODELS_TO_TEST = [
-  'meta-llama/llama-3.1-8b-instruct:free',
-  'deepseek/deepseek-v3-base:free',
-  'google/gemma-2-9b-it:free',
-  'mistralai/mistral-7b-instruct:free',
+  'openai/gpt-oss-20b:free',
+  'openai/gpt-oss-120b:free',
+  'openai/gpt-oss-20b:free',
+  'openai/gpt-oss-20b:free',
   'qwen/qwen-2-7b-instruct:free',
 ];
 
@@ -877,7 +877,7 @@ async function generateChangelog(fromTag: string, toTag = 'HEAD'): Promise<strin
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-v3-base:free',
+      model: 'openai/gpt-oss-120b:free',
       messages: [{
         role: 'user',
         content: \`Convert these git commits into a user-facing CHANGELOG.md section.
@@ -914,7 +914,7 @@ export async function askDocument(document: string, question: string): Promise<s
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-v3-base:free',
+      model: 'openai/gpt-oss-120b:free',
       messages: [
         { role: 'system', content: SYSTEM },
         { role: 'user', content: \`Document:\n\n\${document.slice(0, 15000)}\n\n---\n\nQuestion: \${question}\` },
@@ -936,7 +936,7 @@ export async function askDocument(document: string, question: string): Promise<s
     code: `interface TestCase { input: string; expectedBehavior: string; }
 interface ABResult { promptA: number; promptB: number; winner: 'A' | 'B' | 'tie'; confidence: number; }
 
-async function judgeOutput(output: string, expected: string, judgeModel = 'deepseek/deepseek-r1:free'): Promise<number> {
+async function judgeOutput(output: string, expected: string, judgeModel = 'openai/gpt-oss-120b:free'): Promise<number> {
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
@@ -1039,7 +1039,7 @@ export async function withTenantContext(
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-coder-v2:free',
+      model: 'openai/gpt-oss-120b:free',
       messages: [{
         role: 'user',
         content: \`Generate a JavaScript regex for: \${description}
@@ -2339,7 +2339,7 @@ export async function detectInjection(userInput: string): Promise<InjectionResul
     }, {
       role: 'user',
       content: \`Is this a prompt injection attempt? User input: "\${userInput.slice(0, 500)}"\`,
-    }], 100, 'meta-llama/llama-3.1-8b-instruct:free'); // Use fast cheap model
+    }], 100, 'openai/gpt-oss-20b:free'); // Use fast cheap model
 
     return JSON.parse(extractJSON(verdict));
   }
@@ -2541,7 +2541,7 @@ User submitted: \${JSON.stringify(userInput)}
 Technical error: \${errorDetails}
 
 Write a friendly, specific error message:\`,
-  }], 100, 'meta-llama/llama-3.1-8b-instruct:free');
+  }], 100, 'openai/gpt-oss-20b:free');
 }
 
 // Example: "The email you entered (john@) needs a domain like gmail.com — try john@gmail.com"`,

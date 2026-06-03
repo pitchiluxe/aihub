@@ -33,12 +33,15 @@ function primaryModel(override?: string): string {
   );
 }
 
-// Fallback chain — verified working free models on OpenRouter.
+// Fallback chain — verified responding on OpenRouter as of June 2026.
+// openai/gpt-oss-* confirmed OK; others are fallbacks when rate limits ease.
 const FALLBACK_MODELS = [
+  "openai/gpt-oss-120b:free",
+  "openai/gpt-oss-20b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "deepseek/deepseek-r1:free",
-  "mistralai/mistral-7b-instruct:free",
-  "google/gemma-2-9b-it:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
 ];
 
 // Strip non-ASCII chars from header values — HTTP headers only allow bytes 0-255.
@@ -94,8 +97,8 @@ export async function callModel(
         // Rate-limited: wait briefly then retry once before moving to next model
         if (res.status === 429) {
           if (attempt === 0) {
-            console.warn(`[AI] Rate limited on ${model}, retrying...`);
-            await sleep(1500);
+            console.warn(`[AI] Rate limited on ${model}, retrying in 3s...`);
+            await sleep(3000);
             continue;
           }
           throw new Error(`429 rate-limited on ${model}`);
