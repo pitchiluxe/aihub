@@ -61,8 +61,15 @@ Requirements:
 
   try {
     const raw = await callModel(
-      [{ role: "user", content: prompt }],
+      [
+        {
+          role: "system",
+          content: "You are an expert AI/ML educator. Generate structured tutorial content as valid JSON only. Return no markdown fences, no explanation — only the JSON array requested.",
+        },
+        { role: "user", content: prompt },
+      ],
       4096,
+      "meta-llama/llama-3.3-70b-instruct:free",
     );
 
     // Extract JSON from the response (handle cases where model adds markdown)

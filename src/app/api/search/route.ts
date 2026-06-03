@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SearchResult } from "@/types";
+import { callModel } from "@/lib/ai/client";
 import { fetchNewsFromRSS } from "@/lib/news";
 import { fetchOpenRouterModels } from "@/lib/openrouter";
 
@@ -68,33 +69,19 @@ export async function GET(req: NextRequest) {
   let aiAnswer: string | undefined;
   let aiUnavailable = false;
   try {
-    const chatRes = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/chat`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "deepseek/deepseek-v3-base:free",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an AI search assistant specialized in artificial intelligence. Provide a concise, factual answer to the user's query in 2-3 sentences. Only answer AI-related questions.",
-            },
-            { role: "user", content: query },
-          ],
-        }),
-        signal: AbortSignal.timeout(15000),
-      }
+    const answer = await callModel(
+      [
+        {
+          role: "system",
+          content:
+            "You are an AI search assistant specialized in artificial intelligence. Provide a concise, factual answer to the user's query in 2-3 sentences. Only answer AI-related questions.",
+        },
+        { role: "user", content: query },
+      ],
+      256,
+      "deepseek/deepseek-chat-v3-0324:free",
     );
-    if (chatRes.ok) {
-      const chatData = await chatRes.json();
-      if (chatData.content) {
-        aiAnswer = chatData.content;
-      }
-    } else {
-      aiUnavailable = true;
-    }
+    if (answer) aiAnswer = answer;
   } catch (err) {
     // AI answer is optional - still return search results
     aiUnavailable = true;

@@ -48,24 +48,8 @@ const EDGE_LABEL_ZOOM = 3.0;
 
 // ── Helpers ───────────────────────────────────────────────────
 function nodeRadius(size: number) { return Math.max(7, Math.round(size * 0.42)); }
-function easeBackOut(t: number, ov = 1.8) {
-  const c = ov + 1;
-  return 1 + c * Math.pow(t - 1, 3) + ov * Math.pow(t - 1, 2);
-}
-// Bounce easing with elastic return — perfect for balloon burst!
-function bounceOut(t: number): number {
-  const n1 = 7.5625;
-  const d1 = 2.75;
-  if (t < 1 / d1) return n1 * t * t;
-  if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
-  if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
-  return n1 * (t -= 2.625 / d1) * t + 0.984375;
-}
-// Elastic bounce-back for settling phase
-function elasticBounce(t: number): number {
-  const c = (2 * Math.PI) / 3;
-  return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c) + 1;
-}
+function easeOutCubic(t: number): number { return 1 - Math.pow(1 - t, 3); }
+function easeOutBack(t: number): number { const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
 function hexToRgba(hex: string, a: number) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -114,9 +98,8 @@ function formatArticleRaw(a: NewsArticle): string {
 interface ExtNode extends GraphNode, d3.SimulationNodeDatum {
   x?: number; y?: number; vx?: number; vy?: number;
   fx?: number | null; fy?: number | null;
-  burstAngle?: number;  // angle for balloon burst animation
-  burstDistance?: number;  // how far to burst out
 }
+interface EdgePulse { linkIdx: number; speed: number; offset: number; color: string }
 interface Transform { x: number; y: number; k: number }
 
 export default function GraphPage() {
@@ -134,10 +117,12 @@ export default function GraphPage() {
   const selectedIdRef = useRef<string | null>(null);
   const showMiniMapRef = useRef(true);
   const prevTabRef    = useRef<"graph" | "articles">("articles");
-  const entranceActiveRef = useRef(false);
-  const entranceStartRef  = useRef(0);
-  const entranceMapRef    = useRef<Map<string, { delay: number; duration: number }>>(new Map());
-  const nodeAnimRef       = useRef<Map<string, { t0: number; duration: number }>>(new Map());
+  const animStartRef    = useRef<number>(0);
+  const animActiveRef   = useRef<boolean>(false);
+  const nodeDelayRef    = useRef<Map<string, number>>(new Map());
+  const nodeClickAnim   = useRef<Map<string, { t0: number; duration: number }>>(new Map());
+  const edgePulsesRef   = useRef<EdgePulse[]>([]);
+  const nodeAnimRef     = useRef<Map<string, { t0: number; duration: number }>>(new Map());
   // Timelapse refs (ported from QB Brain)
   const timelapseModeRef  = useRef(false);
   const visibleSetRef     = useRef<Set<string>>(new Set());
@@ -247,10 +232,9 @@ export default function GraphPage() {
     const now   = performance.now();
     const q     = search.toLowerCase().trim();
 
-    const entranceActive  = entranceActiveRef.current;
-    const entranceElapsed = entranceActive ? now - entranceStartRef.current : Infinity;
-    if (entranceActive && entranceElapsed > 1500) entranceActiveRef.current = false;
-    const edgeAlpha = entranceActive ? Math.min(1, entranceElapsed / 900) : 1;
+    const animActive        = animActiveRef.current;
+    const animElapsedGlobal = animActive ? now - animStartRef.current : Infinity;
+    const edgeAlpha         = animActive ? Math.min(1, animElapsedGlobal / 1200) : 1;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -305,6 +289,21 @@ export default function GraphPage() {
       void tgt; // suppress unused warning
     }
 
+    // Traveling edge pulses — neural signal effect
+    for (const pulse of edgePulsesRef.current) {
+      const l = links[pulse.linkIdx];
+      if (!l?.source || !l?.target) continue;
+      const sx = (l.source as ExtNode).x ?? 0, sy = (l.source as ExtNode).y ?? 0;
+      const ex = (l.target as ExtNode).x ?? 0, ey = (l.target as ExtNode).y ?? 0;
+      const t  = ((now * pulse.speed * 0.0004) + pulse.offset) % 1;
+      const px = sx + (ex - sx) * t, py = sy + (ey - sy) * t;
+      const prevA = ctx.globalAlpha;
+      ctx.globalAlpha = edgeAlpha * 0.75;
+      ctx.beginPath(); ctx.arc(px, py, 2.2 / k, 0, Math.PI * 2);
+      ctx.fillStyle = pulse.color; ctx.fill();
+      ctx.globalAlpha = prevA;
+    }
+
     // Nodes
     for (const node of nodes) {
       // Timelapse: only draw revealed nodes
@@ -316,66 +315,72 @@ export default function GraphPage() {
       const matchQ=!q||node.label.toLowerCase().includes(q)||(node.description??"").toLowerCase().includes(q);
       if (q&&!matchQ) { ctx.globalAlpha=0.04; }
 
-      let animScale=1;
-      let offsetX=0, offsetY=0;
-      
-      if (entranceActive) {
-        const info=entranceMapRef.current.get(node.id);
-        if (info) { 
-          const el=entranceElapsed-info.delay;
-          if(el<0) {
-            animScale=0;
-          } else if(el<info.duration) {
-            // Combine bounce scale + directional explosion
-            const t = el / info.duration;
-            animScale = bounceOut(t);
-            
-            // Directional burst: explode outward like balloon from bag
-            const angle = node.burstAngle ?? (Math.random() * Math.PI * 2);
-            const dist = node.burstDistance ?? 280;
-            const burstProgress = Math.max(0, 1 - t);  // reverse curve: start far, come back
-            const burstEase = elasticBounce(burstProgress * 0.85);  // subtle elastic settle
-            offsetX = Math.cos(angle) * dist * burstEase;
-            offsetY = Math.sin(angle) * dist * burstEase;
-          }
-        }
-      }
-      const anim=nodeAnimRef.current.get(node.id);
-      if (anim) { 
-        const el=now-anim.t0; 
-        if(el<anim.duration) {
-          const t = el / anim.duration;
-          animScale = bounceOut(t);
-        } else nodeAnimRef.current.delete(node.id); 
+      const APPEAR_DUR  = 600;
+      const nodeDelay   = nodeDelayRef.current.get(node.id) ?? 0;
+      const nodeElapsed = animActive ? (now - animStartRef.current - nodeDelay) : APPEAR_DUR;
+      let animScale = 1;
+      let showGlow  = false;
+
+      if (nodeElapsed < 0) { ctx.globalAlpha = 1; continue; }
+      if (nodeElapsed < APPEAR_DUR) {
+        const t = Math.min(nodeElapsed / APPEAR_DUR, 1);
+        ctx.globalAlpha = easeOutCubic(t);
+        animScale = easeOutBack(Math.min(t * 1.05, 1));
+        showGlow = t < 0.55;
+      } else {
+        const nodeIdx = nodesRef.current.indexOf(node);
+        animScale = 1 + Math.sin(now * 0.0013 + nodeIdx * 0.7) * 0.04;
       }
 
-      const drawR=r*animScale;
-      if (drawR<=0) { ctx.globalAlpha=1; continue; }
-      const fillA=isSel?1:isConn?0.88:0.12, strokeA=isSel?1:isConn?0.5:0.07;
-      const realR=isSel?drawR*1.35:drawR;
+      // Click-pop animation
+      const clickAnim = nodeClickAnim.current.get(node.id);
+      if (clickAnim) {
+        const el = now - clickAnim.t0;
+        if (el < clickAnim.duration) {
+          animScale = easeOutBack(Math.min(el / clickAnim.duration * 1.05, 1));
+        } else nodeClickAnim.current.delete(node.id);
+      }
 
-      // Apply burst offset to node position
-      const finalX = nx + offsetX;
-      const finalY = ny + offsetY;
+      // Timelapse pop animation (kept for timelapse feature)
+      const anim = nodeAnimRef.current.get(node.id);
+      if (anim) {
+        const el = now - anim.t0;
+        if (el < anim.duration) {
+          animScale = easeOutBack(Math.min(el / anim.duration * 1.05, 1));
+        } else nodeAnimRef.current.delete(node.id);
+      }
 
-      if (isSel) { ctx.shadowColor=col; ctx.shadowBlur=18; }
-      // Solid fill — no inner ring
-      ctx.beginPath(); ctx.arc(finalX,finalY,realR,0,Math.PI*2);
-      ctx.fillStyle=hexToRgba(col,fillA); ctx.fill();
-      ctx.strokeStyle=hexToRgba(col,isSel?1:isConn?0.50:0.07);
-      ctx.lineWidth=(isSel?2.5:1.5)/k; ctx.stroke();
-      if (isSel) ctx.shadowBlur=0;
+      const drawR  = r * animScale;
+      if (drawR <= 0) { ctx.globalAlpha = 1; continue; }
+      const fillA  = isSel ? 1 : isConn ? 0.88 : 0.12;
+      const realR  = isSel ? drawR * 1.35 : drawR;
+      const finalX = nx;
+      const finalY = ny;
+
+      // Expanding glow ring on first appearance
+      if (showGlow) {
+        const glowT = Math.min(nodeElapsed / APPEAR_DUR, 1);
+        ctx.beginPath(); ctx.arc(finalX, finalY, realR * (1 + (1 - glowT) * 2.2), 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(col, (1 - glowT) * 0.5); ctx.lineWidth = 2.5 / k; ctx.stroke();
+      }
+
+      if (isSel) { ctx.shadowColor = col; ctx.shadowBlur = 18; }
+      ctx.beginPath(); ctx.arc(finalX, finalY, realR, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(col, fillA); ctx.fill();
+      ctx.strokeStyle = hexToRgba(col, isSel ? 1 : isConn ? 0.50 : 0.07);
+      ctx.lineWidth = (isSel ? 2.5 : 1.5) / k; ctx.stroke();
+      if (isSel) ctx.shadowBlur = 0;
 
       if (isSel) {
-        const pulse=0.5+0.5*Math.sin(now*0.003);
-        ctx.beginPath(); ctx.arc(finalX,finalY,realR+(6+pulse*5)/k,0,Math.PI*2);
-        ctx.strokeStyle=hexToRgba(col,0.3+pulse*0.2); ctx.lineWidth=1.5/k; ctx.stroke();
+        const pulse = 0.5 + 0.5 * Math.sin(now * 0.003);
+        ctx.beginPath(); ctx.arc(finalX, finalY, realR + (6 + pulse * 5) / k, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(col, 0.3 + pulse * 0.2); ctx.lineWidth = 1.5 / k; ctx.stroke();
       }
-      if (hoveredRef.current?.id===node.id&&!selId) {
-        ctx.beginPath(); ctx.arc(finalX,finalY,drawR+6/k,0,Math.PI*2);
-        ctx.strokeStyle=hexToRgba(col,0.6); ctx.lineWidth=1.5/k; ctx.stroke();
+      if (hoveredRef.current?.id === node.id && !selId) {
+        ctx.beginPath(); ctx.arc(finalX, finalY, drawR + 6 / k, 0, Math.PI * 2);
+        ctx.strokeStyle = hexToRgba(col, 0.6); ctx.lineWidth = 1.5 / k; ctx.stroke();
       }
-      ctx.globalAlpha=1;
+      ctx.globalAlpha = 1;
     }
 
     if (k>=LABEL_ZOOM) {
@@ -392,33 +397,22 @@ export default function GraphPage() {
         ctx.globalAlpha=q&&!matchQ?0.04:(node.id===selId?1:isConn?0.80:0.28);
         const lbl=node.label.length>22?node.label.slice(0,22)+"…":node.label;
         
-        // Calculate node position with burst offset (same as node rendering)
-        let offsetX=0, offsetY=0;
-        if (entranceActive) {
-          const info=entranceMapRef.current.get(node.id);
-          if (info) { 
-            const el=entranceElapsed-info.delay;
-            if(el>=0 && el<info.duration) {
-              const t = el / info.duration;
-              const angle = node.burstAngle ?? (Math.random() * Math.PI * 2);
-              const dist = node.burstDistance ?? 280;
-              const burstProgress = Math.max(0, 1 - t);
-              const burstEase = elasticBounce(burstProgress * 0.85);
-              offsetX = Math.cos(angle) * dist * burstEase;
-              offsetY = Math.sin(angle) * dist * burstEase;
-            }
-          }
-        }
-        
-        const finalX = (node.x??0) + offsetX;
-        const finalY = (node.y??0) + offsetY;
-        
+        const APPEAR_DUR_LBL = 600;
+        const lblDelay   = nodeDelayRef.current.get(node.id) ?? 0;
+        const lblElapsed = animActive ? (now - animStartRef.current - lblDelay) : APPEAR_DUR_LBL;
+        if (lblElapsed < 0) { ctx.globalAlpha = 1; continue; }
+        const lblFade = lblElapsed < APPEAR_DUR_LBL ? easeOutCubic(lblElapsed / APPEAR_DUR_LBL) : 1;
+        ctx.globalAlpha *= lblFade;
+
+        const finalX = node.x ?? 0;
+        const finalY = node.y ?? 0;
+
         // Text shadow for readability
-        ctx.fillStyle="rgba(0,0,0,0.6)";
-        ctx.fillText(lbl,finalX+0.5,finalY+r+13/k+0.5);
-        ctx.fillStyle=node.id===selId?"#ffffff":"#e2e8f0";
-        ctx.fillText(lbl,finalX,finalY+r+13/k);
-        ctx.globalAlpha=1;
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillText(lbl, finalX + 0.5, finalY + r + 13 / k + 0.5);
+        ctx.fillStyle = node.id === selId ? "#ffffff" : "#e2e8f0";
+        ctx.fillText(lbl, finalX, finalY + r + 13 / k);
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -436,7 +430,7 @@ export default function GraphPage() {
       const alpha = simRef.current?.alpha() ?? 0;
       const hasHover = !!hoveredRef.current;
       const hasSel   = !!selectedIdRef.current;
-      const active   = entranceActiveRef.current || timelapseModeRef.current;
+      const active   = animActiveRef.current || timelapseModeRef.current;
       // Throttle to ~20fps when sim settled and no active interaction
       if (!active && alpha < 0.004 && !hasHover && !hasSel && ts - lastTs < 48) {
         rafRef.current = requestAnimationFrame(loop);
@@ -520,23 +514,39 @@ export default function GraphPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     linksRef.current=(sim.force("link") as any).links();
 
-    // ── Big Bang entrance — nodes start at center and explode outward ────────
-    // Minimal pre-tick for stable link topology (not final positions)
-    for (let i = 0; i < 12; i++) sim.tick();
-    // Override positions: all nodes start near center with random velocities
-    for (const nd of visNodes) {
-      nd.x  = W / 2 + (Math.random() - 0.5) * 60;
-      nd.y  = H / 2 + (Math.random() - 0.5) * 60;
-      nd.vx = (Math.random() - 0.5) * 12;
-      nd.vy = (Math.random() - 0.5) * 12;
-    }
-    // Start at a mid zoom centered on canvas
+    // ── Neural Awakening entrance — staggered materialization by connectivity ──
+    for (let i = 0; i < 8; i++) sim.tick();
+
     transformRef.current = { k: 0.5, x: W * 0.25, y: H * 0.25 };
     setZoom(0.5);
-    // Dismiss intro after the explosion starts
-    setTimeout(() => setShowIntro(false), 900);
-    // Auto-fit zoom after the simulation settles
+
+    // Assign reveal delays by connectivity rank (hubs appear first)
+    const linkCount: Record<string, number> = {};
+    for (const l of INITIAL_GRAPH_DATA.links) {
+      linkCount[String(l.source)] = (linkCount[String(l.source)] ?? 0) + 1;
+      linkCount[String(l.target)] = (linkCount[String(l.target)] ?? 0) + 1;
+    }
+    const sorted = [...visNodes].sort((a, b) => (linkCount[b.id] ?? 0) - (linkCount[a.id] ?? 0));
+    const delayMap = new Map<string, number>();
+    sorted.forEach((nd, i) => {
+      delayMap.set(nd.id, (i / Math.max(sorted.length - 1, 1)) * 1200);
+    });
+    nodeDelayRef.current = delayMap;
+
+    // Seed up to 30 traveling edge pulses (neural signal effect)
+    const pulseLinks = linksRef.current.slice(0, 30);
+    edgePulsesRef.current = pulseLinks.map((_, idx) => {
+      const src = (linksRef.current[idx]?.source) as ExtNode | undefined;
+      const col = src ? (src.color ?? NODE_COLORS[src.type] ?? "#8b5cf6") : "#8b5cf6";
+      return { linkIdx: idx, speed: 0.6 + Math.random() * 0.8, offset: Math.random(), color: col };
+    });
+
+    animStartRef.current = performance.now();
+    animActiveRef.current = true;
+
+    setTimeout(() => setShowIntro(false), 800);
     setTimeout(() => {
+      animActiveRef.current = false;
       const nds = nodesRef.current;
       if (!nds.length) return;
       const fxs = nds.map(nd => nd.x ?? 0), fys = nds.map(nd => nd.y ?? 0), fpad = 80;
@@ -545,25 +555,9 @@ export default function GraphPage() {
         (H - fpad * 2) / Math.max(Math.max(...fys) - Math.min(...fys), 1),
         2.2
       );
-      transformRef.current = { k: fk, x: W/2 - fk*(Math.min(...fxs)+Math.max(...fxs))/2, y: H/2 - fk*(Math.min(...fys)+Math.max(...fys))/2 };
+      transformRef.current = { k: fk, x: W / 2 - fk * (Math.min(...fxs) + Math.max(...fxs)) / 2, y: H / 2 - fk * (Math.min(...fys) + Math.max(...fys)) / 2 };
       setZoom(fk);
-    }, 3200);
-
-    const linkCount:Record<string,number>={};
-    for (const l of INITIAL_GRAPH_DATA.links) {
-      linkCount[String(l.source)]=(linkCount[String(l.source)]??0)+1;
-      linkCount[String(l.target)]=(linkCount[String(l.target)]??0)+1;
-    }
-    const sorted=[...visNodes].sort((a,b)=>(linkCount[b.id]??0)-(linkCount[a.id]??0));
-    const eMap=new Map<string,{delay:number;duration:number}>();
-    sorted.forEach((nd,i)=>{ 
-      const p=i/sorted.length;
-      // Assign random burst angle and distance for balloon explosion
-      nd.burstAngle = Math.random() * Math.PI * 2;
-      nd.burstDistance = 200 + Math.random() * 150;  // vary burst distance
-      eMap.set(nd.id,p<0.15?{delay:0,duration:520}:p<0.45?{delay:200,duration:430}:{delay:460,duration:360}); 
-    });
-    entranceMapRef.current=eMap; entranceStartRef.current=performance.now(); entranceActiveRef.current=true;
+    }, 2200);
 
     let isPanning=false, panStart={x:0,y:0}, panStartTx={x:0,y:0,k:1}, mouseDownPos={x:0,y:0}, didDrag=false;
     let clickTimer: ReturnType<typeof setTimeout> | null = null;

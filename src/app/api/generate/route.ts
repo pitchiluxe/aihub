@@ -139,7 +139,8 @@ Make it truly original. Think deeply before responding.`;
             content: userMessage,
           },
         ],
-        2000
+        3000,
+        "meta-llama/llama-3.3-70b-instruct:free",
       );
 
       // Parse the generated content to extract name, description, and code
