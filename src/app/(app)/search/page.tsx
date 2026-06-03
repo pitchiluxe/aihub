@@ -11,8 +11,7 @@ import { NewsArticle } from "@/types";
 import { formatDate } from "@/lib/utils";
 import {
   Search, Sparkles, Newspaper, ExternalLink,
-  Loader2, Send, Bot, RefreshCw, Cpu, Wifi, WifiOff,
-  ChevronDown, ChevronRight, Copy, Check,
+  Loader2, Send, ChevronDown, ChevronRight, Copy, Check,
 } from "lucide-react";
 
 interface AgentMsg {
@@ -40,66 +39,11 @@ function SearchContent() {
   const [messages, setMessages]         = useState<AgentMsg[]>([]);
   const [input, setInput]               = useState(searchParams.get("q") ?? "");
   const [loading, setLoading]           = useState(false);
-  const [ollamaStatus, setOllamaStatus] = useState<"checking" | "online" | "offline">("checking");
-  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>("ollama-auto");
   const [showSources, setShowSources]   = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId]         = useState<string | null>(null);
   const [latestNews, setLatestNews]     = useState<NewsArticle[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
-
-  // Check Ollama status via server-side proxy (avoids CORS / production issues)
-  useEffect(() => {
-    async function checkOllama() {
-      const maxRetries = 3;
-      let lastError: string | null = null;
-      
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-          
-          const res = await fetch("/api/ollama/status", { 
-            signal: controller.signal,
-            cache: "no-store"
-          });
-          clearTimeout(timeoutId);
-          
-          if (res.ok) {
-            const data = await res.json();
-            if (data.running && Array.isArray(data.models)) {
-              setOllamaModels(data.models ?? []);
-              setOllamaStatus("online");
-              if (data.models?.length > 0) setSelectedModel(`ollama:${data.models[0]}`);
-              return; // Success!
-            } else {
-              setOllamaStatus("offline");
-              return;
-            }
-          }
-          lastError = `HTTP ${res.status}`;
-        } catch (err) {
-          lastError = String(err);
-          // Only retry if it's a network error, not if it's an abort
-          if (attempt < maxRetries && !lastError.includes("AbortError")) {
-            await new Promise(r => setTimeout(r, 1000 * attempt)); // Exponential backoff
-            continue;
-          }
-        }
-      }
-      
-      // All retries exhausted
-      console.warn(`[Ollama Status] Failed after ${maxRetries} attempts:`, lastError);
-      setOllamaStatus("offline");
-    }
-    
-    checkOllama();
-    
-    // Recheck every 30 seconds in case Ollama comes online
-    const interval = setInterval(checkOllama, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Load latest news for context
   useEffect(() => {
@@ -183,16 +127,8 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
         content: m.content,
       }));
 
-      // Determine provider and model
-      let provider = "openrouter";
-      let model = "meta-llama/llama-3.2-3b-instruct:free";
-
-      if (selectedModel.startsWith("ollama:") && ollamaStatus === "online") {
-        provider = "ollama";
-        model = selectedModel.replace("ollama:", "");
-      } else if (selectedModel !== "ollama-auto" && !selectedModel.startsWith("ollama:")) {
-        model = selectedModel;
-      }
+      const provider = "openrouter";
+      const model = "meta-llama/llama-3.2-3b-instruct:free";
 
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -214,9 +150,7 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
         // Parse API error for better UX
         let userFriendlyError = errorMsg;
         if (errorMsg.includes("All models failed") || errorMsg.includes("rate-limited")) {
-          userFriendlyError = "🔄 **AI Models Currently Unavailable**\n\nOpenRouter is rate-limited and Ollama is not running.\n\n**Try one of these:**\n1. Wait 1-2 minutes and retry\n2. [Install Ollama](https://ollama.ai/download) for offline AI\n3. [Verify your API key](.env.local)";
-        } else if (errorMsg.includes("Ollama")) {
-          userFriendlyError = "🖥️ **Ollama Not Running**\n\nStart Ollama to use local AI:\n\n\`ollama serve\`\n\nOr [install it first](https://ollama.ai/download)";
+          userFriendlyError = "🔄 **AI Models Temporarily Unavailable**\n\nOpenRouter free models are rate-limited right now.\n\n**Try one of these:**\n1. Wait 1-2 minutes and retry\n2. Verify your API key in `.env.local`";
         } else if (errorMsg.includes("API key")) {
           userFriendlyError = "🔑 **API Key Missing**\n\nAdd `OPENROUTER_API_KEY` to `.env.local` or install Ollama for offline mode.";
         }
@@ -252,55 +186,11 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
     setTimeout(() => setCopiedId(null), 2000);
   }
 
-  const isOllamaAvailable = ollamaStatus === "online" && ollamaModels.length > 0;
-
   return (
     <div className="flex flex-col h-screen">
       <TopBar title="AIHub Google" description="AI-powered intelligence agent for everything AI" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Model Selector + Status Bar */}
-        <div className="flex items-center gap-3 px-6 py-2 border-b border-border bg-background/80 backdrop-blur flex-shrink-0">
-          <div className="flex items-center gap-2">
-            {ollamaStatus === "checking" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-            {ollamaStatus === "online"  && <div className="flex items-center gap-1.5 text-xs text-green-500"><Wifi className="h-3.5 w-3.5"/><span>Ollama online</span></div>}
-            {ollamaStatus === "offline" && <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><WifiOff className="h-3.5 w-3.5"/><span>Ollama offline</span></div>}
-          </div>
-
-          <div className="flex-1 flex items-center gap-2 overflow-x-auto">
-            {/* OpenRouter option */}
-            <button
-              onClick={() => setSelectedModel("meta-llama/llama-3.2-3b-instruct:free")}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all ${
-                !selectedModel.startsWith("ollama") ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"
-              }`}
-            >
-              <Cpu className="h-3 w-3" />
-              OpenRouter (Free)
-            </button>
-
-            {/* Ollama models */}
-            {ollamaModels.map(m => (
-              <button
-                key={m}
-                onClick={() => setSelectedModel(`ollama:${m}`)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all ${
-                  selectedModel === `ollama:${m}` ? "bg-green-500 text-white border-green-500" : "border-border text-muted-foreground hover:border-green-400"
-                }`}
-              >
-                <Bot className="h-3 w-3" />
-                {m}
-              </button>
-            ))}
-
-            {ollamaStatus === "offline" && (
-              <span className="text-xs text-muted-foreground flex-shrink-0">
-                Start Ollama: <code className="bg-muted px-1 rounded">ollama serve</code>
-              </span>
-            )}
-          </div>
-        </div>
-
         {/* Chat Area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
@@ -314,8 +204,7 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
                   <span className="ai-gradient-text">AIHub</span> Intelligence Agent
                 </h1>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Powered by {isOllamaAvailable ? `Ollama (${ollamaModels[0]})` : "AIHUB"}.
-                  Ask anything about AI — news, models, research, code.
+                  Powered by AIHub Intelligence. Ask anything about AI — news, models, research, code.
                 </p>
               </div>
 
@@ -457,9 +346,7 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
               </Button>
             </div>
             <p className="text-xs text-muted-foreground text-center mt-2">
-              {isOllamaAvailable
-                ? `🟢 Running on ${ollamaModels[0]} via Ollama (local)`
-                : "Running on OpenRouter free models · Start Ollama for local AI"}
+              Running on OpenRouter free models · Powered by AIHub Intelligence
             </p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,10 +10,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   GraduationCap, Clock, BookOpen, Play, Code, Bot, Zap,
   Search, Brain, ChevronRight, X, CheckCircle, Circle,
-  ArrowLeft, ArrowRight, Copy, Check, Sparkles, Loader2, Trophy,
+  ArrowLeft, ArrowRight, Copy, Check, Sparkles, Loader2, Trophy, RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { TUTORIALS_EXPANDED } from "@/lib/tutorials";
 
 interface TutorialStep {
   title: string;
@@ -36,23 +35,34 @@ interface Tutorial {
   steps: TutorialStep[];
 }
 
-// Use expanded tutorials from lib
-const TUTORIALS = TUTORIALS_EXPANDED;
-
 export default function TutorialsPage() {
   const [activeTutorial, setActiveTutorial] = useState<Tutorial | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("general");
   const [selectedLevel, setSelectedLevel] = useState<"all" | "beginner" | "intermediate" | "advanced" | "expert">("all");
   const [aiExplanation, setAiExplanation] = useState("");
   const [aiExplaining, setAiExplaining] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [tutorials, setTutorials] = useState<Tutorial[]>([]);
+  const [loadingTutorials, setLoadingTutorials] = useState(false);
 
-  const filteredTutorials = TUTORIALS.filter(t => {
-    if (selectedCategory !== "all" && t.category !== selectedCategory) return false;
-    if (selectedLevel !== "all" && t.level !== selectedLevel) return false;
+  async function fetchTutorials(category: string, level: string, q?: string) {
+    setLoadingTutorials(true);
+    try {
+      const params = new URLSearchParams({ category, level });
+      if (q) params.set("q", q);
+      const res = await fetch(`/api/tutorials?${params.toString()}`);
+      const data = await res.json();
+      if (data.tutorials?.length > 0) setTutorials(data.tutorials);
+    } catch { toast.error("Failed to load tutorials"); }
+    finally { setLoadingTutorials(false); }
+  }
+
+  useEffect(() => { fetchTutorials(selectedCategory, selectedLevel); }, [selectedCategory, selectedLevel]);
+
+  const filteredTutorials = tutorials.filter(t => {
     if (searchQuery.trim() && !t.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
         !t.description.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
@@ -161,13 +171,15 @@ Make it clear, engaging, and practical. Help me understand WHY this matters.`,
   }
 
   const CATEGORIES = [
-    { id: "all", label: "All", icon: BookOpen },
-    { id: "prompt-engineering", label: "Prompts", icon: Search },
-    { id: "agent-development", label: "Agents", icon: Bot },
-    { id: "rag", label: "RAG", icon: Search },
-    { id: "mcp", label: "MCP", icon: Zap },
-    { id: "ollama", label: "Ollama", icon: Code },
-    { id: "openrouter", label: "OpenRouter", icon: Brain },
+    { id: "general",            label: "All",        icon: BookOpen },
+    { id: "prompt-engineering", label: "Prompts",    icon: Search },
+    { id: "agent-development",  label: "Agents",     icon: Bot },
+    { id: "rag",                label: "RAG",        icon: Search },
+    { id: "mcp",                label: "MCP",        icon: Zap },
+    { id: "fine-tuning",        label: "Fine-Tuning",icon: Sparkles },
+    { id: "langchain",          label: "LangChain",  icon: Code },
+    { id: "openrouter",         label: "OpenRouter", icon: Brain },
+    { id: "ai-apps",            label: "AI Apps",    icon: Trophy },
   ];
 
   // ── Tutorial Reader ────────────────────────────────────────────────────
@@ -384,50 +396,72 @@ Make it clear, engaging, and practical. Help me understand WHY this matters.`,
             </div>
           </div>
 
-          {/* Tutorials Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AnimatePresence mode="popLayout">
-              {filteredTutorials.map((tutorial, idx) => (
-                <motion.div
-                  key={tutorial.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: idx * 0.05 }}
-                >
-                  <Card className="h-full cursor-pointer hover:border-primary/50 transition-all hover:shadow-lg group" onClick={() => openTutorial(tutorial)}>
-                    <CardContent className="p-5 space-y-3 h-full flex flex-col">
-                      <div className="flex items-start justify-between">
-                        <span className="text-2xl">{tutorial.icon}</span>
-                        <Badge variant="outline" className="text-xs">{tutorial.level}</Badge>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold group-hover:text-primary transition-colors">{tutorial.title}</h3>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{tutorial.description}</p>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {tutorial.duration} min
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3" />
-                          {tutorial.steps.length} steps
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+          {/* Header + Refresh */}
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {loadingTutorials
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating fresh AI tutorials…</>
+                : <><Sparkles className="h-3.5 w-3.5 text-primary" /> {filteredTutorials.length} AI-generated tutorials · Live</>}
+            </div>
+            <button
+              onClick={() => fetchTutorials(selectedCategory, selectedLevel, searchQuery || undefined)}
+              disabled={loadingTutorials}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-border hover:border-primary/50 transition-all disabled:opacity-50"
+            >
+              <Loader2 className={`h-3 w-3 ${loadingTutorials ? "animate-spin" : ""}`} />
+              Regenerate
+            </button>
           </div>
 
-          {filteredTutorials.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No tutorials found. Try adjusting your filters.</p>
+          {/* Loading skeletons */}
+          {loadingTutorials && tutorials.length === 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-48 rounded-xl bg-muted animate-pulse" />
+              ))}
             </div>
           )}
+
+          {/* Tutorials Grid */}
+          {!loadingTutorials || tutorials.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence mode="popLayout">
+                {filteredTutorials.map((tutorial, idx) => (
+                  <motion.div
+                    key={tutorial.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <Card className="h-full cursor-pointer hover:border-primary/50 transition-all hover:shadow-lg group" onClick={() => openTutorial(tutorial)}>
+                      <CardContent className="p-5 space-y-3 h-full flex flex-col">
+                        <div className="flex items-start justify-between">
+                          <span className="text-2xl">{tutorial.icon}</span>
+                          <Badge variant="outline" className="text-xs">{tutorial.level}</Badge>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold group-hover:text-primary transition-colors">{tutorial.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{tutorial.description}</p>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1"><Clock className="h-3 w-3" />{tutorial.duration} min</div>
+                          <div className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{tutorial.steps.length} steps</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {filteredTutorials.length === 0 && !loadingTutorials && (
+                <div className="col-span-3 text-center py-12 text-muted-foreground">
+                  <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No tutorials match your search.</p>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

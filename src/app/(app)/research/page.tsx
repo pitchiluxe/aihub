@@ -64,22 +64,68 @@ export default function ResearchPage() {
   const [showSaved, setShowSaved]   = useState(false);
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
+  const [aiBrief, setAiBrief] = useState<string | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
 
   useEffect(() => { setSavedState(getSaved()); }, []);
 
   const loadPapers = useCallback(async (q: string) => {
     setLoading(true);
     setExplanation(null);
+    setAiBrief(null);
     try {
       const res = await fetch(`/api/research?q=${encodeURIComponent(q)}&limit=60`);
       const data = await res.json();
       let result: ResearchPaper[] = data.papers ?? [];
       if (sortBy === "cited") result = [...result].sort((a, b) => (b.citations ?? 0) - (a.citations ?? 0));
       setPapers(result);
+      // Generate AI research brief in parallel
+      generateAIBrief(q, result.slice(0, 5));
     } finally {
       setLoading(false);
     }
   }, [sortBy]);
+
+  async function generateAIBrief(topic: string, topPapers: ResearchPaper[]) {
+    setBriefLoading(true);
+    try {
+      const paperContext = topPapers.length > 0
+        ? `\n\nTop recent papers on this topic:\n${topPapers.map((p, i) =>
+            `${i + 1}. "${p.title}" — ${p.source} (${p.publishedAt?.slice(0, 7) ?? "recent"})\n   ${p.abstract?.slice(0, 200) ?? ""}`
+          ).join("\n\n")}`
+        : "";
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "openrouter",
+          model: "deepseek/deepseek-chat-v3-0324:free",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert AI research analyst. When given a research topic, provide a concise intelligence brief covering the state of the field. Use markdown with short sections. Be specific with names, papers, and numbers.`,
+            },
+            {
+              role: "user",
+              content: `Give me a research intelligence brief on: "${topic}"${paperContext}
+
+Format as:
+## 🔬 Field Overview (2-3 sentences on current state)
+## 🚀 Key Breakthroughs (3 bullet points, recent advances)
+## 🔥 Hot Research Directions (3 bullet points)
+## 📌 What to Read First (2-3 recommended starting points)
+
+Keep it concise and actionable for AI practitioners.`,
+            },
+          ],
+        }),
+      });
+      const data = await res.json();
+      if (data.content) setAiBrief(data.content);
+    } catch { /* brief is optional */ }
+    finally { setBriefLoading(false); }
+  }
 
   useEffect(() => { loadPapers(activeQuery); }, [activeQuery, loadPapers]);
 
@@ -201,6 +247,33 @@ Keep each section to 2-4 sentences. Be specific, not vague.`,
           </div>
 
           <div className="p-4 md:p-6 space-y-4">
+            {/* AI Research Brief */}
+            {(briefLoading || aiBrief) && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">AI Research Brief</span>
+                  {briefLoading && <Loader2 className="h-3.5 w-3.5 text-primary animate-spin ml-1" />}
+                  <span className="text-xs text-muted-foreground ml-auto">Topic: {activeQuery}</span>
+                </div>
+                {briefLoading && !aiBrief && (
+                  <div className="space-y-2">
+                    {[...Array(3)].map((_, i) => <div key={i} className="h-3 bg-primary/10 rounded animate-pulse" style={{ width: `${75 + i * 8}%` }} />)}
+                  </div>
+                )}
+                {aiBrief && (
+                  <div className="text-sm text-foreground/90 prose prose-sm dark:prose-invert max-w-none">
+                    {aiBrief.split("\n").map((line, i) => {
+                      if (line.startsWith("## ")) return <p key={i} className="font-bold text-sm mt-2 mb-0.5 text-foreground">{line.slice(3)}</p>;
+                      if (line.startsWith("- ") || line.startsWith("• ")) return <p key={i} className="text-xs text-foreground/80 ml-3 before:content-['•'] before:mr-1.5 before:text-primary">{line.slice(2)}</p>;
+                      if (!line.trim()) return null;
+                      return <p key={i} className="text-xs text-foreground/80">{line}</p>;
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Stats + controls bar */}
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-4 text-xs text-muted-foreground">

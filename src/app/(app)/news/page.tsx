@@ -14,8 +14,10 @@ import { useStore } from "@/store";
 import {
   Search, Bookmark, BookmarkCheck, ExternalLink, Clock, RefreshCw,
   Newspaper, Archive, Network, Brain, Plus, CheckCircle, X,
+  MessageSquare, Share2, Link2,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { ArticleChatDrawer } from "@/components/ArticleChatDrawer";
 
 const CATEGORIES: { id: NewsCategory | "all"; label: string }[] = [
   { id: "all", label: "All" },
@@ -48,6 +50,8 @@ export default function NewsPage() {
   const [search, setSearch]         = useState("");
   const [addedToLM, setAddedToLM]   = useState<Set<string>>(new Set());
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
+  const [chatArticle, setChatArticle] = useState<NewsArticle | null>(null);
+  const [shareMenuId, setShareMenuId] = useState<string | null>(null);
 
   const { newsCategory, setNewsCategory, saveArticle, unsaveArticle, isArticleSaved } = useStore();
 
@@ -97,6 +101,26 @@ export default function NewsPage() {
       articleNode,
     ]));
     toast.success("Article added to Obsidian graph — open the graph to see it", { icon: "🕸️" });
+  }
+
+  async function shareArticle(article: NewsArticle, platform?: string) {
+    const shareData = { title: article.title, text: article.summary.slice(0, 200), url: article.url };
+    if (!platform && typeof navigator.share === "function") {
+      try { await navigator.share(shareData); return; } catch { /* fallback */ }
+    }
+    const encoded = encodeURIComponent(article.url);
+    const text = encodeURIComponent(`${article.title} — via AIHub`);
+    const urls: Record<string, string> = {
+      twitter:  `https://twitter.com/intent/tweet?text=${text}&url=${encoded}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}`,
+      whatsapp: `https://wa.me/?text=${text}%20${encoded}`,
+      telegram: `https://t.me/share/url?url=${encoded}&text=${text}`,
+    };
+    if (platform && urls[platform]) { window.open(urls[platform], "_blank", "noopener"); return; }
+    // Copy link fallback
+    await navigator.clipboard.writeText(article.url);
+    toast.success("Link copied to clipboard");
+    setShareMenuId(null);
   }
 
   function addToAIHubLM(article: NewsArticle) {
@@ -192,6 +216,7 @@ export default function NewsPage() {
                       article={article}
                       isSaved={isArticleSaved(article.id)}
                       addedToLM={addedToLM.has(article.id)}
+                      shareMenuOpen={shareMenuId === article.id}
                       onSelect={() => setSelectedArticle(article)}
                       onSave={() => {
                         if (isArticleSaved(article.id)) { unsaveArticle(article.id); toast.success("Removed from saved"); }
@@ -199,6 +224,9 @@ export default function NewsPage() {
                       }}
                       onObsidian={() => addToObsidian(article)}
                       onAIHubLM={() => addToAIHubLM(article)}
+                      onChat={() => setChatArticle(article)}
+                      onShare={(p) => shareArticle(article, p)}
+                      onShareOpen={() => setShareMenuId(shareMenuId === article.id ? null : article.id)}
                     />
                   ))}
                 </motion.div>
@@ -244,6 +272,13 @@ export default function NewsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Article Chat Drawer */}
+      <AnimatePresence>
+        {chatArticle && (
+          <ArticleChatDrawer article={chatArticle} onClose={() => setChatArticle(null)} />
+        )}
+      </AnimatePresence>
 
       {/* Article Modal */}
       {selectedArticle && (
@@ -321,7 +356,7 @@ export default function NewsPage() {
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-4 border-t border-border">
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
                 <Button
                   variant="outline"
                   size="sm"
@@ -337,42 +372,36 @@ export default function NewsPage() {
                   className="gap-2"
                 >
                   {isArticleSaved(selectedArticle.id) ? (
-                    <>
-                      <BookmarkCheck className="h-4 w-4" />
-                      Saved
-                    </>
+                    <><BookmarkCheck className="h-4 w-4" />Saved</>
                   ) : (
-                    <>
-                      <Bookmark className="h-4 w-4" />
-                      Save
-                    </>
+                    <><Bookmark className="h-4 w-4" />Save</>
                   )}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addToObsidian(selectedArticle)}
-                  className="gap-2"
-                >
-                  <Network className="h-4 w-4" />
-                  Add to Graph
+                <Button variant="outline" size="sm" onClick={() => addToObsidian(selectedArticle)} className="gap-2">
+                  <Network className="h-4 w-4" />Add to Graph
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addToAIHubLM(selectedArticle)}
-                  className="gap-2"
-                >
+                <Button variant="outline" size="sm" onClick={() => addToAIHubLM(selectedArticle)} className="gap-2">
                   <Brain className="h-4 w-4" />
                   {addedToLM.has(selectedArticle.id) ? "Added to LM" : "Add to LM"}
                 </Button>
+                {/* Chat with AI */}
                 <Button
+                  variant="outline"
                   size="sm"
-                  onClick={() => window.open(selectedArticle.url, "_blank")}
-                  className="gap-2 ml-auto"
+                  onClick={() => { setSelectedArticle(null); setChatArticle(selectedArticle); }}
+                  className="gap-2 border-primary/40 text-primary hover:bg-primary/10"
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  Read on Web
+                  <MessageSquare className="h-4 w-4" />
+                  Chat with AI
+                </Button>
+                {/* Share */}
+                <div className="relative">
+                  <Button variant="outline" size="sm" onClick={() => shareArticle(selectedArticle)} className="gap-2">
+                    <Share2 className="h-4 w-4" />Share
+                  </Button>
+                </div>
+                <Button size="sm" onClick={() => window.open(selectedArticle.url, "_blank")} className="gap-2 ml-auto">
+                  <ExternalLink className="h-4 w-4" />Read on Web
                 </Button>
               </div>
             </div>
@@ -383,16 +412,42 @@ export default function NewsPage() {
   );
 }
 
+function ShareMenu({ onShare, onClose }: { onShare: (p: string) => void; onClose: () => void }) {
+  const platforms = [
+    { id: "twitter",  label: "X / Twitter", icon: Share2,  color: "text-sky-500" },
+    { id: "linkedin", label: "LinkedIn",     icon: Share2,  color: "text-blue-600" },
+    { id: "whatsapp", label: "WhatsApp",     icon: Share2,  color: "text-green-500" },
+    { id: "telegram", label: "Telegram",     icon: Share2,  color: "text-sky-400" },
+    { id: "copy",     label: "Copy Link",    icon: Link2,   color: "text-muted-foreground" },
+  ];
+  return (
+    <div className="absolute right-0 bottom-8 z-20 bg-card border border-border rounded-xl shadow-xl p-1.5 min-w-[150px]" onClick={e => e.stopPropagation()}>
+      {platforms.map(({ id, label, icon: Icon, color }) => (
+        <button key={id} onClick={() => { onShare(id); onClose(); }}
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg hover:bg-accent transition-colors text-left">
+          <Icon className={`h-3.5 w-3.5 ${color}`} />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ArticleCard({
-  article, isSaved, addedToLM, onSelect, onSave, onObsidian, onAIHubLM,
+  article, isSaved, addedToLM, shareMenuOpen,
+  onSelect, onSave, onObsidian, onAIHubLM, onChat, onShare, onShareOpen,
 }: {
   article: NewsArticle;
   isSaved: boolean;
   addedToLM: boolean;
+  shareMenuOpen: boolean;
   onSelect: () => void;
   onSave: () => void;
   onObsidian: () => void;
   onAIHubLM: () => void;
+  onChat: () => void;
+  onShare: (platform: string) => void;
+  onShareOpen: () => void;
 }) {
   const color = getColorForCategory(article.category);
   const isVideo = article.tags.includes("📺 Video");
@@ -439,15 +494,32 @@ function ArticleCard({
               <span>{formatDate(article.publishedAt)}</span>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={(e) => { e.stopPropagation(); onObsidian(); }} title="Add to Obsidian graph" className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
+              {/* Chat with AI */}
+              <button onClick={(e) => { e.stopPropagation(); onChat(); }} title="Chat with AI about this article"
+                className="p-1 rounded hover:bg-primary/10 transition-colors text-primary/60 hover:text-primary">
+                <MessageSquare className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); onObsidian(); }} title="Add to Obsidian graph"
+                className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
                 <Network className="h-3.5 w-3.5" />
               </button>
-              <button onClick={(e) => { e.stopPropagation(); onAIHubLM(); }} title="Add to AIHub LM" className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
+              <button onClick={(e) => { e.stopPropagation(); onAIHubLM(); }} title="Add to AIHub LM"
+                className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
                 {addedToLM ? <CheckCircle className="h-3.5 w-3.5 text-green-500" /> : <Brain className="h-3.5 w-3.5" />}
               </button>
               <button onClick={(e) => { e.stopPropagation(); onSave(); }} className="p-1 rounded hover:bg-accent transition-colors">
                 {isSaved ? <BookmarkCheck className="h-3.5 w-3.5 text-primary" /> : <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />}
               </button>
+              {/* Share */}
+              <div className="relative">
+                <button onClick={(e) => { e.stopPropagation(); onShareOpen(); }} title="Share article"
+                  className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
+                  <Share2 className="h-3.5 w-3.5" />
+                </button>
+                {shareMenuOpen && (
+                  <ShareMenu onShare={onShare} onClose={onShareOpen} />
+                )}
+              </div>
               <button onClick={(e) => { e.stopPropagation(); onSelect(); }} className="p-1 rounded hover:bg-accent transition-colors">
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
