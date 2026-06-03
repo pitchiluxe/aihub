@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,39 +12,62 @@ import { AIModel } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { useStore } from "@/store";
 import {
-  Search, Brain, Filter, ExternalLink, Cpu, Sparkles,
-  ChevronDown, ChevronUp, ArrowRight, Copy, Check, X,
-  Download, PlayCircle, Code, BookOpen,
+  Search, Brain, ExternalLink, Cpu, Sparkles, Flame,
+  ChevronDown, ChevronUp, Copy, Check, X,
+  Download, BookOpen, Clock, TrendingUp, RefreshCw, Code,
 } from "lucide-react";
-import Link from "next/link";
 
-const PROVIDERS = ["all", "meta-llama", "mistralai", "deepseek", "google", "openai", "anthropic", "qwen", "microsoft", "ollama"];
+type SortKey = "newest" | "name" | "context" | "provider";
+
+function timeAgo(iso: string): string {
+  const d = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(d / 86400000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
 
 export default function ModelsPage() {
   const [models, setModels] = useState<AIModel[]>([]);
-  const [filtered, setFiltered] = useState<AIModel[]>([]);
+  const [recentModels, setRecentModels] = useState<AIModel[]>([]);
+  const [dynamicProviders, setDynamicProviders] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "context" | "provider">("context");
+  const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const { selectedProvider, setSelectedProvider, freeOnly, setFreeOnly } = useStore();
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/models", { cache: "no-store" });
-        const data = await res.json();
-        setModels(data.models ?? []);
-      } finally {
-        setLoading(false);
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/models?source=all", { cache: "no-store" });
+      const data = await res.json();
+      setModels(data.models ?? []);
+      setRecentModels(data.recentModels ?? []);
+      // Build provider pills from actual data — top 12 most common
+      const counts: Record<string, number> = {};
+      for (const m of (data.models ?? []) as AIModel[]) {
+        counts[m.provider] = (counts[m.provider] ?? 0) + 1;
       }
+      const top = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12)
+        .map(([p]) => p);
+      setDynamicProviders(top);
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  }
 
-  useEffect(() => {
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtered = useMemo(() => {
     let result = [...models];
     if (freeOnly) result = result.filter((m) => m.isFree);
     if (selectedProvider !== "all") {
@@ -53,37 +76,45 @@ export default function ModelsPage() {
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
-        (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.id.toLowerCase().includes(q) ||
+          m.provider.toLowerCase().includes(q) ||
+          m.description.toLowerCase().includes(q)
       );
     }
     result.sort((a, b) => {
-      let va: string | number = 0;
-      let vb: string | number = 0;
-      if (sortBy === "name") { va = a.name; vb = b.name; }
-      else if (sortBy === "context") { va = a.contextWindow; vb = b.contextWindow; }
-      else if (sortBy === "provider") { va = a.provider; vb = b.provider; }
-      if (sortDir === "asc") return va > vb ? 1 : -1;
-      return va < vb ? 1 : -1;
+      if (sortBy === "newest") return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+      if (sortBy === "context") return sortDir === "desc" ? b.contextWindow - a.contextWindow : a.contextWindow - b.contextWindow;
+      if (sortBy === "name") return sortDir === "desc" ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name);
+      if (sortBy === "provider") return sortDir === "desc" ? b.provider.localeCompare(a.provider) : a.provider.localeCompare(b.provider);
+      return 0;
     });
-    setFiltered(result);
+    return result;
   }, [models, freeOnly, selectedProvider, search, sortBy, sortDir]);
 
   const freeCount = models.filter((m) => m.isFree).length;
   const openSourceCount = models.filter((m) => m.isOpenSource).length;
+  const GRID_LIMIT = showAll ? filtered.length : 60;
+  const TABLE_LIMIT = showAll ? filtered.length : 100;
 
-  function toggleSort(col: "name" | "context" | "provider") {
+  function toggleSort(col: SortKey) {
     if (sortBy === col) setSortDir(sortDir === "asc" ? "desc" : "asc");
     else { setSortBy(col); setSortDir("desc"); }
   }
 
+  const providers = ["all", ...dynamicProviders];
+
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Models Hub" description="Explore AI models from OpenRouter and Ollama" />
+      <TopBar title="Models Hub" description="Every AI model — OpenRouter + HuggingFace, always up to date" />
       <div className="flex-1 p-3 md:p-6 space-y-5">
+
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Total Models", value: loading ? "…" : formatNumber(models.length), sub: "OpenRouter + Ollama", color: "text-violet-500" },
+            { label: "Total Models", value: loading ? "…" : formatNumber(models.length), sub: "OpenRouter + HuggingFace", color: "text-violet-500" },
+            { label: "New This Month", value: loading ? "…" : formatNumber(recentModels.length), sub: "Released ≤ 60 days ago", color: "text-emerald-500" },
             { label: "Free Models", value: loading ? "…" : formatNumber(freeCount), sub: "No cost to run", color: "text-green-500" },
             { label: "Open Source", value: loading ? "…" : formatNumber(openSourceCount), sub: "Community models", color: "text-blue-500" },
           ].map((s) => (
@@ -97,39 +128,95 @@ export default function ModelsPage() {
           ))}
         </div>
 
+        {/* New Releases Banner */}
+        {!loading && recentModels.length > 0 && !search && selectedProvider === "all" && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Flame className="h-4 w-4 text-orange-500 animate-pulse" />
+              <h2 className="text-sm font-semibold">New Releases</h2>
+              <Badge variant="secondary" className="text-xs">{recentModels.length} in last 60 days</Badge>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+              {recentModels.slice(0, 15).map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedModel(m)}
+                  className="flex-shrink-0 w-48 text-left bg-gradient-to-br from-orange-500/10 to-violet-500/10 border border-orange-500/20 rounded-xl p-3 hover:border-orange-500/40 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Badge className="text-[10px] bg-orange-500/20 text-orange-400 border-orange-500/30 px-1.5 py-0.5">NEW</Badge>
+                    {m.isFree && <Badge variant="free" className="text-[10px] px-1.5 py-0.5">Free</Badge>}
+                  </div>
+                  <p className="text-xs font-semibold line-clamp-2 leading-tight">{m.name}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 capitalize">{m.provider.split("/")[0]}</p>
+                  {m.releaseDate && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                      <Clock className="h-2.5 w-2.5" />
+                      {timeAgo(m.releaseDate)}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Input
-            placeholder="Search models by name, provider, ID..."
-            icon={<Search className="h-3.5 w-3.5" />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1"
-          />
-          <Button
-            variant={freeOnly ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFreeOnly(!freeOnly)}
-            className="gap-2 flex-shrink-0"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Free Only
-          </Button>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              placeholder="Search models by name, provider, capability…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant={freeOnly ? "default" : "outline"} size="sm" onClick={() => setFreeOnly(!freeOnly)} className="gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" /> Free Only
+            </Button>
+            <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
-        {/* Provider Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {PROVIDERS.map((p) => (
+        {/* Provider Filter — dynamic from actual data */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {providers.map((p) => (
             <button
               key={p}
               onClick={() => setSelectedProvider(p)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
                 selectedProvider === p
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-accent"
               }`}
             >
-              {p === "all" ? "All Providers" : p.split("-")[0] + (p.includes("-") ? " AI" : "")}
+              {p === "all" ? "All Providers" : p.split("/")[0]}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort Controls */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <TrendingUp className="h-3.5 w-3.5" />
+          <span>Sort:</span>
+          {(["newest", "name", "context", "provider"] as SortKey[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => toggleSort(s)}
+              className={`px-2 py-1 rounded-md capitalize transition-colors ${
+                sortBy === s ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+              }`}
+            >
+              {s} {sortBy === s ? (sortDir === "asc" ? "↑" : "↓") : ""}
             </button>
           ))}
         </div>
@@ -137,7 +224,7 @@ export default function ModelsPage() {
         <Tabs defaultValue="grid">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {loading ? "Loading…" : `${filtered.length} models`}
+              {loading ? "Fetching latest models…" : `${filtered.length.toLocaleString()} models`}
             </p>
             <TabsList>
               <TabsTrigger value="grid">Grid</TabsTrigger>
@@ -149,24 +236,28 @@ export default function ModelsPage() {
             {loading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                 {[...Array(12)].map((_, i) => (
-                  <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />
+                  <div key={i} className="h-44 rounded-xl bg-muted animate-pulse" />
                 ))}
               </div>
             ) : (
-              <motion.div
-                className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
-                initial="hidden"
-                animate="show"
-                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.03 } } }}
-              >
-                {filtered.slice(0, 60).map((model) => (
-                  <ModelGridCard
-                    key={model.id}
-                    model={model}
-                    onClick={() => setSelectedModel(model)}
-                  />
-                ))}
-              </motion.div>
+              <>
+                <motion.div
+                  className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+                  initial="hidden" animate="show"
+                  variants={{ hidden: {}, show: { transition: { staggerChildren: 0.02 } } }}
+                >
+                  {filtered.slice(0, GRID_LIMIT).map((model) => (
+                    <ModelGridCard key={model.id} model={model} onClick={() => setSelectedModel(model)} />
+                  ))}
+                </motion.div>
+                {filtered.length > GRID_LIMIT && (
+                  <div className="mt-6 text-center">
+                    <Button variant="outline" onClick={() => setShowAll(true)} className="gap-2">
+                      Show all {filtered.length.toLocaleString()} models
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
@@ -177,14 +268,15 @@ export default function ModelsPage() {
                   <thead>
                     <tr className="border-b border-border">
                       {[
-                        { key: "name", label: "Model" },
-                        { key: "provider", label: "Provider" },
-                        { key: "context", label: "Context" },
+                        { key: "name" as SortKey, label: "Model" },
+                        { key: "provider" as SortKey, label: "Provider" },
+                        { key: "context" as SortKey, label: "Context" },
+                        { key: "newest" as SortKey, label: "Released" },
                       ].map((col) => (
                         <th
                           key={col.key}
                           className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground"
-                          onClick={() => toggleSort(col.key as "name" | "context" | "provider")}
+                          onClick={() => toggleSort(col.key)}
                         >
                           <span className="flex items-center gap-1">
                             {col.label}
@@ -194,7 +286,6 @@ export default function ModelsPage() {
                           </span>
                         </th>
                       ))}
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Capabilities</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Status</th>
                     </tr>
                   </thead>
@@ -209,14 +300,22 @@ export default function ModelsPage() {
                             ))}
                           </tr>
                         ))
-                      : filtered.slice(0, 80).map((model) => (
+                      : filtered.slice(0, TABLE_LIMIT).map((model) => (
                           <tr
                             key={model.id}
-                            className="border-b border-border hover:bg-accent/50 transition-colors"
+                            onClick={() => setSelectedModel(model)}
+                            className="border-b border-border hover:bg-accent/50 transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-3 font-medium max-w-xs">
-                              <div className="truncate" title={model.name}>{model.name}</div>
-                              <div className="text-xs text-muted-foreground truncate">{model.id}</div>
+                              <div className="flex items-center gap-2">
+                                {model.isNew && (
+                                  <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded-full">NEW</span>
+                                )}
+                                <div>
+                                  <div className="truncate" title={model.name}>{model.name}</div>
+                                  <div className="text-xs text-muted-foreground truncate font-normal">{model.id}</div>
+                                </div>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-muted-foreground capitalize">
                               {model.provider.split("/")[0]}
@@ -226,19 +325,14 @@ export default function ModelsPage() {
                                 ? `${(model.contextWindow / 1000).toFixed(0)}K`
                                 : model.contextWindow}
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-1 flex-wrap">
-                                {model.capabilities.slice(0, 2).map((c) => (
-                                  <Badge key={c} variant="secondary" className="text-xs capitalize">
-                                    {c.replace("-", " ")}
-                                  </Badge>
-                                ))}
-                              </div>
+                            <td className="px-4 py-3 text-muted-foreground text-xs">
+                              {model.releaseDate ? timeAgo(model.releaseDate) : "—"}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex gap-1">
+                              <div className="flex gap-1 flex-wrap">
                                 {model.isFree && <Badge variant="free" className="text-xs">Free</Badge>}
                                 {model.isOpenSource && <Badge variant="success" className="text-xs">Open</Badge>}
+                                {model.source === "huggingface" && <Badge variant="secondary" className="text-xs">HF</Badge>}
                               </div>
                             </td>
                           </tr>
@@ -246,15 +340,16 @@ export default function ModelsPage() {
                   </tbody>
                 </table>
               </div>
+              {filtered.length > TABLE_LIMIT && (
+                <div className="p-4 text-center border-t border-border">
+                  <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
+                    Show all {filtered.length.toLocaleString()} models
+                  </Button>
+                </div>
+              )}
             </Card>
           </TabsContent>
         </Tabs>
-
-        {filtered.length > 60 && (
-          <p className="text-center text-sm text-muted-foreground">
-            Showing 60 of {filtered.length} models. Use filters to narrow results.
-          </p>
-        )}
       </div>
 
       {/* Model Detail Modal */}
@@ -302,8 +397,13 @@ function ModelGridCard({ model, onClick }: { model: AIModel; onClick?: () => voi
     >
       <Card className="group h-full hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden cursor-pointer">
         <CardContent className="p-4 flex flex-col gap-3">
-          <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
-            <Brain className="h-5 w-5 text-white" />
+          <div className="flex items-start justify-between">
+            <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
+              <Brain className="h-5 w-5 text-white" />
+            </div>
+            {model.isNew && (
+              <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded-full">NEW</span>
+            )}
           </div>
 
           <div className="flex-1 min-w-0">
@@ -314,13 +414,21 @@ function ModelGridCard({ model, onClick }: { model: AIModel; onClick?: () => voi
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <Cpu className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                {model.contextWindow >= 1000
-                  ? `${(model.contextWindow / 1000).toFixed(0)}K ctx`
-                  : `${model.contextWindow} ctx`}
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <Cpu className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  {model.contextWindow >= 1000
+                    ? `${(model.contextWindow / 1000).toFixed(0)}K`
+                    : model.contextWindow}
+                </span>
+              </div>
+              {model.releaseDate && (
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{timeAgo(model.releaseDate)}</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-1 flex-wrap">
               {model.isFree && <Badge variant="free" className="text-xs">Free</Badge>}
@@ -328,7 +436,11 @@ function ModelGridCard({ model, onClick }: { model: AIModel; onClick?: () => voi
               {model.capabilities.includes("vision") && (
                 <Badge variant="info" className="text-xs">Vision</Badge>
               )}
+              {model.source === "huggingface" && <Badge variant="secondary" className="text-xs">HF</Badge>}
             </div>
+            {model.hfDownloads && model.hfDownloads > 1000 && (
+              <p className="text-[10px] text-muted-foreground">↓ {formatNumber(model.hfDownloads)} downloads</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -468,9 +580,9 @@ function ModelDetailModal({
           {/* Specs */}
           <div>
             <h3 className="font-semibold mb-3">Specifications</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-accent/50 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground">Context Window</p>
+                <p className="text-xs text-muted-foreground">Context</p>
                 <p className="text-lg font-semibold">
                   {model.contextWindow >= 1000
                     ? `${(model.contextWindow / 1000).toFixed(0)}K`
@@ -483,6 +595,19 @@ function ModelDetailModal({
                   {model.provider.split("/")[0]}
                 </p>
               </div>
+              {model.releaseDate && (
+                <div className="bg-accent/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Released</p>
+                  <p className="text-base font-semibold">{timeAgo(model.releaseDate)}</p>
+                  <p className="text-xs text-muted-foreground">{model.releaseDate}</p>
+                </div>
+              )}
+              {model.hfDownloads && model.hfDownloads > 0 && (
+                <div className="bg-accent/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">HF Downloads</p>
+                  <p className="text-lg font-semibold">{formatNumber(model.hfDownloads)}</p>
+                </div>
+              )}
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">

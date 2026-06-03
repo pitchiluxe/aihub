@@ -37,6 +37,7 @@ export interface AIModel {
   provider: string;
   description: string;
   contextWindow: number;
+  maxOutput?: number;
   pricing: {
     prompt: number;
     completion: number;
@@ -44,14 +45,20 @@ export interface AIModel {
   };
   capabilities: string[];
   benchmarks?: ModelBenchmark[];
-  releaseDate?: string;
+  releaseDate?: string;       // ISO date string
+  createdAt?: number;         // Unix timestamp from OpenRouter
   license?: string;
   isFree: boolean;
+  isNew?: boolean;            // released in last 60 days
   isOpenSource: boolean;
   openRouterSlug?: string;
   ollamaSlug?: string;
+  hfId?: string;              // HuggingFace model ID
+  hfDownloads?: number;       // HuggingFace monthly downloads
+  hfLikes?: number;
   imageUrl?: string;
   tags: string[];
+  source: "openrouter" | "huggingface" | "ollama";
 }
 
 export interface ModelBenchmark {
@@ -199,16 +206,19 @@ export interface OpenRouterModel {
   name: string;
   description?: string;
   context_length: number;
+  created?: number; // Unix timestamp
   pricing: {
     prompt: string;
     completion: string;
   };
   top_provider?: {
     max_completion_tokens?: number;
+    context_length?: number;
   };
   architecture?: {
     modality?: string;
     tokenizer?: string;
+    instruct_type?: string;
   };
   per_request_limits?: Record<string, string>;
 }

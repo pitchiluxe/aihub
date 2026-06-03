@@ -1,7 +1,11 @@
 import { ChatMessage, OpenRouterModel } from "@/types";
 
 const BASE_URL = "https://openrouter.ai/api/v1";
-const API_KEY = process.env.OPENROUTER_API_KEY ?? "";
+// Support both key names — ANTHROPIC_AUTH_TOKEN is what .env.local uses
+const API_KEY =
+  process.env.ANTHROPIC_AUTH_TOKEN ??
+  process.env.OPENROUTER_API_KEY ??
+  "";
 
 export async function fetchOpenRouterModels(): Promise<OpenRouterModel[]> {
   const res = await fetch(`${BASE_URL}/models`, {
