@@ -32,8 +32,8 @@ const BATCH_GROUPS: Record<number, string[]> = {
   4: ["Marketing", "E-commerce", "Retail", "Food", "Beauty & Wellness"],
 };
 
-// Reliable model for structured JSON output — same model used by ChatBot
-const IDEAS_MODEL = "deepseek/deepseek-chat-v3-0324:free";
+// Llama 3.3 70B: high rate limits, reliable JSON output, proven on OpenRouter
+const IDEAS_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 function systemPrompt(batch: number, date: string): string {
   const industries = BATCH_GROUPS[batch]?.join(", ") ?? "any industry";

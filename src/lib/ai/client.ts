@@ -33,14 +33,12 @@ function primaryModel(override?: string): string {
   );
 }
 
-// Fallback chain — verified working. Free models with wide availability.
+// Fallback chain — verified working free models on OpenRouter.
 const FALLBACK_MODELS = [
-  "deepseek/deepseek-v4-flash:free",
-  "deepseek/deepseek-chat",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-4-31b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "openai/gpt-oss-20b:free",
+  "deepseek/deepseek-r1:free",
+  "mistralai/mistral-7b-instruct:free",
+  "google/gemma-2-9b-it:free",
 ];
 
 // Strip non-ASCII chars from header values — HTTP headers only allow bytes 0-255.

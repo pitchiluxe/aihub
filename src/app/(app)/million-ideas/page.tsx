@@ -1078,7 +1078,7 @@ export default function MillionIdeasPage() {
     return () => { clearTimeout(refreshTimer); clearInterval(ticker); };
   }, []);
 
-  // 2. Fetch AI ideas via 5 parallel batches, with localStorage cache
+  // 2. Fetch AI ideas sequentially (one batch at a time) to avoid rate limits
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     const cacheKey = LS_KEY(today);
@@ -1098,35 +1098,46 @@ export default function MillionIdeasPage() {
       } catch { /* ignore */ }
     }
 
-    // Fire all 5 batches in parallel; append ideas as each batch lands
     setAiLoading(true);
     setAiIdeas([]);
     const allIdeas: GeneratedIdea[] = [];
+    let cancelled = false;
 
-    const fetchBatch = (batch: number) =>
-      fetch(`/api/daily-ideas?date=${today}&batch=${batch}`)
-        .then((r) => r.json())
-        .then(({ ideas }: { ideas: GeneratedIdea[] }) => {
-          if (Array.isArray(ideas) && ideas.length > 0) {
-            allIdeas.push(...ideas);
-            // Show progressively — update state as each batch arrives
-            setAiIdeas([...allIdeas].map(toIdea));
-          }
-        })
-        .catch((err) => console.error(`[daily-ideas] batch ${batch} failed:`, err));
-
-    Promise.all([0, 1, 2, 3, 4].map(fetchBatch)).finally(() => {
-      setAiLoading(false);
-      if (allIdeas.length > 0) {
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify(allIdeas));
-          for (let i = localStorage.length - 1; i >= 0; i--) {
-            const k = localStorage.key(i);
-            if (k?.startsWith("aihub_daily_ideas_") && k !== cacheKey) localStorage.removeItem(k);
-          }
-        } catch { /* ignore quota errors */ }
+    async function fetchBatch(batch: number) {
+      try {
+        const r = await fetch(`/api/daily-ideas?date=${today}&batch=${batch}`);
+        if (cancelled) return;
+        const { ideas }: { ideas: GeneratedIdea[] } = await r.json();
+        if (!cancelled && Array.isArray(ideas) && ideas.length > 0) {
+          allIdeas.push(...ideas);
+          setAiIdeas([...allIdeas].map(toIdea));
+        }
+      } catch (err) {
+        if (!cancelled) console.error(`[daily-ideas] batch ${batch} failed:`, err);
       }
-    });
+    }
+
+    // Sequential — one batch at a time to respect free-tier rate limits
+    (async () => {
+      for (const batch of [0, 1, 2, 3, 4]) {
+        if (cancelled) break;
+        await fetchBatch(batch);
+      }
+      if (!cancelled) {
+        setAiLoading(false);
+        if (allIdeas.length > 0) {
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(allIdeas));
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+              const k = localStorage.key(i);
+              if (k?.startsWith("aihub_daily_ideas_") && k !== cacheKey) localStorage.removeItem(k);
+            }
+          } catch { /* ignore quota errors */ }
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [retryKey]);
 
   // 3. Load ratings from localStorage + server
