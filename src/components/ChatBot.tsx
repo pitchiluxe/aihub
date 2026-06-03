@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { MessageCircle, X, Send, Loader } from "lucide-react";
+import { MessageCircle, X, Send, Trash2 } from "lucide-react";
 
 interface Message {
   id: string;
@@ -46,6 +46,17 @@ export function ChatBot() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  function clearChat() {
+    setMessages([
+      {
+        id: "welcome",
+        role: "assistant",
+        content: "Hello! I'm AIHub Copilot. Ask me anything about AI, building agents, creating skills, or best practices. How can I help?",
+        timestamp: new Date(),
+      },
+    ]);
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -117,24 +128,28 @@ export function ChatBot() {
 
   return (
     <>
-      {/* Floating Button */}
-      <motion.button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg hover:shadow-xl transition-all"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-full animate-pulse opacity-30" />
-          <div className="relative bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-full p-4 flex items-center justify-center">
-            {isOpen ? (
-              <X className="h-6 w-6" />
-            ) : (
-              <MessageCircle className="h-6 w-6" />
-            )}
-          </div>
-        </div>
-      </motion.button>
+      {/* Floating Button — center-right, hidden when window is open */}
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.button
+            key="chat-fab"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
+            onClick={() => setIsOpen(true)}
+            className="fixed top-1/2 -translate-y-1/2 right-4 z-40 rounded-full shadow-lg hover:shadow-xl transition-all"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-full animate-pulse opacity-30" />
+              <div className="relative bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-full p-4 flex items-center justify-center">
+                <MessageCircle className="h-6 w-6" />
+              </div>
+            </div>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Chat Window — centered on the right side */}
       <AnimatePresence>
@@ -144,7 +159,7 @@ export function ChatBot() {
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 24, scale: 0.97 }}
             transition={{ type: "spring", stiffness: 360, damping: 30 }}
-            className="fixed top-1/2 -translate-y-1/2 right-6 z-40 w-96 h-[600px] flex flex-col"
+            className="fixed top-1/2 -translate-y-1/2 right-4 z-40 w-96 h-[600px] flex flex-col"
           >
             <Card className="flex flex-col h-full bg-background border-2 border-primary/20 shadow-2xl overflow-hidden">
               {/* Header */}
@@ -153,9 +168,18 @@ export function ChatBot() {
                   <h3 className="font-semibold text-base leading-tight">AIHub Copilot</h3>
                   <p className="text-xs text-white/70">Ask me anything about AI</p>
                 </div>
-                <button onClick={() => setIsOpen(false)} className="text-white/70 hover:text-white transition-colors">
-                  <X className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={clearChat}
+                    className="text-white/70 hover:text-white transition-colors"
+                    title="Clear chat"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setIsOpen(false)} className="text-white/70 hover:text-white transition-colors">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Messages — min-h-0 is required for flex children to scroll */}

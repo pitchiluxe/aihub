@@ -9,7 +9,7 @@ import {
   Globe, Code2, FileText, Terminal, Star, ArrowRight, Filter,
   Rocket, DollarSign, Users, Building, Heart, Hammer,
   ShoppingCart, Truck, BookOpen, Briefcase, Leaf,
-  Send, MessageSquare, ThumbsUp, Palette, Package,
+  Send, MessageSquare, ThumbsUp, Palette, Package, RefreshCw,
 } from "lucide-react";
 import { IDEAS, CATEGORIES, CATEGORY_META, type Idea } from "./ideas-data";
 import type { GeneratedIdea } from "@/app/api/daily-ideas/route";
@@ -1009,6 +1009,7 @@ export default function MillionIdeasPage() {
   const [ratings, setRatings] = useState<Record<string, IdeaRating>>({});
   const [reviewTarget, setReviewTarget] = useState<Idea | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
   const [countdown, setCountdown] = useState("");
   const [locked, setLocked] = useState(true);
   const [checkingAccess, setCheckingAccess] = useState(true);
@@ -1077,26 +1078,29 @@ export default function MillionIdeasPage() {
     return () => { clearTimeout(refreshTimer); clearInterval(ticker); };
   }, []);
 
-  // 2. Fetch 100 AI ideas via 5 parallel batches of 20, with localStorage cache
+  // 2. Fetch AI ideas via 5 parallel batches, with localStorage cache
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     const cacheKey = LS_KEY(today);
 
-    // Serve from localStorage if today's full set is already cached
-    try {
-      const stored = localStorage.getItem(cacheKey);
-      if (stored) {
-        const parsed: GeneratedIdea[] = JSON.parse(stored);
-        if (parsed.length >= 80) { // accept if most batches completed
-          setAiIdeas(parsed.map(toIdea));
-          setAiLoading(false);
-          return;
+    // Serve from localStorage on initial load only (skip cache on retry)
+    if (retryKey === 0) {
+      try {
+        const stored = localStorage.getItem(cacheKey);
+        if (stored) {
+          const parsed: GeneratedIdea[] = JSON.parse(stored);
+          if (parsed.length >= 40) {
+            setAiIdeas(parsed.map(toIdea));
+            setAiLoading(false);
+            return;
+          }
         }
-      }
-    } catch { /* ignore */ }
+      } catch { /* ignore */ }
+    }
 
     // Fire all 5 batches in parallel; append ideas as each batch lands
     setAiLoading(true);
+    setAiIdeas([]);
     const allIdeas: GeneratedIdea[] = [];
 
     const fetchBatch = (batch: number) =>
@@ -1123,7 +1127,7 @@ export default function MillionIdeasPage() {
         } catch { /* ignore quota errors */ }
       }
     });
-  }, []);
+  }, [retryKey]);
 
   // 3. Load ratings from localStorage + server
   useEffect(() => {
@@ -1270,8 +1274,16 @@ export default function MillionIdeasPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-500 text-sm bg-white/2 border border-white/5 rounded-2xl">
-                AI ideas unavailable right now — showing today&apos;s curated set below.
+              <div className="text-center py-10 bg-white/2 border border-white/5 rounded-2xl flex flex-col items-center gap-3">
+                <p className="text-slate-400 text-sm">AI idea generation failed — the model may be temporarily unavailable.</p>
+                <p className="text-slate-600 text-xs">Showing today&apos;s curated set below.</p>
+                <button
+                  onClick={() => setRetryKey((k) => k + 1)}
+                  className="mt-1 flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-sm font-medium transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Retry Generation
+                </button>
               </div>
             )}
           </div>

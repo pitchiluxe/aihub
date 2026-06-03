@@ -32,8 +32,8 @@ const BATCH_GROUPS: Record<number, string[]> = {
   4: ["Marketing", "E-commerce", "Retail", "Food", "Beauty & Wellness"],
 };
 
-// Reliable model for structured JSON output
-const IDEAS_MODEL = "google/gemma-4-31b-it:free";
+// Reliable model for structured JSON output — same model used by ChatBot
+const IDEAS_MODEL = "deepseek/deepseek-chat-v3-0324:free";
 
 function systemPrompt(batch: number, date: string): string {
   const industries = BATCH_GROUPS[batch]?.join(", ") ?? "any industry";
@@ -131,6 +131,7 @@ export async function GET(req: NextRequest) {
       ],
       3500,
       IDEAS_MODEL,
+      0.3, // low temperature for reliable JSON
     );
 
     const ideas = extractIdeas(raw);

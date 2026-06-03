@@ -72,6 +72,7 @@ export async function callModel(
   messages: OAMessage[],
   maxTokens: number,
   modelOverride?: string,
+  temperature = 0.7,
 ): Promise<string> {
   const models = [primaryModel(modelOverride), ...FALLBACK_MODELS];
   const url = `${baseUrl()}/chat/completions`;
@@ -88,7 +89,7 @@ export async function callModel(
             messages,
             max_tokens: maxTokens,
             include_reasoning: false,
-            temperature: 0.7,
+            temperature,
           }),
         });
 
