@@ -6,8 +6,6 @@ import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AIModel } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { useStore } from "@/store";
@@ -15,9 +13,11 @@ import {
   Search, Brain, ExternalLink, Cpu, Sparkles, Flame,
   ChevronDown, ChevronUp, Copy, Check, X,
   Download, BookOpen, Clock, TrendingUp, RefreshCw, Code,
+  LayoutGrid, Table2,
 } from "lucide-react";
 
 type SortKey = "newest" | "name" | "context" | "provider";
+type ViewMode = "grid" | "table";
 
 function timeAgo(iso: string): string {
   const d = Date.now() - new Date(iso).getTime();
@@ -41,6 +41,7 @@ export default function ModelsPage() {
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [view, setView] = useState<ViewMode>("grid");
   const { selectedProvider, setSelectedProvider, freeOnly, setFreeOnly } = useStore();
 
   async function load() {
@@ -50,7 +51,6 @@ export default function ModelsPage() {
       const data = await res.json();
       setModels(data.models ?? []);
       setRecentModels(data.recentModels ?? []);
-      // Build provider pills from actual data — top 12 most common
       const counts: Record<string, number> = {};
       for (const m of (data.models ?? []) as AIModel[]) {
         counts[m.provider] = (counts[m.provider] ?? 0) + 1;
@@ -106,250 +106,281 @@ export default function ModelsPage() {
   const providers = ["all", ...dynamicProviders];
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-screen bg-background">
       <TopBar title="Models Hub" description="Every AI model — OpenRouter + HuggingFace, always up to date" />
-      <div className="flex-1 p-3 md:p-6 space-y-5">
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Total Models", value: loading ? "…" : formatNumber(models.length), sub: "OpenRouter + HuggingFace", color: "text-violet-500" },
-            { label: "New This Month", value: loading ? "…" : formatNumber(recentModels.length), sub: "Released ≤ 60 days ago", color: "text-emerald-500" },
-            { label: "Free Models", value: loading ? "…" : formatNumber(freeCount), sub: "No cost to run", color: "text-green-500" },
-            { label: "Open Source", value: loading ? "…" : formatNumber(openSourceCount), sub: "Community models", color: "text-blue-500" },
-          ].map((s) => (
-            <Card key={s.label}>
-              <CardContent className="p-4">
-                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-sm font-medium">{s.label}</p>
-                <p className="text-xs text-muted-foreground">{s.sub}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* New Releases Banner */}
-        {!loading && recentModels.length > 0 && !search && selectedProvider === "all" && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Flame className="h-4 w-4 text-orange-500 animate-pulse" />
-              <h2 className="text-sm font-semibold">New Releases</h2>
-              <Badge variant="secondary" className="text-xs">{recentModels.length} in last 60 days</Badge>
+          {/* ── Fixed controls ─────────────────────────────────────────── */}
+          <div className="px-4 md:px-6 py-4 border-b border-border space-y-3 flex-shrink-0">
+
+            {/* Stats row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "Total Models", value: loading ? "…" : formatNumber(models.length), sub: "OpenRouter + HuggingFace", color: "text-violet-500" },
+                { label: "New This Month", value: loading ? "…" : formatNumber(recentModels.length), sub: "Released ≤ 60 days ago", color: "text-emerald-500" },
+                { label: "Free Models", value: loading ? "…" : formatNumber(freeCount), sub: "No cost to run", color: "text-green-500" },
+                { label: "Open Source", value: loading ? "…" : formatNumber(openSourceCount), sub: "Community models", color: "text-blue-500" },
+              ].map((s) => (
+                <Card key={s.label}>
+                  <CardContent className="p-3">
+                    <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                    <p className="text-xs font-medium">{s.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.sub}</p>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-              {recentModels.slice(0, 15).map((m) => (
+
+            {/* Search + actions */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  placeholder="Search models by name, provider, capability…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                {search && (
+                  <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2 items-center">
+                <Button variant={freeOnly ? "default" : "outline"} size="sm" onClick={() => setFreeOnly(!freeOnly)} className="gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" /> Free Only
+                </Button>
+                <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+                {/* View toggle */}
+                <div className="flex border border-border rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setView("grid")}
+                    className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setView("table")}
+                    className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                  >
+                    <Table2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Provider pills */}
+            <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-hide">
+              {providers.map((p) => (
                 <button
-                  key={m.id}
-                  onClick={() => setSelectedModel(m)}
-                  className="flex-shrink-0 w-48 text-left bg-gradient-to-br from-orange-500/10 to-violet-500/10 border border-orange-500/20 rounded-xl p-3 hover:border-orange-500/40 transition-colors"
+                  key={p}
+                  onClick={() => setSelectedProvider(p)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+                    selectedProvider === p
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-secondary-foreground hover:bg-accent"
+                  }`}
                 >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <Badge className="text-[10px] bg-orange-500/20 text-orange-400 border-orange-500/30 px-1.5 py-0.5">NEW</Badge>
-                    {m.isFree && <Badge variant="free" className="text-[10px] px-1.5 py-0.5">Free</Badge>}
-                  </div>
-                  <p className="text-xs font-semibold line-clamp-2 leading-tight">{m.name}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 capitalize">{m.provider.split("/")[0]}</p>
-                  {m.releaseDate && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" />
-                      {timeAgo(m.releaseDate)}
-                    </p>
-                  )}
+                  {p === "all" ? "All Providers" : p.split("/")[0]}
                 </button>
               ))}
             </div>
-          </div>
-        )}
 
-        {/* Controls */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              placeholder="Search models by name, provider, capability…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant={freeOnly ? "default" : "outline"} size="sm" onClick={() => setFreeOnly(!freeOnly)} className="gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" /> Free Only
-            </Button>
-            <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Provider Filter — dynamic from actual data */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {providers.map((p) => (
-            <button
-              key={p}
-              onClick={() => setSelectedProvider(p)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
-                selectedProvider === p
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent"
-              }`}
-            >
-              {p === "all" ? "All Providers" : p.split("/")[0]}
-            </button>
-          ))}
-        </div>
-
-        {/* Sort Controls */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <TrendingUp className="h-3.5 w-3.5" />
-          <span>Sort:</span>
-          {(["newest", "name", "context", "provider"] as SortKey[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => toggleSort(s)}
-              className={`px-2 py-1 rounded-md capitalize transition-colors ${
-                sortBy === s ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-              }`}
-            >
-              {s} {sortBy === s ? (sortDir === "asc" ? "↑" : "↓") : ""}
-            </button>
-          ))}
-        </div>
-
-        <Tabs defaultValue="grid">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {loading ? "Fetching latest models…" : `${filtered.length.toLocaleString()} models`}
-            </p>
-            <TabsList>
-              <TabsTrigger value="grid">Grid</TabsTrigger>
-              <TabsTrigger value="table">Table</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="grid" className="mt-4">
-            {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                {[...Array(12)].map((_, i) => (
-                  <div key={i} className="h-44 rounded-xl bg-muted animate-pulse" />
+            {/* Sort + count */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span>Sort:</span>
+                {(["newest", "name", "context", "provider"] as SortKey[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => toggleSort(s)}
+                    className={`px-2 py-1 rounded-md capitalize transition-colors ${
+                      sortBy === s ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                    }`}
+                  >
+                    {s} {sortBy === s ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                  </button>
                 ))}
               </div>
-            ) : (
-              <>
-                <motion.div
-                  className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
-                  initial="hidden" animate="show"
-                  variants={{ hidden: {}, show: { transition: { staggerChildren: 0.02 } } }}
-                >
-                  {filtered.slice(0, GRID_LIMIT).map((model) => (
-                    <ModelGridCard key={model.id} model={model} onClick={() => setSelectedModel(model)} />
-                  ))}
-                </motion.div>
-                {filtered.length > GRID_LIMIT && (
-                  <div className="mt-6 text-center">
-                    <Button variant="outline" onClick={() => setShowAll(true)} className="gap-2">
-                      Show all {filtered.length.toLocaleString()} models
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </TabsContent>
+              <p className="text-xs text-muted-foreground">
+                {loading ? "Fetching latest models…" : `${filtered.length.toLocaleString()} models`}
+              </p>
+            </div>
+          </div>
 
-          <TabsContent value="table" className="mt-4">
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      {[
-                        { key: "name" as SortKey, label: "Model" },
-                        { key: "provider" as SortKey, label: "Provider" },
-                        { key: "context" as SortKey, label: "Context" },
-                        { key: "newest" as SortKey, label: "Released" },
-                      ].map((col) => (
-                        <th
-                          key={col.key}
-                          className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground"
-                          onClick={() => toggleSort(col.key)}
-                        >
-                          <span className="flex items-center gap-1">
-                            {col.label}
-                            {sortBy === col.key ? (
-                              sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
-                            ) : null}
-                          </span>
-                        </th>
-                      ))}
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading
-                      ? [...Array(10)].map((_, i) => (
-                          <tr key={i} className="border-b border-border">
-                            {[...Array(5)].map((_, j) => (
-                              <td key={j} className="px-4 py-3">
-                                <div className="h-4 rounded bg-muted animate-pulse" />
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      : filtered.slice(0, TABLE_LIMIT).map((model) => (
-                          <tr
-                            key={model.id}
-                            onClick={() => setSelectedModel(model)}
-                            className="border-b border-border hover:bg-accent/50 transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-3 font-medium max-w-xs">
-                              <div className="flex items-center gap-2">
-                                {model.isNew && (
-                                  <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded-full">NEW</span>
-                                )}
-                                <div>
-                                  <div className="truncate" title={model.name}>{model.name}</div>
-                                  <div className="text-xs text-muted-foreground truncate font-normal">{model.id}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground capitalize">
-                              {model.provider.split("/")[0]}
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-                              {model.contextWindow >= 1000
-                                ? `${(model.contextWindow / 1000).toFixed(0)}K`
-                                : model.contextWindow}
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground text-xs">
-                              {model.releaseDate ? timeAgo(model.releaseDate) : "—"}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-1 flex-wrap">
-                                {model.isFree && <Badge variant="free" className="text-xs">Free</Badge>}
-                                {model.isOpenSource && <Badge variant="success" className="text-xs">Open</Badge>}
-                                {model.source === "huggingface" && <Badge variant="secondary" className="text-xs">HF</Badge>}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                  </tbody>
-                </table>
-              </div>
-              {filtered.length > TABLE_LIMIT && (
-                <div className="p-4 text-center border-t border-border">
-                  <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
-                    Show all {filtered.length.toLocaleString()} models
-                  </Button>
+          {/* ── Single scroll area: New Releases + grid/table ──────────── */}
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+
+            {/* New Releases — 6 cards per row, same style as skills live section */}
+            {!loading && recentModels.length > 0 && !search && selectedProvider === "all" && (
+              <div className="px-4 md:px-6 pt-4 pb-4 border-b border-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-1 rounded-full">
+                    <Flame className="h-3 w-3 animate-pulse" />
+                    NEW RELEASES
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">{recentModels.length} in last 60 days</span>
                 </div>
-              )}
-            </Card>
-          </TabsContent>
-        </Tabs>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {loading
+                    ? Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
+                      ))
+                    : recentModels.slice(0, 24).map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => setSelectedModel(m)}
+                          className="text-left bg-gradient-to-br from-orange-500/10 to-violet-500/10 border border-orange-500/20 rounded-xl p-3 hover:border-orange-500/40 transition-all hover:-translate-y-0.5"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <Badge className="text-[10px] bg-orange-500/20 text-orange-400 border-orange-500/30 px-1.5 py-0.5">NEW</Badge>
+                            {m.isFree && <Badge variant="free" className="text-[10px] px-1.5 py-0.5">Free</Badge>}
+                          </div>
+                          <p className="text-xs font-semibold line-clamp-2 leading-tight">{m.name}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1 capitalize">{m.provider.split("/")[0]}</p>
+                          {m.releaseDate && (
+                            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                              <Clock className="h-2.5 w-2.5" />
+                              {timeAgo(m.releaseDate)}
+                            </p>
+                          )}
+                        </button>
+                      ))}
+                </div>
+              </div>
+            )}
+
+            {/* Grid view */}
+            {view === "grid" && (
+              <div className="p-4 md:p-6">
+                {loading ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[...Array(12)].map((_, i) => (
+                      <div key={i} className="h-44 rounded-xl bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <motion.div
+                      className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+                      initial="hidden" animate="show"
+                      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.02 } } }}
+                    >
+                      {filtered.slice(0, GRID_LIMIT).map((model) => (
+                        <ModelGridCard key={model.id} model={model} onClick={() => setSelectedModel(model)} />
+                      ))}
+                    </motion.div>
+                    {filtered.length > GRID_LIMIT && (
+                      <div className="mt-6 text-center">
+                        <Button variant="outline" onClick={() => setShowAll(true)} className="gap-2">
+                          Show all {filtered.length.toLocaleString()} models
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Table view */}
+            {view === "table" && (
+              <div className="p-4 md:p-6">
+                <Card>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border">
+                          {[
+                            { key: "name" as SortKey, label: "Model" },
+                            { key: "provider" as SortKey, label: "Provider" },
+                            { key: "context" as SortKey, label: "Context" },
+                            { key: "newest" as SortKey, label: "Released" },
+                          ].map((col) => (
+                            <th
+                              key={col.key}
+                              className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground"
+                              onClick={() => toggleSort(col.key)}
+                            >
+                              <span className="flex items-center gap-1">
+                                {col.label}
+                                {sortBy === col.key ? (
+                                  sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                                ) : null}
+                              </span>
+                            </th>
+                          ))}
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loading
+                          ? [...Array(10)].map((_, i) => (
+                              <tr key={i} className="border-b border-border">
+                                {[...Array(5)].map((_, j) => (
+                                  <td key={j} className="px-4 py-3">
+                                    <div className="h-4 rounded bg-muted animate-pulse" />
+                                  </td>
+                                ))}
+                              </tr>
+                            ))
+                          : filtered.slice(0, TABLE_LIMIT).map((model) => (
+                              <tr
+                                key={model.id}
+                                onClick={() => setSelectedModel(model)}
+                                className="border-b border-border hover:bg-accent/50 transition-colors cursor-pointer"
+                              >
+                                <td className="px-4 py-3 font-medium max-w-xs">
+                                  <div className="flex items-center gap-2">
+                                    {model.isNew && (
+                                      <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded-full">NEW</span>
+                                    )}
+                                    <div>
+                                      <div className="truncate" title={model.name}>{model.name}</div>
+                                      <div className="text-xs text-muted-foreground truncate font-normal">{model.id}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-muted-foreground capitalize">
+                                  {model.provider.split("/")[0]}
+                                </td>
+                                <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
+                                  {model.contextWindow >= 1000
+                                    ? `${(model.contextWindow / 1000).toFixed(0)}K`
+                                    : model.contextWindow}
+                                </td>
+                                <td className="px-4 py-3 text-muted-foreground text-xs">
+                                  {model.releaseDate ? timeAgo(model.releaseDate) : "—"}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex gap-1 flex-wrap">
+                                    {model.isFree && <Badge variant="free" className="text-xs">Free</Badge>}
+                                    {model.isOpenSource && <Badge variant="success" className="text-xs">Open</Badge>}
+                                    {model.source === "huggingface" && <Badge variant="secondary" className="text-xs">HF</Badge>}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {filtered.length > TABLE_LIMIT && (
+                    <div className="p-4 text-center border-t border-border">
+                      <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
+                        Show all {filtered.length.toLocaleString()} models
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Model Detail Modal */}
@@ -448,7 +479,6 @@ function ModelGridCard({ model, onClick }: { model: AIModel; onClick?: () => voi
   );
 }
 
-// Helper to get installation instructions
 function getModelInstructions(model: AIModel) {
   const isOllama = model.provider === "ollama";
   const modelSlug = isOllama ? model.ollamaSlug : model.openRouterSlug;
@@ -554,22 +584,17 @@ function ModelDetailModal({
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border p-6 flex items-start justify-between">
           <div className="flex-1">
             <h2 className="text-2xl font-bold">{model.name}</h2>
             <p className="text-sm text-muted-foreground mt-1">{model.id}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Description */}
           {model.description && (
             <div>
               <h3 className="font-semibold mb-2">About</h3>
@@ -577,7 +602,6 @@ function ModelDetailModal({
             </div>
           )}
 
-          {/* Specs */}
           <div>
             <h3 className="font-semibold mb-3">Specifications</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -591,9 +615,7 @@ function ModelDetailModal({
               </div>
               <div className="bg-accent/50 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">Provider</p>
-                <p className="text-lg font-semibold capitalize">
-                  {model.provider.split("/")[0]}
-                </p>
+                <p className="text-lg font-semibold capitalize">{model.provider.split("/")[0]}</p>
               </div>
               {model.releaseDate && (
                 <div className="bg-accent/50 rounded-lg p-3">
@@ -609,42 +631,32 @@ function ModelDetailModal({
                 </div>
               )}
             </div>
-
             <div className="mt-3 flex flex-wrap gap-2">
               {model.isFree && <Badge>Free</Badge>}
               {model.isOpenSource && <Badge variant="success">Open Source</Badge>}
               {model.capabilities.map((cap) => (
-                <Badge key={cap} variant="secondary">
-                  {cap.replace("-", " ")}
-                </Badge>
+                <Badge key={cap} variant="secondary">{cap.replace("-", " ")}</Badge>
               ))}
             </div>
           </div>
 
-          {/* Installation */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Download className="h-5 w-5" />
               <h3 className="font-semibold text-lg">{instructions.title}</h3>
             </div>
-
             {instructions.features && (
               <div className="bg-accent/30 rounded-lg p-3 mb-4 space-y-1">
                 {instructions.features.map((feature) => (
-                  <p key={feature} className="text-sm">
-                    {feature}
-                  </p>
+                  <p key={feature} className="text-sm">{feature}</p>
                 ))}
               </div>
             )}
-
             <div className="space-y-4">
               {instructions.steps.map((step, idx) => (
                 <div key={idx} className="border border-border rounded-lg p-4">
                   <h4 className="font-semibold mb-1">{step.title}</h4>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {step.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-3">{step.description}</p>
                   <div className="bg-muted rounded p-3 font-mono text-xs overflow-x-auto">
                     <pre className="text-muted-foreground">{step.command}</pre>
                   </div>
@@ -653,15 +665,9 @@ function ModelDetailModal({
                     className="mt-2 text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
                   >
                     {copiedCommand === step.command ? (
-                      <>
-                        <Check className="h-3 w-3" />
-                        Copied!
-                      </>
+                      <><Check className="h-3 w-3" />Copied!</>
                     ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        Copy Command
-                      </>
+                      <><Copy className="h-3 w-3" />Copy Command</>
                     )}
                   </button>
                 </div>
@@ -669,76 +675,43 @@ function ModelDetailModal({
             </div>
           </div>
 
-          {/* Next Steps */}
           <div className="bg-accent/20 border border-border rounded-lg p-4">
             <div className="flex gap-2 mb-2">
               <BookOpen className="h-5 w-5 text-primary flex-shrink-0" />
               <h4 className="font-semibold">Next Steps</h4>
             </div>
             <ul className="text-sm text-muted-foreground space-y-1 ml-7">
-              <li>
-                {isOllama
-                  ? "✅ Once installed, the model will be available locally"
-                  : "✅ After setup, you can start making API calls"}
-              </li>
+              <li>{isOllama ? "✅ Once installed, the model will be available locally" : "✅ After setup, you can start making API calls"}</li>
               <li>✅ Check the documentation for advanced options</li>
               <li>✅ Explore other {isOllama ? "local" : "API"} models</li>
             </ul>
           </div>
 
-          {/* Resources */}
           <div className="grid grid-cols-2 gap-3">
             {isOllama ? (
               <>
-                <a
-                  href="https://ollama.ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Ollama Website
+                <a href="https://ollama.ai" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm">
+                  <ExternalLink className="h-4 w-4" /> Ollama Website
                 </a>
-                <a
-                  href="https://github.com/jmorganca/ollama"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
-                >
-                  <Code className="h-4 w-4" />
-                  GitHub
+                <a href="https://github.com/jmorganca/ollama" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm">
+                  <Code className="h-4 w-4" /> GitHub
                 </a>
               </>
             ) : (
               <>
-                <a
-                  href="https://openrouter.ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  OpenRouter
+                <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm">
+                  <ExternalLink className="h-4 w-4" /> OpenRouter
                 </a>
-                <a
-                  href="https://openrouter.ai/docs"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm"
-                >
-                  <BookOpen className="h-4 w-4" />
-                  Docs
+                <a href="https://openrouter.ai/docs" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm">
+                  <BookOpen className="h-4 w-4" /> Docs
                 </a>
               </>
             )}
           </div>
         </div>
 
-        {/* Footer */}
         <div className="sticky bottom-0 bg-background border-t border-border p-4 flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1">
-            Close
-          </Button>
+          <Button variant="outline" onClick={onClose} className="flex-1">Close</Button>
           <Button
             onClick={() => {
               const instructions = getModelInstructions(model);
@@ -746,8 +719,7 @@ function ModelDetailModal({
             }}
             className="flex-1 gap-2"
           >
-            <Copy className="h-4 w-4" />
-            Copy All Commands
+            <Copy className="h-4 w-4" /> Copy All Commands
           </Button>
         </div>
       </motion.div>
