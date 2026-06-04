@@ -164,9 +164,9 @@ export default function RadarPage() {
               Breaking Signals
               <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
             </h3>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {breaking.map((article) => (
-                <RadarRow key={article.id} article={article} priority="breaking" />
+                <RadarCard key={article.id} article={article} priority="breaking" />
               ))}
             </div>
           </div>
@@ -179,9 +179,9 @@ export default function RadarPage() {
               <Activity className="h-4 w-4 text-orange-500" />
               Hot Signals
             </h3>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {hot.map((article) => (
-                <RadarRow key={article.id} article={article} priority="hot" />
+                <RadarCard key={article.id} article={article} priority="hot" />
               ))}
             </div>
           </div>
@@ -194,18 +194,18 @@ export default function RadarPage() {
               <Activity className="h-4 w-4 text-muted-foreground" />
               Recent Updates
             </h3>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {normal.slice(0, 8).map((article) => (
-                <RadarRow key={article.id} article={article} priority="normal" />
+                <RadarCard key={article.id} article={article} priority="normal" />
               ))}
             </div>
           </div>
         )}
 
         {loading && articles.length === 0 && (
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />
+              <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />
             ))}
           </div>
         )}
@@ -214,42 +214,40 @@ export default function RadarPage() {
   );
 }
 
-function RadarRow({ article, priority }: { article: NewsArticle; priority: "breaking" | "hot" | "normal" }) {
-  const borderColor = {
-    breaking: "border-l-red-500",
-    hot: "border-l-orange-500",
-    normal: "border-l-border",
-  }[priority];
-
-  const dotColor = {
-    breaking: "bg-red-500 animate-pulse",
-    hot: "bg-orange-500",
-    normal: "bg-muted-foreground",
+function RadarCard({ article, priority }: { article: NewsArticle; priority: "breaking" | "hot" | "normal" }) {
+  const accent = {
+    breaking: { border: "border-red-500/60", badge: "bg-red-500/10 text-red-500 border-red-500/30", dot: "bg-red-500 animate-pulse", label: "BREAKING" },
+    hot:      { border: "border-orange-500/60", badge: "bg-orange-500/10 text-orange-500 border-orange-500/30", dot: "bg-orange-500", label: "HOT" },
+    normal:   { border: "border-border", badge: "bg-muted text-muted-foreground border-border", dot: "bg-muted-foreground", label: "UPDATE" },
   }[priority];
 
   return (
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block"
-    >
-      <Card className={`group hover:shadow-md transition-all duration-200 border-l-4 ${borderColor}`}>
-        <CardContent className="p-3">
-          <div className="flex items-start gap-3">
-            <div className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${dotColor}`} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">
-                {article.title}
-              </p>
-              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                <span>{article.source}</span>
-                <span>·</span>
-                <Clock className="h-3 w-3" />
+    <a href={article.url} target="_blank" rel="noopener noreferrer" className="block group">
+      <Card className={`border-2 ${accent.border} hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 overflow-hidden`}>
+        <CardContent className="p-0">
+          {/* Square aspect */}
+          <div className="aspect-square flex flex-col p-3.5">
+            {/* Top row */}
+            <div className="flex items-center justify-between mb-2.5">
+              <span className={`text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded border ${accent.badge}`}>
+                {accent.label}
+              </span>
+              <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
+            {/* Title — grows to fill */}
+            <p className="text-xs font-semibold leading-snug group-hover:text-primary transition-colors line-clamp-4 flex-1">
+              {article.title}
+            </p>
+
+            {/* Bottom meta */}
+            <div className="mt-2 pt-2 border-t border-border/50">
+              <p className="text-[10px] text-muted-foreground font-medium truncate">{article.source}</p>
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                <Clock className="h-2.5 w-2.5" />
                 <span>{formatDate(article.publishedAt)}</span>
               </div>
             </div>
-            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
           </div>
         </CardContent>
       </Card>

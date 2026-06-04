@@ -1,248 +1,234 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { NewsArticle } from "@/types";
-import { formatDate, getColorForCategory } from "@/lib/utils";
-import { Building2, ExternalLink, TrendingUp, Newspaper, ArrowUpRight } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+import {
+  Building2, ExternalLink, TrendingUp, Newspaper, ArrowUpRight,
+  RefreshCw, Sparkles, TrendingDown, Minus, Zap,
+} from "lucide-react";
+import toast from "react-hot-toast";
 
-const COMPANIES = [
-  {
-    id: "openai",
-    name: "OpenAI",
-    description: "Creator of GPT-4, ChatGPT, Sora, and DALL-E. The world's most valuable AI company.",
-    category: "openai" as const,
-    color: "#10a37f",
-    logo: "🟢",
-    founded: "2015",
-    hq: "San Francisco, CA",
-    models: ["GPT-4o", "GPT-4 Turbo", "GPT-3.5", "o1", "o3"],
-    valuation: "$157B",
-    tags: ["LLMs", "Multimodal", "ChatGPT", "API"],
-  },
-  {
-    id: "anthropic",
-    name: "Anthropic",
-    description: "Safety-focused AI company. Creator of Claude. Constitutional AI pioneers.",
-    category: "anthropic" as const,
-    color: "#d97706",
-    logo: "🟠",
-    founded: "2021",
-    hq: "San Francisco, CA",
-    models: ["Claude 3.5 Sonnet", "Claude 3 Opus", "Claude 3 Haiku"],
-    valuation: "$61B",
-    tags: ["Safety", "Constitutional AI", "Claude", "MCP"],
-  },
-  {
-    id: "google",
-    name: "Google DeepMind",
-    description: "AI research powerhouse. Creator of Gemini, AlphaFold, and Bard/Gemini.",
-    category: "google" as const,
-    color: "#4285f4",
-    logo: "🔵",
-    founded: "1998 / 2010",
-    hq: "Mountain View, CA",
-    models: ["Gemini 1.5 Pro", "Gemini Ultra", "Gemma 2"],
-    valuation: "Public (GOOGL)",
-    tags: ["Research", "Gemini", "AlphaFold", "Multimodal"],
-  },
-  {
-    id: "meta",
-    name: "Meta AI",
-    description: "Open source AI leader. Creator of Llama models. Democratizing AI access.",
-    category: "meta" as const,
-    color: "#0866ff",
-    logo: "🔷",
-    founded: "2004",
-    hq: "Menlo Park, CA",
-    models: ["Llama 3.1 405B", "Llama 3.2", "Code Llama"],
-    valuation: "Public (META)",
-    tags: ["Open Source", "Llama", "Research", "Social AI"],
-  },
-  {
-    id: "xai",
-    name: "xAI",
-    description: "Elon Musk's AI venture. Creator of Grok. Integrated with X/Twitter.",
-    category: "xai" as const,
-    color: "#000000",
-    logo: "⚫",
-    founded: "2023",
-    hq: "San Francisco, CA",
-    models: ["Grok-2", "Grok-1.5"],
-    valuation: "$50B",
-    tags: ["Grok", "X Integration", "Real-time", "Open Weights"],
-  },
-  {
-    id: "mistral",
-    name: "Mistral AI",
-    description: "European AI powerhouse. Efficient open-source models. La Plateforme.",
-    category: "mistral" as const,
-    color: "#ff7000",
-    logo: "🟡",
-    founded: "2023",
-    hq: "Paris, France",
-    models: ["Mistral Large", "Mistral 7B", "Mixtral 8x22B"],
-    valuation: "$6B",
-    tags: ["Open Source", "Efficient", "European AI", "MoE"],
-  },
-  {
-    id: "deepseek",
-    name: "DeepSeek",
-    description: "Chinese AI lab disrupting the industry with efficient, powerful open-source models.",
-    category: "deepseek" as const,
-    color: "#1e3a8a",
-    logo: "🔹",
-    founded: "2023",
-    hq: "Hangzhou, China",
-    models: ["DeepSeek V3", "DeepSeek-R1", "DeepSeek Coder"],
-    valuation: "Private",
-    tags: ["Open Source", "Reasoning", "Cost Efficient", "Research"],
-  },
-  {
-    id: "microsoft",
-    name: "Microsoft AI",
-    description: "OpenAI partner. Azure AI services. GitHub Copilot. Creator of Phi models.",
-    category: "all" as const,
-    color: "#00a4ef",
-    logo: "🪟",
-    founded: "1975",
-    hq: "Redmond, WA",
-    models: ["Phi-4", "Phi-3", "Azure OpenAI"],
-    valuation: "Public (MSFT)",
-    tags: ["Azure", "Copilot", "Phi Models", "Enterprise"],
-  },
-];
+// Static base: identity data that never changes
+const COMPANY_BASE: Record<string, { color: string; logo: string; hq: string; founded: string; category: string }> = {
+  openai:          { color: "#10a37f", logo: "🟢", hq: "San Francisco, CA", founded: "2015", category: "openai" },
+  "anthropic":     { color: "#d97706", logo: "🟠", hq: "San Francisco, CA", founded: "2021", category: "anthropic" },
+  "google-deepmind":{ color: "#4285f4", logo: "🔵", hq: "Mountain View, CA", founded: "2010", category: "google" },
+  "meta-ai":       { color: "#0866ff", logo: "🔷", hq: "Menlo Park, CA",    founded: "2004", category: "meta" },
+  xai:             { color: "#888888", logo: "⚫", hq: "San Francisco, CA", founded: "2023", category: "xai" },
+  mistral:         { color: "#ff7000", logo: "🟡", hq: "Paris, France",     founded: "2023", category: "mistral" },
+  deepseek:        { color: "#1e3a8a", logo: "🔹", hq: "Hangzhou, China",   founded: "2023", category: "deepseek" },
+  microsoft:       { color: "#00a4ef", logo: "🪟", hq: "Redmond, WA",       founded: "1975", category: "all" },
+};
+
+interface AICompany {
+  id: string;
+  name: string;
+  tagline: string;
+  latestModel: string;
+  keyDevelopment: string;
+  valuation: string;
+  momentum: "rising" | "stable" | "mixed";
+  focus: string[];
+}
+
+const MOMENTUM_CONFIG = {
+  rising: { icon: TrendingUp,   color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30", label: "Rising" },
+  stable: { icon: Minus,        color: "text-blue-500",    bg: "bg-blue-500/10 border-blue-500/30",       label: "Stable" },
+  mixed:  { icon: TrendingDown, color: "text-amber-500",   bg: "bg-amber-500/10 border-amber-500/30",     label: "Mixed"  },
+};
 
 export default function CompaniesPage() {
-  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [companies, setCompanies]       = useState<AICompany[]>([]);
+  const [news, setNews]                 = useState<NewsArticle[]>([]);
   const [activeCompany, setActiveCompany] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]           = useState(true);
+  const [refreshingAI, setRefreshingAI] = useState(false);
+  const [generatedAt, setGeneratedAt]   = useState<string | null>(null);
+
+  async function loadAIData(showToast = false) {
+    setRefreshingAI(true);
+    try {
+      const res = await fetch("/api/companies", { cache: "no-store" });
+      const data = await res.json();
+      if (data.companies?.length) {
+        setCompanies(data.companies);
+        setGeneratedAt(data.generatedAt ?? null);
+        if (showToast) toast.success("Company intel refreshed by AI!");
+      }
+    } catch {
+      if (showToast) toast.error("Failed to refresh — try again");
+    } finally {
+      setRefreshingAI(false);
+    }
+  }
 
   useEffect(() => {
-    fetch("/api/news?limit=80", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setNews(d.articles ?? []))
-      .finally(() => setLoading(false));
+    // Load AI data + news in parallel
+    Promise.all([
+      loadAIData(),
+      fetch("/api/news?limit=80", { cache: "no-store" })
+        .then(r => r.json())
+        .then(d => setNews(d.articles ?? [])),
+    ]).finally(() => setLoading(false));
   }, []);
 
   function getCompanyNews(category: string): NewsArticle[] {
     return news
-      .filter((a) => a.category === category || a.source.toLowerCase().includes(category))
+      .filter(a => a.category === category || a.source.toLowerCase().includes(category))
       .slice(0, 4);
   }
 
+  const skeletons = Array.from({ length: 8 });
+
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Company Tracker" description="Monitor AI company activity in real-time" />
+      <TopBar title="Company Tracker" description="AI-powered real-time intelligence on leading AI companies" />
+
       <div className="flex-1 p-3 md:p-6 space-y-5">
+        {/* Header bar */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">AI-Generated Intelligence</span>
+            {generatedAt && (
+              <span className="text-xs text-muted-foreground">
+                · Updated {new Date(generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadAIData(true)}
+            disabled={refreshingAI}
+            className="gap-1.5 text-xs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshingAI ? "animate-spin" : ""}`} />
+            Refresh Intel
+          </Button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {COMPANIES.map((company, i) => (
-            <motion.div
-              key={company.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-            >
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden ${
-                  activeCompany === company.id ? "ring-2 ring-primary" : ""
-                }`}
-                onClick={() => setActiveCompany(activeCompany === company.id ? null : company.id)}
-              >
-                <div className="h-1.5" style={{ backgroundColor: company.color }} />
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl flex-shrink-0">{company.logo}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm">{company.name}</p>
-                      <p className="text-xs text-muted-foreground">{company.hq}</p>
-                    </div>
-                    <span className="text-xs font-semibold" style={{ color: company.color }}>
-                      {company.valuation}
-                    </span>
-                  </div>
+          {loading
+            ? skeletons.map((_, i) => (
+                <div key={i} className="h-64 rounded-xl bg-muted animate-pulse" />
+              ))
+            : companies.map((company, i) => {
+                const base = COMPANY_BASE[company.id] ?? { color: "#888", logo: "🤖", hq: "—", founded: "—", category: company.id };
+                const momentum = MOMENTUM_CONFIG[company.momentum] ?? MOMENTUM_CONFIG.stable;
+                const MomentumIcon = momentum.icon;
+                const companyNews = getCompanyNews(base.category);
 
-                  <p className="text-xs text-muted-foreground leading-relaxed">{company.description}</p>
-
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Key Models</p>
-                    <div className="flex flex-wrap gap-1">
-                      {company.models.slice(0, 3).map((m) => (
-                        <Badge key={m} variant="secondary" className="text-xs">{m}</Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1">
-                    {company.tags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="text-xs px-1.5 py-0.5 rounded-full border"
-                        style={{ borderColor: company.color + "40", color: company.color }}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Expanded News */}
-              {activeCompany === company.id && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-2 md:col-span-2 xl:col-span-4"
-                >
-                  <Card className="border-2" style={{ borderColor: company.color + "40" }}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <Newspaper className="h-4 w-4" style={{ color: company.color }} />
-                        Latest {company.name} News
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {loading ? (
-                        <div className="space-y-2">
-                          {[...Array(3)].map((_, i) => (
-                            <div key={i} className="h-12 bg-muted animate-pulse rounded-lg" />
-                          ))}
+                return (
+                  <motion.div
+                    key={company.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <Card
+                      className={`cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden ${
+                        activeCompany === company.id ? "ring-2 ring-primary" : ""
+                      }`}
+                      onClick={() => setActiveCompany(activeCompany === company.id ? null : company.id)}
+                    >
+                      <div className="h-1.5" style={{ backgroundColor: base.color }} />
+                      <CardContent className="p-4 space-y-3">
+                        {/* Header */}
+                        <div className="flex items-start gap-2.5">
+                          <span className="text-2xl flex-shrink-0">{base.logo}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm leading-tight">{company.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{base.hq}</p>
+                          </div>
+                          <span className="text-xs font-bold" style={{ color: base.color }}>
+                            {company.valuation}
+                          </span>
                         </div>
-                      ) : (
-                        <>
-                          {getCompanyNews(company.id).map((article) => (
-                            <a
-                              key={article.id}
-                              href={article.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-accent transition-colors group"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium group-hover:text-primary transition-colors line-clamp-2">
-                                  {article.title}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{formatDate(article.publishedAt)}</p>
-                              </div>
-                              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
-                            </a>
-                          ))}
-                          {getCompanyNews(company.id).length === 0 && (
-                            <p className="text-xs text-muted-foreground text-center py-4">
-                              No recent news found for {company.name}.
-                            </p>
-                          )}
-                        </>
+
+                        {/* AI tagline */}
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{company.tagline}</p>
+
+                        {/* Latest model */}
+                        <div className="flex items-center gap-1.5">
+                          <Zap className="h-3 w-3 text-primary flex-shrink-0" />
+                          <span className="text-xs font-medium truncate">{company.latestModel}</span>
+                        </div>
+
+                        {/* Key development */}
+                        <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Latest</p>
+                          <p className="text-xs leading-snug line-clamp-2">{company.keyDevelopment}</p>
+                        </div>
+
+                        {/* Momentum + focus tags */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${momentum.bg} ${momentum.color}`}>
+                            <MomentumIcon className="h-2.5 w-2.5" />
+                            {momentum.label}
+                          </span>
+                          <div className="flex gap-1 flex-wrap justify-end">
+                            {company.focus.slice(0, 2).map(f => (
+                              <Badge key={f} variant="outline" className="text-[9px] px-1 py-0"
+                                style={{ borderColor: base.color + "50", color: base.color }}>
+                                {f}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Expanded news panel */}
+                    <AnimatePresence>
+                      {activeCompany === company.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-2 overflow-hidden"
+                        >
+                          <Card className="border-2" style={{ borderColor: base.color + "40" }}>
+                            <CardHeader className="pb-3 pt-4 px-4">
+                              <CardTitle className="text-sm flex items-center gap-2">
+                                <Newspaper className="h-4 w-4" style={{ color: base.color }} />
+                                Latest {company.name} News
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="px-4 pb-4 space-y-2">
+                              {companyNews.length > 0 ? companyNews.map(article => (
+                                <a
+                                  key={article.id}
+                                  href={article.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-accent transition-colors group"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium group-hover:text-primary transition-colors line-clamp-2">
+                                      {article.title}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(article.publishedAt)}</p>
+                                  </div>
+                                  <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
+                                </a>
+                              )) : (
+                                <p className="text-xs text-muted-foreground text-center py-3">No recent news found.</p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </motion.div>
                       )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </motion.div>
-          ))}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
         </div>
       </div>
     </div>
