@@ -8,10 +8,44 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Copy, Search, X, ArrowRight, ExternalLink, Clock, Zap, GitBranch, Eye,
+  Sparkles, RefreshCw, Loader2, ChevronRight, Bot, Database, Mail,
+  ShoppingCart, BarChart2, Users, Shield, Briefcase,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { WORKFLOWS, Workflow } from "@/lib/workflows";
 import type { LiveWorkflow } from "@/app/api/workflows/route";
+
+interface AIWorkflowStep {
+  type: "trigger" | "ai" | "action" | "condition" | "output";
+  label: string;
+  tool: string;
+}
+
+interface AIWorkflow {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: "simple" | "intermediate" | "complex";
+  tools: string[];
+  steps: AIWorkflowStep[];
+  estimatedTime: string;
+  useCase: string;
+}
+
+const STEP_TYPE_STYLE: Record<string, { dot: string; badge: string }> = {
+  trigger:   { dot: "bg-emerald-500",  badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
+  ai:        { dot: "bg-violet-500",   badge: "bg-violet-500/10 text-violet-400 border-violet-500/30" },
+  action:    { dot: "bg-blue-500",     badge: "bg-blue-500/10 text-blue-400 border-blue-500/30" },
+  condition: { dot: "bg-amber-500",    badge: "bg-amber-500/10 text-amber-400 border-amber-500/30" },
+  output:    { dot: "bg-gray-400",     badge: "bg-gray-500/10 text-gray-400 border-gray-500/30" },
+};
+
+const DIFF_BADGE: Record<string, string> = {
+  simple:       "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+  intermediate: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  complex:      "bg-orange-500/10 text-orange-400 border-orange-500/30",
+};
 
 const STEP_COLORS: Record<string, string> = {
   trigger: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -32,15 +66,42 @@ export default function WorkflowsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showCloneGuide, setShowCloneGuide] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
-  const [liveWorkflows, setLiveWorkflows] = useState<LiveWorkflow[]>([]);
-  const [liveLoading, setLiveLoading] = useState(true);
+  const [liveWorkflows, setLiveWorkflows]   = useState<LiveWorkflow[]>([]);
+  const [liveLoading, setLiveLoading]       = useState(true);
+  const [aiWorkflows, setAiWorkflows]       = useState<AIWorkflow[]>([]);
+  const [aiLoading, setAiLoading]           = useState(true);
+  const [aiGeneratedAt, setAiGeneratedAt]   = useState<string | null>(null);
+  const [expandedAiId, setExpandedAiId]     = useState<string | null>(null);
+  const [copiedId, setCopiedId]             = useState<string | null>(null);
+
+  async function loadAiWorkflows(showToast = false) {
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/ai-workflows?count=6", { cache: "no-store" });
+      const data = await res.json();
+      if (data.workflows?.length) {
+        setAiWorkflows(data.workflows);
+        setAiGeneratedAt(data.generatedAt ?? null);
+        if (showToast) toast.success("Fresh AI workflows generated!");
+      } else {
+        if (showToast) toast.error("Could not generate — try again");
+      }
+    } catch {
+      if (showToast) toast.error("Failed to generate workflows");
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   useEffect(() => {
+    // Load both in parallel
     fetch("/api/workflows")
       .then((r) => r.json())
       .then((d) => setLiveWorkflows(d.workflows ?? []))
       .catch(() => {})
       .finally(() => setLiveLoading(false));
+
+    loadAiWorkflows();
   }, []);
 
   const filtered = WORKFLOWS.filter(
@@ -79,6 +140,152 @@ export default function WorkflowsPage() {
           </div>
           <Badge variant="secondary" className="text-xs">{filtered.length} results</Badge>
         </div>
+
+        {/* ── AI-Generated Workflows ── */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded-full">
+                <Sparkles className="w-3 h-3" />
+                AI Generated · Fresh Ideas
+              </span>
+              {aiGeneratedAt && !aiLoading && (
+                <span className="text-xs text-muted-foreground">
+                  · {new Date(aiGeneratedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => loadAiWorkflows(true)}
+              disabled={aiLoading}
+              className="gap-1.5 text-xs"
+            >
+              {aiLoading
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <RefreshCw className="h-3.5 w-3.5" />}
+              {aiLoading ? "Generating…" : "Generate New"}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {aiLoading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-48 rounded-xl bg-muted/60 animate-pulse" />
+                ))
+              : aiWorkflows.map((wf) => {
+                  const isExp = expandedAiId === wf.id;
+                  return (
+                    <motion.div
+                      key={wf.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      layout
+                    >
+                      <Card className="overflow-hidden border-border hover:border-violet-500/30 hover:shadow-lg transition-all">
+                        <div className="h-0.5 bg-gradient-to-r from-violet-500 to-blue-500" />
+                        <CardContent className="p-4 space-y-3">
+                          {/* Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${DIFF_BADGE[wf.difficulty] ?? DIFF_BADGE.simple} capitalize`}>
+                                  {wf.difficulty}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">{wf.category}</span>
+                              </div>
+                              <p className="text-sm font-semibold leading-tight">{wf.title}</p>
+                            </div>
+                            <div className="h-7 w-7 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                              <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{wf.description}</p>
+
+                          {/* Use case highlight */}
+                          <div className="flex items-start gap-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/15 px-2.5 py-2">
+                            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mt-0.5 flex-shrink-0">ROI</span>
+                            <p className="text-[11px] text-emerald-300/80 leading-snug">{wf.useCase}</p>
+                          </div>
+
+                          {/* Tools */}
+                          <div className="flex flex-wrap gap-1">
+                            {wf.tools.slice(0, 5).map((t) => (
+                              <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">{t}</span>
+                            ))}
+                          </div>
+
+                          {/* Toggle steps */}
+                          <button
+                            onClick={() => setExpandedAiId(isExp ? null : wf.id)}
+                            className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors pt-1 border-t border-border/50"
+                          >
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {wf.estimatedTime}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              {isExp ? "Hide steps" : `${wf.steps?.length ?? 0} steps`}
+                              <ChevronRight className={`h-3 w-3 transition-transform ${isExp ? "rotate-90" : ""}`} />
+                            </span>
+                          </button>
+
+                          {/* Step flow — expanded */}
+                          {isExp && wf.steps?.length > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="space-y-2 pt-1"
+                            >
+                              {wf.steps.map((step, idx) => {
+                                const style = STEP_TYPE_STYLE[step.type] ?? STEP_TYPE_STYLE.action;
+                                return (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <div className="flex flex-col items-center flex-shrink-0">
+                                      <div className={`h-2 w-2 rounded-full ${style.dot}`} />
+                                      {idx < wf.steps.length - 1 && (
+                                        <div className="w-px h-3 bg-border mt-0.5" />
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border uppercase tracking-wide flex-shrink-0 ${style.badge}`}>
+                                        {step.type}
+                                      </span>
+                                      <span className="text-xs text-foreground/80 truncate">{step.label}</span>
+                                      <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-auto">via {step.tool}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              {/* Copy steps as text */}
+                              <button
+                                onClick={() => {
+                                  const text = `# ${wf.title}\n${wf.description}\n\nSteps:\n${wf.steps.map((s, i) => `${i + 1}. [${s.type.toUpperCase()}] ${s.label} (via ${s.tool})`).join("\n")}\n\nTools: ${wf.tools.join(", ")}\nEstimated time: ${wf.estimatedTime}\nROI: ${wf.useCase}`;
+                                  navigator.clipboard.writeText(text);
+                                  setCopiedId(wf.id);
+                                  toast.success("Workflow copied!");
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }}
+                                className="w-full mt-1 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground border border-border/60 hover:border-border rounded-lg py-1.5 transition-colors"
+                              >
+                                <Copy className="h-3 w-3" />
+                                {copiedId === wf.id ? "Copied!" : "Copy workflow spec"}
+                              </button>
+                            </motion.div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+          </div>
+        </div>
+
+        <div className="border-t border-border" />
 
         {/* Live Templates from n8n.io + GitHub */}
         {(liveLoading || liveWorkflows.length > 0) && (
