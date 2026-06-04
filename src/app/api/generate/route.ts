@@ -98,108 +98,47 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Generate] Creating ${type} from prompt: "${prompt.substring(0, 100)}..."`);
 
-    try {
-      let userMessage: string;
-      if (type === "prompt") {
-        try {
-          const config = JSON.parse(prompt);
-          userMessage = `Generate an optimized AI prompt for the following:
+    // Build user message
+    let userMessage: string;
+    if (type === "prompt") {
+      try {
+        const config = JSON.parse(prompt);
+        userMessage = `Generate an optimized AI prompt for the following:
 Task: ${config.task}
 ${config.role ? `Role/Persona: ${config.role}` : ""}
 ${config.context ? `Context: ${config.context}` : ""}
 Output Format: ${config.format || "detailed paragraphs"}
 Tone: ${config.tone || "professional"}`.trim();
-        } catch {
-          userMessage = `Generate an optimized AI prompt for: ${prompt}`;
-        }
-      } else if (type === "idea") {
-        try {
-          const config = JSON.parse(prompt);
-          userMessage = `Generate a never-before-seen product idea with these preferences:
+      } catch {
+        userMessage = `Generate an optimized AI prompt for: ${prompt}`;
+      }
+    } else if (type === "idea") {
+      try {
+        const config = JSON.parse(prompt);
+        userMessage = `Generate a never-before-seen product idea with these preferences:
 Category: ${config.category || "any"}
 Domain/Niche: ${config.domain || "any — surprise me"}
 Scale: ${config.scale || "Full Product"}
 
 Make it truly original. Think deeply before responding.`;
-        } catch {
-          userMessage = `Generate a never-before-seen original product idea. Be bold and original.`;
-        }
-      } else {
-        userMessage = `Please generate a ${type} based on this request: ${prompt}`;
+      } catch {
+        userMessage = `Generate a never-before-seen original product idea. Be bold and original.`;
       }
+    } else {
+      userMessage = `Please generate a ${type} based on this request: ${prompt}`;
+    }
 
-      const content = await callModel(
+    // Call model — isolated catch so archive never masks this error
+    let content: string;
+    try {
+      content = await callModel(
         [
-          {
-            role: "system",
-            content: systemPrompt,
-          },
-          {
-            role: "user",
-            content: userMessage,
-          },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
         ],
-        3000,
-        "openai/gpt-oss-120b:free",
+        1500,
+        "openai/gpt-oss-20b:free",
       );
-
-      // Parse the generated content to extract name, description, and code
-      let name: string;
-      let description: string;
-      if (type === "prompt") {
-        try {
-          const config = JSON.parse(prompt);
-          name = `Prompt: ${config.task.slice(0, 50)}`;
-        } catch {
-          name = "Generated Prompt";
-        }
-        description = "AI-optimized prompt ready for immediate use";
-      } else if (type === "idea") {
-        try {
-          const jsonMatch = content.match(/\{[\s\S]*\}/);
-          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-          name = parsed?.name ?? "Original Idea";
-          description = parsed?.tagline ?? "A never-before-seen product concept";
-        } catch {
-          name = "Generated Idea";
-          description = "A never-before-seen product concept";
-        }
-      } else {
-        const lines = content.split("\n");
-        name = lines[0].replace(/^#+\s*/, "").trim() || `Generated ${type}`;
-        description = lines.slice(1, 3).join(" ").slice(0, 200);
-      }
-
-      console.log(`[Generate] Success: ${name}`);
-
-      // Automatically archive the generated item
-      const archiveRes = await fetch(new URL("/api/archive", req.url), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          description,
-          code: content,
-          type,
-        }),
-      });
-
-      let archiveData = null;
-      if (archiveRes.ok) {
-        archiveData = await archiveRes.json();
-        console.log(`[Generate] Auto-archived as: ${archiveData.id}`);
-      } else {
-        console.warn("[Generate] Auto-archive failed, but generation succeeded");
-      }
-
-      return NextResponse.json({
-        name,
-        description,
-        code: content,
-        type,
-        archivedId: archiveData?.id,
-        shareUrl: archiveData?.shareUrl,
-      });
     } catch (error) {
       console.error(`[Generate] Model error: ${error}`);
       return NextResponse.json(
@@ -207,6 +146,60 @@ Make it truly original. Think deeply before responding.`;
         { status: 503 }
       );
     }
+
+    // Parse name + description from content
+    let name: string;
+    let description: string;
+    if (type === "prompt") {
+      try {
+        const config = JSON.parse(prompt);
+        name = `Prompt: ${config.task.slice(0, 50)}`;
+      } catch {
+        name = "Generated Prompt";
+      }
+      description = "AI-optimized prompt ready for immediate use";
+    } else if (type === "idea") {
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+        name = parsed?.name ?? "Original Idea";
+        description = parsed?.tagline ?? "A never-before-seen product concept";
+      } catch {
+        name = "Generated Idea";
+        description = "A never-before-seen product concept";
+      }
+    } else {
+      const lines = content.split("\n");
+      name = lines[0].replace(/^#+\s*/, "").trim() || `Generated ${type}`;
+      description = lines.slice(1, 3).join(" ").slice(0, 200);
+    }
+
+    console.log(`[Generate] Success: ${name}`);
+
+    // Archive independently — never block or fail the response
+    let archiveData: { id: string; shareUrl: string } | null = null;
+    try {
+      const archiveRes = await fetch(new URL("/api/archive", req.url).toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description, code: content, type }),
+      });
+      if (archiveRes.ok) {
+        archiveData = await archiveRes.json();
+        console.log(`[Generate] Auto-archived as: ${archiveData!.id}`);
+      }
+    } catch {
+      console.warn("[Generate] Auto-archive failed, generation succeeded");
+    }
+
+    return NextResponse.json({
+      name,
+      description,
+      code: content,
+      type,
+      archivedId: archiveData?.id,
+      shareUrl: archiveData?.shareUrl,
+    });
   } catch (error) {
     console.error("[Generate] Unexpected error:", error);
     return NextResponse.json(
