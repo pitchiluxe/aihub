@@ -70,6 +70,13 @@ export default function AIHubLMPage() {
   const [articleInput, setArticleInput] = useState("");
   const articleScrollRef = useRef<HTMLDivElement>(null);
 
+  // Close modal on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setArticleChat(null); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   async function openArticleChat(source: Source) {
     setArticleChat({ source, messages: [], questions: [], questionsLoading: true, chatLoading: false });
     setArticleInput("");
@@ -855,7 +862,7 @@ Help users deeply understand their documents through insightful analysis, synthe
         </div>
       </div>
 
-      {/* ── Article Chat Drawer ─────────────────────────────────────────── */}
+      {/* ── Article Chat Modal ──────────────────────────────────────────── */}
       <AnimatePresence>
         {articleChat && (
           <>
@@ -864,112 +871,134 @@ Help users deeply understand their documents through insightful analysis, synthe
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/60 backdrop-blur-md z-40"
               onClick={() => setArticleChat(null)}
             />
 
-            {/* Drawer */}
+            {/* Centered modal */}
             <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border rounded-t-2xl shadow-2xl flex flex-col"
-              style={{ maxHeight: "80vh" }}
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
             >
-              {/* Drawer handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-              </div>
-
-              {/* Header */}
-              <div className="flex items-start justify-between px-4 py-3 border-b border-border gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <MessageSquare className="h-4 w-4 text-primary flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{articleChat.source.title}</p>
-                    <p className="text-xs text-muted-foreground">Article deep-dive chat</p>
+              <div
+                className="pointer-events-auto w-full max-w-2xl flex flex-col rounded-2xl border border-border bg-background shadow-2xl overflow-hidden"
+                style={{ maxHeight: "82vh" }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-muted/30 flex-shrink-0">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="h-4 w-4 text-primary" />
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold leading-tight truncate">{articleChat.source.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Article deep-dive · AI-powered Q&A</p>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 flex-shrink-0 rounded-lg"
+                    onClick={() => setArticleChat(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button size="icon" variant="ghost" className="h-7 w-7 flex-shrink-0" onClick={() => setArticleChat(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
 
-              {/* Messages */}
-              <div ref={articleScrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+                {/* Suggested questions — only before first message */}
                 {articleChat.messages.length === 0 && (
-                  <div className="text-center py-4">
-                    <Brain className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                    <p className="text-sm text-muted-foreground">Ask anything about this article</p>
+                  <div className="px-5 py-4 border-b border-border/60 flex-shrink-0">
+                    {articleChat.questionsLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Generating questions…
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+                          Suggested questions
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {articleChat.questions.map((q, i) => (
+                            <button
+                              key={i}
+                              onClick={() => sendArticleMessage(q)}
+                              className="text-xs px-3 py-1.5 rounded-full border border-primary/25 text-primary bg-primary/5 hover:bg-primary/12 transition-colors text-left"
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
-                {articleChat.messages.map(m => (
-                  <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                      m.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                    }`}>
-                      <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
-                    </div>
-                  </div>
-                ))}
-                {articleChat.chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-muted rounded-2xl px-3 py-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Suggested questions */}
-              {articleChat.messages.length === 0 && (
-                <div className="px-4 pb-2">
-                  {articleChat.questionsLoading ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Generating questions for this article…
+                {/* Messages */}
+                <div ref={articleScrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
+                  {articleChat.messages.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                      <Brain className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                      <p className="text-sm font-medium text-muted-foreground">Ask anything about this article</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">Pick a question above or type your own</p>
                     </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Suggested questions</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {articleChat.questions.map((q, i) => (
-                          <button
-                            key={i}
-                            onClick={() => sendArticleMessage(q)}
-                            className="text-xs px-2.5 py-1.5 rounded-full border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-colors text-left"
-                          >
-                            {q}
-                          </button>
-                        ))}
+                  )}
+                  {articleChat.messages.map(m => (
+                    <div key={m.id} className={`flex items-end gap-2.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                      {m.role === "assistant" && (
+                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mb-0.5">
+                          <Brain className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                      )}
+                      <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                        m.role === "user"
+                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          : "bg-muted text-foreground rounded-bl-sm"
+                      }`}>
+                        <p className="whitespace-pre-wrap">{m.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {articleChat.chatLoading && (
+                    <div className="flex items-end gap-2.5 justify-start">
+                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Brain className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3">
+                        <div className="flex gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* Input */}
-              <div className="px-4 pb-4 pt-2 border-t border-border">
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 bg-muted rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
-                    placeholder="Ask about this article…"
-                    value={articleInput}
-                    onChange={e => setArticleInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendArticleMessage(); } }}
-                    disabled={articleChat.chatLoading}
-                  />
-                  <Button
-                    size="icon"
-                    className="rounded-xl flex-shrink-0"
-                    onClick={() => sendArticleMessage()}
-                    disabled={!articleInput.trim() || articleChat.chatLoading}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
+                {/* Input */}
+                <div className="px-5 py-4 border-t border-border bg-muted/20 flex-shrink-0">
+                  <div className="flex gap-2.5 items-center">
+                    <input
+                      className="flex-1 bg-background border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 placeholder:text-muted-foreground transition-all"
+                      placeholder="Ask about this article…"
+                      value={articleInput}
+                      onChange={e => setArticleInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendArticleMessage(); } }}
+                      disabled={articleChat.chatLoading}
+                      autoFocus
+                    />
+                    <Button
+                      size="icon"
+                      className="h-10 w-10 rounded-xl flex-shrink-0"
+                      onClick={() => sendArticleMessage()}
+                      disabled={!articleInput.trim() || articleChat.chatLoading}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/60 mt-1.5 text-center">Enter to send · Esc to close</p>
                 </div>
               </div>
             </motion.div>
