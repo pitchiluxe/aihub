@@ -37,13 +37,13 @@ function primaryModel(override?: string): string {
 // free model on OpenRouter for structured JSON output.
 const FALLBACK_MODELS = [
   "meta-llama/llama-3.3-70b-instruct:free",
-  "deepseek/deepseek-r1:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
   "qwen/qwen-2.5-72b-instruct:free",
   "google/gemma-3-27b-it:free",
   "meta-llama/llama-3.1-8b-instruct:free",
   "openai/gpt-oss-120b:free",
   "openai/gpt-oss-20b:free",
+  "deepseek/deepseek-r1:free",
 ];
 
 // Strip non-ASCII chars from header values — HTTP headers only allow bytes 0-255.
@@ -79,10 +79,14 @@ export async function callModel(
   let lastError: Error = new Error("No models tried");
 
   for (const model of models) {
+    const controller = new AbortController();
+    // 18s per model so we can try 3 fallbacks within Vercel's 60s limit
+    const timeoutId = setTimeout(() => controller.abort(), 18_000);
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: headers(),
+        signal: controller.signal,
         body: JSON.stringify({
           model,
           messages,
@@ -91,6 +95,7 @@ export async function callModel(
           temperature,
         }),
       });
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const txt = await res.text().catch(() => `HTTP ${res.status}`);
@@ -109,6 +114,7 @@ export async function callModel(
       console.log(`[AI] Success with model: ${model.split('/')[0]}`);
       return content;
     } catch (err) {
+      clearTimeout(timeoutId);
       lastError = err instanceof Error ? err : new Error(String(err));
       console.warn(`[AI] Model ${model} failed: ${lastError.message} — trying next`);
     }

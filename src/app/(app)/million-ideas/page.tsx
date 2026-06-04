@@ -1109,6 +1109,14 @@ export default function MillionIdeasPage() {
       try {
         const r = await fetch(`/api/daily-ideas?date=${today}&batch=${batch}`);
         if (cancelled) return;
+        const ct = r.headers.get("content-type") ?? "";
+        if (!ct.includes("application/json")) {
+          const text = await r.text().catch(() => `HTTP ${r.status}`);
+          const msg = `Server error (${r.status}): ${text.slice(0, 120)}`;
+          console.error(`[daily-ideas] batch ${batch} non-JSON:`, text.slice(0, 300));
+          if (!cancelled) setAiError(msg);
+          return;
+        }
         const data: { ideas: GeneratedIdea[]; error?: string } = await r.json();
         if (data.error) {
           console.error(`[daily-ideas] batch ${batch} API error:`, data.error);
