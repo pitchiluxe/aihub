@@ -4838,74 +4838,76 @@ export default function SkillsPage() {
             </div>
           </div>
 
-          {/* Live skills from GitHub */}
-          {(liveLoading || liveSkills.length > 0) && (
-            <div className="px-4 md:px-6 pt-4 pb-2 border-b border-white/5 flex-shrink-0">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  LIVE · GitHub Community
-                </span>
-                <span className="text-[11px] text-gray-600">{liveLoading ? "fetching…" : `${liveSkills.length} repos`}</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {liveLoading
-                  ? Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="h-24 rounded-xl bg-white/5 animate-pulse" />
-                    ))
-                  : liveSkills.slice(0, 20).map((s) => (
-                      <a
-                        key={s.id}
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-xl p-3 transition-all group"
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <img src={s.avatarUrl} alt={s.owner} className="w-5 h-5 rounded-full" />
-                          <span className="text-[10px] text-gray-500 truncate">{s.owner}</span>
-                          <span className="ml-auto text-[10px] text-amber-400 flex items-center gap-0.5">
-                            <Star className="w-2.5 h-2.5" />{s.stars}
-                          </span>
-                        </div>
-                        <p className="text-xs font-semibold text-white truncate group-hover:text-violet-300 transition-colors">{s.name}</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{s.description}</p>
-                        {s.language && (
-                          <span className="mt-1.5 inline-block text-[9px] text-gray-600 bg-white/5 px-1.5 py-0.5 rounded">{s.language}</span>
-                        )}
-                      </a>
-                    ))}
-              </div>
-            </div>
-          )}
-
-          {/* Grid */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-hide">
-            <motion.div
-              layout
-              className={cn(
-                "grid gap-3",
-                selectedSkill
-                  ? "grid-cols-1 md:grid-cols-2"
-                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6"
-              )}
-            >
-              <AnimatePresence mode="popLayout">
-                {filtered.map(skill => (
-                  <SkillCard
-                    key={skill.id}
-                    skill={skill}
-                    onSelect={setSelected}
-                    isSelected={selectedSkill?.id === skill.id}
-                  />
-                ))}
-              </AnimatePresence>
-              {filtered.length === 0 && (
-                <div className="col-span-full text-center py-16 text-gray-600 text-sm">
-                  No skills match &ldquo;{search}&rdquo;
+          {/* Unified scroll: Live GitHub section + main grid */}
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            {(liveLoading || liveSkills.length > 0) && (
+              <div className="px-4 md:px-6 pt-4 pb-4 border-b border-white/5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    LIVE · GitHub Community
+                  </span>
+                  <span className="text-[11px] text-gray-600">{liveLoading ? "fetching…" : `${liveSkills.length} repos`}</span>
                 </div>
-              )}
-            </motion.div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {liveLoading
+                    ? Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="h-24 rounded-xl bg-white/5 animate-pulse" />
+                      ))
+                    : liveSkills.slice(0, 20).map((s) => (
+                        <a
+                          key={s.id}
+                          href={s.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-xl p-3 transition-all group"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <img src={s.avatarUrl} alt={s.owner} className="w-5 h-5 rounded-full" />
+                            <span className="text-[10px] text-gray-500 truncate">{s.owner}</span>
+                            <span className="ml-auto text-[10px] text-amber-400 flex items-center gap-0.5">
+                              <Star className="w-2.5 h-2.5" />{s.stars}
+                            </span>
+                          </div>
+                          <p className="text-xs font-semibold text-white truncate group-hover:text-violet-300 transition-colors">{s.name}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-2">{s.description}</p>
+                          {s.language && (
+                            <span className="mt-1.5 inline-block text-[9px] text-gray-600 bg-white/5 px-1.5 py-0.5 rounded">{s.language}</span>
+                          )}
+                        </a>
+                      ))}
+                </div>
+              </div>
+            )}
+
+            {/* Grid */}
+            <div className="p-4 md:p-6">
+              <motion.div
+                layout
+                className={cn(
+                  "grid gap-3",
+                  selectedSkill
+                    ? "grid-cols-1 md:grid-cols-2"
+                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6"
+                )}
+              >
+                <AnimatePresence mode="popLayout">
+                  {filtered.map(skill => (
+                    <SkillCard
+                      key={skill.id}
+                      skill={skill}
+                      onSelect={setSelected}
+                      isSelected={selectedSkill?.id === skill.id}
+                    />
+                  ))}
+                </AnimatePresence>
+                {filtered.length === 0 && (
+                  <div className="col-span-full text-center py-16 text-gray-600 text-sm">
+                    No skills match &ldquo;{search}&rdquo;
+                  </div>
+                )}
+              </motion.div>
+            </div>
           </div>
         </div>
 
