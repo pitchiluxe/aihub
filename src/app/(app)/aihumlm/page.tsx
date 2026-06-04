@@ -58,6 +58,103 @@ export default function AIHubLMPage() {
   const [fetchingNews, setFetchingNews] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // ── Per-article chat ───────────────────────────────────────────────────
+  interface ArticleChat {
+    source: Source;
+    messages: ChatMsg[];
+    questions: string[];
+    questionsLoading: boolean;
+    chatLoading: boolean;
+  }
+  const [articleChat, setArticleChat] = useState<ArticleChat | null>(null);
+  const [articleInput, setArticleInput] = useState("");
+  const articleScrollRef = useRef<HTMLDivElement>(null);
+
+  async function openArticleChat(source: Source) {
+    setArticleChat({ source, messages: [], questions: [], questionsLoading: true, chatLoading: false });
+    setArticleInput("");
+    // Generate pre-compiled questions for this specific article
+    try {
+      const context = source.type === "url"
+        ? `Article URL: ${source.content}\nTitle: ${source.title}\nSummary: ${source.summary ?? ""}`
+        : `Title: ${source.title}\nSummary: ${source.summary ?? ""}\nKey Points: ${(source.keyPoints ?? []).join("; ")}\nContent excerpt: ${source.content.slice(0, 1500)}`;
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b:free",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert at generating insightful questions about articles and documents. Generate exactly 5 thought-provoking questions a reader should ask about this content. Make them specific to this article, not generic. Return ONLY a JSON array of 5 strings: ["question1","question2","question3","question4","question5"]`,
+            },
+            { role: "user", content: `Generate 5 specific questions for this article:\n\n${context}` },
+          ],
+        }),
+      });
+      const data = await res.json();
+      let questions: string[] = [];
+      try {
+        const match = (data.content ?? "").match(/\[[\s\S]*\]/);
+        if (match) questions = JSON.parse(match[0]);
+      } catch { /**/ }
+      if (questions.length === 0) {
+        questions = [
+          `What is the main argument in "${source.title}"?`,
+          "What evidence supports the key claims?",
+          "What are the implications of these findings?",
+          "What questions does this article leave unanswered?",
+          "How does this relate to current trends in AI?",
+        ];
+      }
+      setArticleChat(prev => prev ? { ...prev, questions, questionsLoading: false } : null);
+    } catch {
+      setArticleChat(prev => prev ? { ...prev, questionsLoading: false } : null);
+    }
+  }
+
+  async function sendArticleMessage(text?: string) {
+    const msg = (text ?? articleInput).trim();
+    if (!msg || !articleChat || articleChat.chatLoading) return;
+    const userMsg: ChatMsg = { id: `amsg-${Date.now()}`, role: "user", content: msg, timestamp: new Date() };
+    setArticleChat(prev => prev ? { ...prev, messages: [...prev.messages, userMsg], chatLoading: true } : null);
+    setArticleInput("");
+    try {
+      const src = articleChat.source;
+      const context = src.type === "url"
+        ? `Article URL: ${src.content}\nTitle: ${src.title}\nSummary: ${src.summary ?? ""}\nKey Points: ${(src.keyPoints ?? []).join("; ")}`
+        : `Title: ${src.title}\nSummary: ${src.summary ?? ""}\nKey Points: ${(src.keyPoints ?? []).join("; ")}\nContent: ${src.content.slice(0, 3000)}`;
+      const history = articleChat.messages.slice(-6).map(m => ({ role: m.role as "user"|"assistant", content: m.content }));
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b:free",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert research assistant analyzing a specific article for the user. Stay focused ONLY on this article.\n\nARTICLE:\n${context}\n\nProvide insightful, specific answers grounded in this article. Use markdown for clarity. If the answer isn't in the article, say so.`,
+            },
+            ...history,
+            { role: "user", content: msg },
+          ],
+        }),
+      });
+      const data = await res.json();
+      const assistantMsg: ChatMsg = {
+        id: `amsg-${Date.now() + 1}`,
+        role: "assistant",
+        content: data.content ?? "Couldn't generate a response. Please try again.",
+        timestamp: new Date(),
+      };
+      setArticleChat(prev => prev ? { ...prev, messages: [...prev.messages, assistantMsg], chatLoading: false } : null);
+      setTimeout(() => articleScrollRef.current?.scrollTo({ top: 9999, behavior: "smooth" }), 50);
+    } catch {
+      toast.error("Failed to get response");
+      setArticleChat(prev => prev ? { ...prev, chatLoading: false } : null);
+    }
+  }
+
   // ── Load from sessionStorage queue on mount ────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -739,6 +836,15 @@ Help users deeply understand their documents through insightful analysis, synthe
                             Open source →
                           </a>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full mt-2 gap-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                          onClick={() => openArticleChat(source)}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Chat with AI about this article
+                        </Button>
                       </CardContent>
                     </Card>
                   ))
@@ -748,6 +854,128 @@ Help users deeply understand their documents through insightful analysis, synthe
           )}
         </div>
       </div>
+
+      {/* ── Article Chat Drawer ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {articleChat && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+              onClick={() => setArticleChat(null)}
+            />
+
+            {/* Drawer */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border rounded-t-2xl shadow-2xl flex flex-col"
+              style={{ maxHeight: "80vh" }}
+            >
+              {/* Drawer handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-start justify-between px-4 py-3 border-b border-border gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <MessageSquare className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{articleChat.source.title}</p>
+                    <p className="text-xs text-muted-foreground">Article deep-dive chat</p>
+                  </div>
+                </div>
+                <Button size="icon" variant="ghost" className="h-7 w-7 flex-shrink-0" onClick={() => setArticleChat(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Messages */}
+              <div ref={articleScrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+                {articleChat.messages.length === 0 && (
+                  <div className="text-center py-4">
+                    <Brain className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                    <p className="text-sm text-muted-foreground">Ask anything about this article</p>
+                  </div>
+                )}
+                {articleChat.messages.map(m => (
+                  <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}>
+                      <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                    </div>
+                  </div>
+                ))}
+                {articleChat.chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-2xl px-3 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Suggested questions */}
+              {articleChat.messages.length === 0 && (
+                <div className="px-4 pb-2">
+                  {articleChat.questionsLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Generating questions for this article…
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Suggested questions</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {articleChat.questions.map((q, i) => (
+                          <button
+                            key={i}
+                            onClick={() => sendArticleMessage(q)}
+                            className="text-xs px-2.5 py-1.5 rounded-full border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-colors text-left"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Input */}
+              <div className="px-4 pb-4 pt-2 border-t border-border">
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 bg-muted rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
+                    placeholder="Ask about this article…"
+                    value={articleInput}
+                    onChange={e => setArticleInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendArticleMessage(); } }}
+                    disabled={articleChat.chatLoading}
+                  />
+                  <Button
+                    size="icon"
+                    className="rounded-xl flex-shrink-0"
+                    onClick={() => sendArticleMessage()}
+                    disabled={!articleInput.trim() || articleChat.chatLoading}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
