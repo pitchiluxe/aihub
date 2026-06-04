@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callModel } from "@/lib/ai/client";
 
-export const maxDuration = 60;
+export const maxDuration = 55; // under Vercel 60s serverless limit
 
 const cache = new Map<string, GeneratedIdea[]>();
 
@@ -44,36 +44,15 @@ function systemPrompt(batch: number, date: string): string {
   };
   const hint = domainHints[batch] ? `\n\nDomain guidance: ${domainHints[batch]}` : "";
 
-  return `You are an expert AI startup idea generator with deep domain expertise. Date: ${date}, batch ${batch + 1}/5.
-Generate exactly 10 unique, highly specific, commercially viable AI tool ideas for: ${industries}.${hint}
+  return `You are an AI startup idea generator. Date: ${date}, batch ${batch + 1}/5.
+Generate exactly 5 unique, commercially viable AI tool ideas for: ${industries}.${hint}
 
-CRITICAL: Return ONLY a valid JSON array. No markdown, no explanation, nothing else.
+Return ONLY a valid JSON array. No markdown, no explanation, nothing else.
 
-Each object must follow this exact structure:
-{
-  "id": "kebab-case-id-${date}-b${batch}-N",
-  "title": "Tool Name (max 6 words)",
-  "category": "Most relevant industry from the list",
-  "emoji": "one relevant emoji",
-  "tagline": "punchy one-liner under 80 chars that makes someone say 'I need this'",
-  "problem": "2 sentences with a specific dollar amount or percentage pain point — be precise",
-  "solution": "2 sentences on exactly how AI solves it — name the specific technology or data source",
-  "revenueModel": "Specific pricing: $XX–$XXX/month SaaS, success fees, or API pricing",
-  "revenuePotential": "$XM–$YM ARR",
-  "difficulty": "Easy",
-  "timeToMVP": "X–Y weeks",
-  "techStack": ["Technology 1", "Technology 2", "Technology 3", "Technology 4", "Technology 5"],
-  "features": ["Specific Feature 1", "Specific Feature 2", "Specific Feature 3", "Specific Feature 4", "Specific Feature 5"],
-  "whyNow": "1 sentence on why this moment specifically is the right time to build this"
-}
+Each object:
+{"id":"kebab-id-${date}-b${batch}-N","title":"Name (max 6 words)","category":"Industry","emoji":"emoji","tagline":"one-liner under 70 chars","problem":"1 sentence with specific $ pain point","solution":"1 sentence how AI solves it","revenueModel":"$XX-$XXX/month SaaS","revenuePotential":"$XM-$YM ARR","difficulty":"Medium","timeToMVP":"X-Y weeks","techStack":["Tech1","Tech2","Tech3","Tech4"],"features":["Feature1","Feature2","Feature3","Feature4","Feature5"],"whyNow":"why build this now"}
 
-Rules:
-- difficulty must be exactly "Easy", "Medium", or "Hard"
-- techStack must be an array of 4-6 specific technology strings (real APIs, frameworks, databases)
-- features must be an array of exactly 5 specific, concrete features — not generic descriptions
-- Each idea must solve a REAL, SPECIFIC problem with REAL dollar amounts
-- Ideas must be genuinely innovative — not clones of existing products
-- Return a JSON array of exactly 10 objects with no additional text`;
+Rules: difficulty = "Easy"|"Medium"|"Hard". Return array of exactly 5 objects, nothing else.`;
 }
 
 function todayUTC(): string {
@@ -134,12 +113,13 @@ export async function GET(req: NextRequest) {
         { role: "system", content: systemPrompt(batch, date) },
         {
           role: "user",
-          content: `Generate 10 fresh, creative, specific AI tool ideas for batch ${batch + 1}. Return ONLY the JSON array, nothing else.`,
+          content: `Generate 5 AI tool ideas for batch ${batch + 1}. JSON array only.`,
         },
       ],
-      3500,
+      1500,
       IDEAS_MODEL,
-      0.3, // low temperature for reliable JSON
+      0.3,
+      50_000, // 50s — generous for free-tier models
     );
 
     const ideas = extractIdeas(raw);

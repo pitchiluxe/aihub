@@ -73,6 +73,7 @@ export async function callModel(
   maxTokens: number,
   modelOverride?: string,
   temperature = 0.7,
+  timeoutMs = 18_000,
 ): Promise<string> {
   const models = [...new Set([primaryModel(modelOverride), ...FALLBACK_MODELS])];
   const url = `${baseUrl()}/chat/completions`;
@@ -80,8 +81,7 @@ export async function callModel(
 
   for (const model of models) {
     const controller = new AbortController();
-    // 18s per model so we can try 3 fallbacks within Vercel's 60s limit
-    const timeoutId = setTimeout(() => controller.abort(), 18_000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(url, {
         method: "POST",

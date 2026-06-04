@@ -1090,7 +1090,7 @@ export default function MillionIdeasPage() {
         const stored = localStorage.getItem(cacheKey);
         if (stored) {
           const parsed: GeneratedIdea[] = JSON.parse(stored);
-          if (parsed.length >= 40) {
+          if (parsed.length >= 15) {
             setAiIdeas(parsed.map(toIdea));
             setAiLoading(false);
             return;
