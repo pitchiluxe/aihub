@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callModel } from "@/lib/ai/client";
 
 export const runtime = "edge";
 export const maxDuration = 30;
@@ -207,58 +206,8 @@ Make it truly original. Think deeply before responding.`;
       userMessage = `Please generate a ${type} based on this request: ${prompt}`;
     }
 
-    // Skill/agent use streaming — avoids Vercel timeout on long model responses
-    if (type === "skill" || type === "agent") {
-      return handleStreaming(systemPrompt, userMessage, type);
-    }
-
-    // Prompt/idea use non-streaming JSON response (faster, shorter output)
-    let content: string;
-    try {
-      content = await callModel(
-        [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        900,
-      );
-    } catch (error) {
-      console.error(`[Generate] Model error: ${error}`);
-      return NextResponse.json({ error: `Failed to generate ${type}. Please try again.` }, { status: 503 });
-    }
-
-    let name: string;
-    let description: string;
-    if (type === "prompt") {
-      try {
-        const config = JSON.parse(prompt);
-        name = `Prompt: ${config.task.slice(0, 50)}`;
-      } catch {
-        name = "Generated Prompt";
-      }
-      description = "AI-optimized prompt ready for immediate use";
-    } else {
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-        name = parsed?.name ?? "Original Idea";
-        description = parsed?.tagline ?? "A never-before-seen product concept";
-      } catch {
-        name = "Generated Idea";
-        description = "A never-before-seen product concept";
-      }
-    }
-
-    // Archive fire-and-forget
-    try {
-      await fetch(new URL("/api/archive", req.url).toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, code: content, type }),
-      });
-    } catch { /* non-critical */ }
-
-    return NextResponse.json({ name, description, code: content, type });
+    // All types use streaming — avoids Vercel timeout regardless of model response time
+    return handleStreaming(systemPrompt, userMessage, type);
   } catch (error) {
     console.error("[Generate] Unexpected error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

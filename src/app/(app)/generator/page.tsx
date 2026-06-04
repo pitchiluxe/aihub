@@ -201,6 +201,31 @@ export default function GeneratorPage() {
     }
   }
 
+  async function readSSEContent(response: Response): Promise<string> {
+    if (!response.body) throw new Error("No response body");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let content = "";
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(raw);
+          content += parsed.choices?.[0]?.delta?.content ?? "";
+        } catch { /* partial chunk */ }
+      }
+    }
+    return content;
+  }
+
   async function handleGeneratePrompt(e: React.FormEvent) {
     e.preventDefault();
     if (!promptConfig.task.trim()) { toast.error("Please describe the task"); return; }
@@ -212,21 +237,22 @@ export default function GeneratorPage() {
         body: JSON.stringify({ type: "prompt", prompt: JSON.stringify(promptConfig) }),
       });
       if (!response.ok) throw new Error("Generation failed");
-      const data = await response.json();
+      const code = await readSSEContent(response);
+      if (!code.trim()) throw new Error("Empty response");
+      const name = `Prompt: ${promptConfig.task.slice(0, 50)}`;
+      const description = "AI-optimized prompt ready for immediate use";
       const newItem: GeneratedItem = {
         id: Date.now().toString(),
-        name: data.name,
+        name,
         type: "prompt",
-        description: data.description,
-        code: data.code,
+        description,
+        code,
         createdAt: new Date(),
         prompt: promptConfig.task,
-        archivedId: data.archivedId,
-        shareUrl: data.shareUrl,
       };
       setGenerated((prev) => [newItem, ...prev]);
       setPreview(newItem);
-      saveToArchive({ name: data.name, type: "prompt", description: data.description, code: data.code, prompt: promptConfig.task });
+      saveToArchive({ name, type: "prompt", description, code, prompt: promptConfig.task });
       toast.success("Prompt generated & saved to archive!");
     } catch {
       toast.error("Failed to generate prompt.");
@@ -250,21 +276,28 @@ export default function GeneratorPage() {
         body: JSON.stringify({ type: "idea", prompt: configStr }),
       });
       if (!response.ok) throw new Error("Generation failed");
-      const data = await response.json();
+      const code = await readSSEContent(response);
+      if (!code.trim()) throw new Error("Empty response");
+      let name = "Original Idea";
+      let description = "A never-before-seen product concept";
+      try {
+        const jsonMatch = code.match(/\{[\s\S]*\}/);
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+        if (parsed?.name) name = parsed.name;
+        if (parsed?.tagline) description = parsed.tagline;
+      } catch { /* use defaults */ }
       const newItem: GeneratedItem = {
         id: Date.now().toString(),
-        name: data.name,
+        name,
         type: "idea",
-        description: data.description,
-        code: data.code,
+        description,
+        code,
         createdAt: new Date(),
         prompt: ideaConfig.domain || ideaConfig.category,
-        archivedId: data.archivedId,
-        shareUrl: data.shareUrl,
       };
       setGenerated((prev) => [newItem, ...prev]);
       setPreview(newItem);
-      saveToArchive({ name: data.name, type: "idea", description: data.description, code: data.code, prompt: ideaConfig.domain || ideaConfig.category });
+      saveToArchive({ name, type: "idea", description, code, prompt: ideaConfig.domain || ideaConfig.category });
       toast.success("New idea generated & saved to archive! 🚀");
     } catch {
       toast.error("Failed to generate idea.");
@@ -291,25 +324,17 @@ export default function GeneratorPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleDownload(item: GeneratedItem) {
-    try {
-      const response = await fetch("/api/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item, format: "zip" }),
-      });
-      if (!response.ok) throw new Error("Download failed");
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${item.name}-${item.type}.zip`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      toast.success("Downloaded!");
-    } catch {
-      toast.error("Download failed");
-    }
+  function handleDownload(item: GeneratedItem) {
+    const ext = item.type === "idea" ? "json" : "md";
+    const filename = `${item.name.toLowerCase().replace(/\s+/g, "-")}-${item.type}.${ext}`;
+    const blob = new Blob([item.code], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Downloaded!");
   }
 
   async function handleShare(item: GeneratedItem) {
