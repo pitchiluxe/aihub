@@ -280,6 +280,7 @@ Code requirements:
       });
       const data = await res.json();
       setAiResponse(data.content ?? "");
+      setAiPrompt("");
     } finally {
       setAiLoading(false);
     }
@@ -649,19 +650,26 @@ Code requirements:
                       )}
                     </ScrollArea>
                     <div className="p-3 border-t border-border">
-                      <div className="flex gap-2">
+                      <div className="relative">
                         <textarea
                           value={aiPrompt}
                           onChange={e => setAiPrompt(e.target.value)}
                           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askAI(); } }}
-                          placeholder="Ask about your code..."
+                          placeholder="Ask about your code…"
                           rows={2}
-                          className="flex-1 text-xs rounded-lg border border-input bg-background px-2.5 py-2 resize-none outline-none focus:ring-1 focus:ring-ring"
+                          className="w-full text-xs rounded-xl border border-input bg-muted/40 px-3 py-2.5 pr-12 resize-none outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                         />
-                        <Button size="icon" onClick={askAI} loading={aiLoading} className="h-full w-9 flex-shrink-0">
-                          {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                        </Button>
+                        <button
+                          onClick={askAI}
+                          disabled={!aiPrompt.trim() || aiLoading}
+                          className="absolute right-2 bottom-2 h-7 w-7 rounded-lg bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground flex items-center justify-center transition-all shadow-sm"
+                        >
+                          {aiLoading
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <Sparkles className="h-3.5 w-3.5" />}
+                        </button>
                       </div>
+                      <p className="text-[10px] text-muted-foreground mt-1.5 text-center">Enter to send · Shift+Enter for new line</p>
                     </div>
                   </div>
                 )}
