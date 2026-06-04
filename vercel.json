@@ -3,12 +3,30 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/daily-report",
+      "schedule": "0 0 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "s-maxage=300, stale-while-revalidate=60" }
       ]
+    },
+    {
+      "source": "/api/heartbeat",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    },
+    {
+      "source": "/api/online-count",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    },
+    {
+      "source": "/api/daily-report",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
   ]
 }
