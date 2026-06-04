@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/layout/TopBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import {
   Code, Play, Save, Trash2, Plus, Copy, Check, Download,
   BookOpen, Sparkles, Clock, FolderOpen, ChevronRight, Bot,
   Zap, Search, GitBranch, X, Loader2, Shuffle, Wand2, RefreshCw,
+  Share2, Eye, EyeOff, ArrowDownToLine,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -45,6 +46,65 @@ export default function PlaygroundPage() {
   const [aiPrompt, setAiPrompt]             = useState("");
   const [aiResponse, setAiResponse]         = useState("");
   const [aiLoading, setAiLoading]           = useState(false);
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [copiedProjectId, setCopiedProjectId]     = useState<string | null>(null);
+  const [importBanner, setImportBanner]           = useState<PlaygroundProject | null>(null);
+
+  // Auto-import from share URL (?import=base64)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get("import");
+    if (!encoded) return;
+    try {
+      const decoded = JSON.parse(atob(encoded)) as PlaygroundProject;
+      if (decoded?.name && decoded?.code) setImportBanner(decoded);
+    } catch { /**/ }
+    // Clean URL without reloading
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  function shareProject(project: PlaygroundProject) {
+    const payload = btoa(JSON.stringify({
+      name: project.name,
+      description: project.description,
+      type: project.type,
+      language: project.language,
+      code: project.code,
+      model: project.model,
+      tags: project.tags,
+    }));
+    const url = `${window.location.origin}/playground?import=${payload}`;
+    navigator.clipboard.writeText(url);
+    setCopiedProjectId(project.id);
+    toast.success("Share link copied — anyone with the link can import this project!");
+    setTimeout(() => setCopiedProjectId(null), 2500);
+  }
+
+  function exportProject(project: PlaygroundProject) {
+    const ext = project.language === "python" ? "py" : project.language === "typescript" ? "ts" : "js";
+    const blob = new Blob([project.code], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${project.name.replace(/\s+/g, "_").toLowerCase()}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast.success(`Exported as .${ext}`);
+  }
+
+  function importSharedProject(project: PlaygroundProject) {
+    saveProject({
+      name: project.name,
+      description: project.description,
+      type: project.type,
+      language: project.language,
+      code: project.code,
+      model: project.model,
+      tags: project.tags,
+    });
+    setImportBanner(null);
+    toast.success(`"${project.name}" imported to your projects!`);
+  }
 
   // ── AI Sample Generator ────────────────────────────────────────────────
   interface AISample {
@@ -289,6 +349,31 @@ Code requirements:
   return (
     <div className="flex flex-col h-screen">
       <TopBar title="Playground" description="Build AI apps, agents, and workflows — save and learn" />
+
+      {/* Import banner — shown when visiting a share link */}
+      <AnimatePresence>
+        {importBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="flex items-center gap-3 px-6 py-3 bg-primary/10 border-b border-primary/20 flex-shrink-0"
+          >
+            <ArrowDownToLine className="h-4 w-4 text-primary flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium">Shared project: </span>
+              <span className="text-sm text-muted-foreground truncate">{importBanner.name}</span>
+              <span className="text-xs text-muted-foreground ml-2">· {importBanner.language} · {importBanner.type}</span>
+            </div>
+            <Button size="sm" onClick={() => importSharedProject(importBanner)} className="gap-1.5 text-xs flex-shrink-0">
+              <Download className="h-3.5 w-3.5" /> Import to My Projects
+            </Button>
+            <button onClick={() => setImportBanner(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
+              <X className="h-4 w-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Tabs defaultValue={activeProject ? "editor" : "templates"} className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 border-b border-border bg-background flex-shrink-0">
@@ -708,35 +793,128 @@ Code requirements:
               <div className="space-y-3">
                 {projects.map((project) => {
                   const Icon = TYPE_ICONS[project.type];
+                  const isExpanded = expandedProjectId === project.id;
+                  const isCopied   = copiedProjectId === project.id;
+                  const ext = project.language === "python" ? "py" : project.language === "typescript" ? "ts" : "js";
                   return (
-                    <Card key={project.id} className={`group hover:shadow-md transition-all cursor-pointer overflow-hidden ${activeProjectId === project.id ? "ring-2 ring-primary" : ""}`}
-                      onClick={() => { setActiveProject(project.id); setEditingProject(null); }}>
+                    <Card
+                      key={project.id}
+                      className={`overflow-hidden transition-all ${activeProjectId === project.id ? "ring-2 ring-primary" : "hover:shadow-md"}`}
+                    >
                       <div className={`h-0.5 bg-gradient-to-r ${TYPE_COLORS[project.type]}`} />
                       <CardContent className="p-4">
+                        {/* Top row — info + actions */}
                         <div className="flex items-start gap-3">
                           <div className={`h-9 w-9 rounded-lg bg-gradient-to-br ${TYPE_COLORS[project.type]} flex items-center justify-center flex-shrink-0`}>
                             <Icon className="h-4 w-4 text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-semibold">{project.name}</p>
                               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${LANG_COLORS[project.language]}`}>{project.language}</span>
+                              {activeProjectId === project.id && (
+                                <Badge variant="secondary" className="text-xs gap-1">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />Active
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5 truncate">{project.description}</p>
-                            <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
                               <span>{new Date(project.updatedAt).toLocaleDateString()}</span>
                               <span>·</span>
                               <span>{project.code.split("\n").length} lines</span>
+                              <span>·</span>
+                              <span className="capitalize">{project.type}</span>
                             </div>
                           </div>
+                          {/* Delete */}
                           <button
-                            onClick={e => { e.stopPropagation(); deleteProject(project.id); toast.success("Project deleted"); }}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                            onClick={() => { deleteProject(project.id); toast.success("Project deleted"); }}
+                            className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all flex-shrink-0"
+                            title="Delete project"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
+
+                        {/* Action buttons */}
+                        <div className="flex gap-2 mt-3 flex-wrap">
+                          {/* Open in editor */}
+                          <Button
+                            size="sm"
+                            className="gap-1.5 text-xs"
+                            onClick={() => { setActiveProject(project.id); setEditingProject(null); }}
+                          >
+                            <Code className="h-3.5 w-3.5" />
+                            Open in Editor
+                          </Button>
+
+                          {/* Preview code toggle */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-xs"
+                            onClick={() => setExpandedProjectId(isExpanded ? null : project.id)}
+                          >
+                            {isExpanded ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            {isExpanded ? "Hide Code" : "Preview"}
+                          </Button>
+
+                          {/* Share */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-xs"
+                            onClick={() => shareProject(project)}
+                          >
+                            {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Share2 className="h-3.5 w-3.5" />}
+                            {isCopied ? "Copied!" : "Share"}
+                          </Button>
+
+                          {/* Export */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-xs"
+                            onClick={() => exportProject(project)}
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Export .{ext}
+                          </Button>
+                        </div>
+
+                        {/* Expandable code preview */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="mt-3 rounded-xl overflow-hidden border border-border">
+                                <div className="flex items-center justify-between px-3 py-2 bg-[#1e1e2e] border-b border-white/10">
+                                  <span className="text-[10px] text-gray-500 font-mono">
+                                    {project.name.toLowerCase().replace(/\s+/g, "_")}.{ext}
+                                  </span>
+                                  <button
+                                    className="text-[10px] text-gray-500 hover:text-gray-300 flex items-center gap-1 transition-colors"
+                                    onClick={async () => {
+                                      await navigator.clipboard.writeText(project.code);
+                                      toast.success("Code copied!");
+                                    }}
+                                  >
+                                    <Copy className="h-2.5 w-2.5" /> Copy all
+                                  </button>
+                                </div>
+                                <pre className="bg-[#1e1e2e] px-4 py-3 text-[11px] text-[#cdd6f4] font-mono overflow-x-auto max-h-64 overflow-y-auto leading-relaxed scrollbar-hide whitespace-pre">
+                                  {project.code}
+                                </pre>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </CardContent>
                     </Card>
                   );
