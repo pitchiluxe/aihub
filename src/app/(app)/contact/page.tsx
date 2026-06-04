@@ -106,11 +106,11 @@ export default function ContactPage() {
 
               <div className="space-y-4 text-sm">
                 <div className="flex items-start gap-3">
-                  <Mail className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+                  <Globe className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-0.5">Email</p>
-                    <a href="mailto:erickomari243@gmail.com" className="text-slate-300 hover:text-white transition-colors break-all">
-                      erickomari243@gmail.com
+                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-0.5">Website</p>
+                    <a href="https://www.technobiztrader.net" target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-white transition-colors break-all">
+                      www.technobiztrader.net
                     </a>
                   </div>
                 </div>
