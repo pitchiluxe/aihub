@@ -9,7 +9,7 @@ import {
   Globe, Code2, FileText, Terminal, Star, ArrowRight, Filter,
   Rocket, DollarSign, Users, Building, Heart, Hammer,
   ShoppingCart, Truck, BookOpen, Briefcase, Leaf,
-  Send, MessageSquare, ThumbsUp, Palette, Package, RefreshCw,
+  Send, MessageSquare, ThumbsUp, Palette, Package, RefreshCw, Lock,
 } from "lucide-react";
 import { IDEAS, CATEGORIES, CATEGORY_META, type Idea } from "./ideas-data";
 import type { GeneratedIdea } from "@/app/api/daily-ideas/route";
@@ -356,14 +356,79 @@ function CodeModal({ idea, onClose }: { idea: Idea; onClose: () => void }) {
 }
 
 // ─── Idea Card ─────────────────────────────────────────────────────────────
-function IdeaCard({ idea, index, onGetCode, onReview, rating }: {
+function IdeaCard({ idea, index, onGetCode, onReview, rating, locked }: {
   idea: Idea; index: number;
   onGetCode: (idea: Idea) => void;
   onReview: (idea: Idea) => void;
   rating?: IdeaRating;
+  locked?: boolean;
 }) {
   const CatIcon = CATEGORY_ICONS[idea.category] ?? Lightbulb;
   const meta = CATEGORY_META[idea.category];
+
+  if (locked) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: index * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="relative flex flex-col bg-[#0d1421] border border-white/5 rounded-2xl overflow-hidden"
+      >
+        {/* Top accent bar */}
+        <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${meta?.color ?? "#6366f1"}, transparent)` }} />
+
+        {/* Visible: category + title + emoji */}
+        <div className="p-5 pb-3">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 border border-white/5" style={{ background: `${meta?.color ?? "#6366f1"}18` }}>
+              {idea.emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 mb-1">
+                <CatIcon className="w-3 h-3 flex-shrink-0" style={{ color: meta?.color ?? "#6366f1" }} />
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: meta?.color ?? "#6366f1" }}>{idea.category}</span>
+              </div>
+              <h3 className="text-sm font-bold text-white leading-tight">{idea.title}</h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Blurred content preview */}
+        <div className="relative px-5 pb-5">
+          <div className="blur-sm select-none pointer-events-none space-y-3 opacity-50">
+            <p className="text-xs text-slate-400 italic">"{idea.tagline}"</p>
+            <div className="flex items-center gap-2">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-2.5 py-1 rounded-full">
+                {idea.revenuePotential}
+              </div>
+              <div className="text-[10px] px-2 py-0.5 rounded border border-white/10 text-slate-400">
+                {idea.difficulty}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="h-2 bg-white/10 rounded w-full" />
+              <div className="h-2 bg-white/8 rounded w-4/5" />
+              <div className="h-2 bg-white/6 rounded w-3/5" />
+            </div>
+            <div className="flex gap-1.5">
+              {idea.techStack.slice(0, 3).map((t) => (
+                <span key={t} className="text-[10px] bg-white/5 border border-white/8 text-slate-500 px-2 py-0.5 rounded-full font-mono">{t}</span>
+              ))}
+            </div>
+            <div className="h-8 bg-indigo-600/20 rounded-xl w-full" />
+          </div>
+
+          {/* Lock overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-[#0d1421] border border-white/10 flex items-center justify-center">
+              <Lock className="w-4 h-4 text-indigo-400" />
+            </div>
+            <span className="text-xs text-slate-400 font-medium">Unlock to reveal</span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -871,6 +936,92 @@ interface IdeaRating { avg: number; count: number }
 const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/3cIeVd8vG2AJ6eM3EQdMI04";
 const LS_ACCESS_KEY = "aihub_million_ideas_access";
 
+// ─── Inline Payment Gate (shows below hero banner) ─────────────────────────
+function InlinePaymentGate() {
+  const benefits = [
+    { icon: Sparkles, text: "25+ AI-generated fresh ideas every single day" },
+    { icon: Code2,    text: "Production-ready starter kits — download & deploy" },
+    { icon: Globe,    text: "AI Website Builder included" },
+    { icon: TrendingUp, text: "Revenue & difficulty analysis on every idea" },
+    { icon: Zap,      text: "Code templates across 20+ industries" },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="mb-10 rounded-3xl overflow-hidden border border-indigo-500/25"
+      style={{ background: "linear-gradient(135deg, #0f1730 0%, #1a0f35 50%, #0f2027 100%)" }}
+    >
+      {/* Top gradient bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500" />
+
+      <div className="p-8 md:p-10 flex flex-col md:flex-row gap-10 items-start">
+        {/* Left: headline + benefits */}
+        <div className="flex-1">
+          <div className="inline-flex items-center gap-2 bg-amber-500/15 border border-amber-500/25 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full mb-5">
+            <Lock className="w-3.5 h-3.5" />
+            Premium Access Required
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black text-white mb-3 leading-tight">
+            Unlock{" "}
+            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+              1M Ideas
+            </span>
+          </h2>
+          <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-md">
+            Get full access to hundreds of world-changing AI business ideas with production-ready code, revenue analysis, and fresh AI-generated picks every day.
+          </p>
+          <div className="space-y-3">
+            {benefits.map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-3 h-3 text-indigo-400" />
+                </div>
+                <span className="text-sm text-slate-300">{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: price card */}
+        <div className="w-full md:w-80 flex-shrink-0">
+          <div className="bg-white/4 border border-white/8 rounded-2xl p-6">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-5xl font-black text-white">$19.99</span>
+              <span className="text-slate-400 text-sm">/month</span>
+            </div>
+            <p className="text-xs text-slate-500 mb-6">Cancel anytime · Instant access after payment</p>
+
+            <a
+              href={STRIPE_PAYMENT_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-4 px-6 rounded-2xl transition-all hover:shadow-xl hover:shadow-indigo-500/25 text-sm mb-3"
+            >
+              <Zap className="w-4 h-4" />
+              Get Access — $19.99/month
+              <ArrowRight className="w-4 h-4" />
+            </a>
+
+            <button
+              onClick={() => { window.location.href = "/million-ideas/success"; }}
+              className="w-full text-center text-xs text-slate-500 hover:text-indigo-400 transition-colors py-2"
+            >
+              Already paid? Click here to activate access
+            </button>
+
+            <p className="text-center text-[10px] text-slate-600 mt-2">
+              Powered by Stripe · 256-bit SSL
+            </p>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // Attempt to read the device's local IP via WebRTC (detects iPhone hotspot 172.20.10.x)
 function getLocalIPViaWebRTC(): Promise<string | null> {
   return new Promise((resolve) => {
@@ -1201,7 +1352,6 @@ export default function MillionIdeasPage() {
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto"
-        style={locked ? { filter: "blur(10px)", pointerEvents: "none", userSelect: "none" } : undefined}
       >
         <div className="px-4 md:px-8 py-8 max-w-7xl mx-auto">
 
@@ -1258,6 +1408,9 @@ export default function MillionIdeasPage() {
             </div>
           </motion.div>
 
+          {/* ── Inline Payment Gate ───────────────────────────────── */}
+          {locked && !checkingAccess && <InlinePaymentGate />}
+
           {/* ── AI-Generated Today's Picks ───────────────────────── */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
@@ -1298,7 +1451,7 @@ export default function MillionIdeasPage() {
             ) : aiIdeas.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {aiIdeas.map((idea, i) => (
-                  <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} onReview={setReviewTarget} rating={ratings[idea.id]} />
+                  <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} onReview={setReviewTarget} rating={ratings[idea.id]} locked={locked} />
                 ))}
               </div>
             ) : (
@@ -1394,7 +1547,7 @@ export default function MillionIdeasPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map((idea, i) => (
-                <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} onReview={setReviewTarget} rating={ratings[idea.id]} />
+                <IdeaCard key={idea.id} idea={idea} index={i} onGetCode={setSelectedIdea} onReview={setReviewTarget} rating={ratings[idea.id]} locked={locked} />
               ))}
             </div>
           )}
@@ -1442,13 +1595,6 @@ export default function MillionIdeasPage() {
               Verifying access…
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Payment Gate ──────────────────────────────────────────── */}
-      <AnimatePresence>
-        {locked && !checkingAccess && (
-          <PaymentGateModal onGoBack={() => window.history.back()} />
         )}
       </AnimatePresence>
 
