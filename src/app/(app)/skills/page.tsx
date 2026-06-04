@@ -4848,10 +4848,10 @@ export default function SkillsPage() {
                 </span>
                 <span className="text-[11px] text-gray-600">{liveLoading ? "fetching…" : `${liveSkills.length} repos`}</span>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {liveLoading
                   ? Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="flex-shrink-0 w-52 h-24 rounded-xl bg-white/5 animate-pulse" />
+                      <div key={i} className="h-24 rounded-xl bg-white/5 animate-pulse" />
                     ))
                   : liveSkills.slice(0, 20).map((s) => (
                       <a
@@ -4859,7 +4859,7 @@ export default function SkillsPage() {
                         href={s.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-shrink-0 w-52 bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-xl p-3 transition-all group"
+                        className="bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/15 rounded-xl p-3 transition-all group"
                       >
                         <div className="flex items-center gap-2 mb-2">
                           <img src={s.avatarUrl} alt={s.owner} className="w-5 h-5 rounded-full" />
@@ -4887,7 +4887,7 @@ export default function SkillsPage() {
                 "grid gap-3",
                 selectedSkill
                   ? "grid-cols-1 md:grid-cols-2"
-                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6"
               )}
             >
               <AnimatePresence mode="popLayout">
