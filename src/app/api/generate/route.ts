@@ -137,7 +137,6 @@ Make it truly original. Think deeply before responding.`;
           { role: "user", content: userMessage },
         ],
         1500,
-        "openai/gpt-oss-20b:free",
       );
     } catch (error) {
       console.error(`[Generate] Model error: ${error}`);

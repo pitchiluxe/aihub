@@ -75,7 +75,7 @@ export async function callModel(
   modelOverride?: string,
   temperature = 0.7,
 ): Promise<string> {
-  const models = [primaryModel(modelOverride), ...FALLBACK_MODELS];
+  const models = [...new Set([primaryModel(modelOverride), ...FALLBACK_MODELS])];
   const url = `${baseUrl()}/chat/completions`;
   let lastError: Error = new Error("No models tried");
 
