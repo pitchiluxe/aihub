@@ -12,7 +12,7 @@ import { usePlaygroundStore, TEMPLATES, PlaygroundProject, ProjectType, ProjectL
 import {
   Code, Play, Save, Trash2, Plus, Copy, Check, Download,
   BookOpen, Sparkles, Clock, FolderOpen, ChevronRight, Bot,
-  Zap, Search, GitBranch, X, Loader2,
+  Zap, Search, GitBranch, X, Loader2, Shuffle, Wand2, RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -45,6 +45,131 @@ export default function PlaygroundPage() {
   const [aiPrompt, setAiPrompt]             = useState("");
   const [aiResponse, setAiResponse]         = useState("");
   const [aiLoading, setAiLoading]           = useState(false);
+
+  // ── AI Sample Generator ────────────────────────────────────────────────
+  interface AISample {
+    id: string;
+    name: string;
+    description: string;
+    type: ProjectType;
+    language: ProjectLanguage;
+    tags: string[];
+    code: string;
+    topic: string;
+  }
+  const [aiSamples, setAiSamples]           = useState<AISample[]>([]);
+  const [generatingSample, setGeneratingSample] = useState(false);
+  const [sampleConfig, setSampleConfig]     = useState<{ type: ProjectType; language: ProjectLanguage; topic: string }>({
+    type: "chatbot", language: "typescript", topic: "",
+  });
+
+  const RANDOM_TOPICS: { topic: string; type: ProjectType; language: ProjectLanguage }[] = [
+    { topic: "Sentiment analysis API that classifies customer reviews", type: "api", language: "typescript" },
+    { topic: "GitHub PR code reviewer that gives detailed feedback", type: "agent", language: "typescript" },
+    { topic: "PDF summarizer that extracts key takeaways", type: "rag", language: "python" },
+    { topic: "Email classifier and auto-responder", type: "workflow", language: "python" },
+    { topic: "SQL query generator from natural language", type: "chatbot", language: "python" },
+    { topic: "Meeting transcript summarizer with action items", type: "workflow", language: "typescript" },
+    { topic: "Multi-turn customer support chatbot with memory", type: "chatbot", language: "typescript" },
+    { topic: "Web scraper with AI content extraction", type: "agent", language: "python" },
+    { topic: "Resume screener and ranking system", type: "workflow", language: "python" },
+    { topic: "Real-time news summarizer with category tags", type: "api", language: "typescript" },
+    { topic: "Code documentation generator from source files", type: "agent", language: "python" },
+    { topic: "Competitor analysis tool using web search", type: "agent", language: "typescript" },
+    { topic: "AI flashcard generator from study notes", type: "custom", language: "typescript" },
+    { topic: "Streaming chatbot with tool use and citations", type: "chatbot", language: "typescript" },
+    { topic: "Document comparison and diff highlighter", type: "rag", language: "python" },
+    { topic: "Social media post generator with brand voice", type: "workflow", language: "javascript" },
+    { topic: "Bug report analyzer and fix suggester", type: "agent", language: "typescript" },
+    { topic: "Product description generator from specs", type: "api", language: "python" },
+  ];
+
+  async function generateSample(randomize = false) {
+    setGeneratingSample(true);
+    const cfg = randomize
+      ? RANDOM_TOPICS[Math.floor(Math.random() * RANDOM_TOPICS.length)]
+      : sampleConfig;
+    const topic = randomize ? cfg.topic : (sampleConfig.topic.trim() || `A ${sampleConfig.type} using AI`);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b:free",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert AI developer. Generate a complete, production-quality ${cfg.language} code sample for the given topic.
+
+Return ONLY valid JSON with this exact shape (no markdown fences, no extra text):
+{
+  "name": "Short descriptive project name (3-5 words)",
+  "description": "One sentence describing what it does and why it's useful",
+  "tags": ["tag1", "tag2", "tag3"],
+  "code": "// full working code here as a single string with \\n for newlines"
+}
+
+Code requirements:
+- Complete and runnable — not pseudocode or stubs
+- Well-commented, explaining WHY not just WHAT
+- Uses OpenRouter API at https://openrouter.ai/api/v1 with model openai/gpt-oss-20b:free
+- Includes realistic example usage at the bottom
+- Production patterns: error handling, types, clean structure
+- Between 80-200 lines of real code
+- Makes the AI integration genuinely useful for the described task`,
+            },
+            {
+              role: "user",
+              content: `Generate a ${cfg.language} ${cfg.type} sample for: ${topic}`,
+            },
+          ],
+        }),
+      });
+      const data = await res.json();
+      let parsed: { name?: string; description?: string; tags?: string[]; code?: string } = {};
+      try {
+        const match = (data.content ?? "").match(/\{[\s\S]*\}/);
+        if (match) parsed = JSON.parse(match[0]);
+      } catch { /**/ }
+
+      if (!parsed.code) throw new Error("No code generated");
+
+      const sample: AISample = {
+        id: `ai-${Date.now()}`,
+        name: parsed.name ?? topic.slice(0, 40),
+        description: parsed.description ?? `AI-generated ${cfg.type} in ${cfg.language}`,
+        type: cfg.type,
+        language: cfg.language,
+        tags: parsed.tags ?? [cfg.type, cfg.language],
+        code: parsed.code,
+        topic,
+      };
+      setAiSamples(prev => [sample, ...prev].slice(0, 6));
+      if (randomize) setSampleConfig({ type: cfg.type, language: cfg.language, topic: cfg.topic });
+      toast.success(`Generated: ${sample.name}`);
+    } catch {
+      toast.error("Generation failed — try again");
+    } finally {
+      setGeneratingSample(false);
+    }
+  }
+
+  function loadAiSample(sample: AISample) {
+    setEditingProject({
+      id: `draft-${Date.now()}`,
+      name: sample.name,
+      description: sample.description,
+      type: sample.type,
+      language: sample.language,
+      code: sample.code,
+      model: "openai/gpt-oss-20b:free",
+      tags: sample.tags,
+      isTemplate: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    toast.success(`"${sample.name}" loaded in editor — save to keep it`);
+  }
 
   const activeProject = editingProject ?? (activeProjectId ? getProject(activeProjectId) : null);
 
@@ -192,6 +317,169 @@ export default function PlaygroundPage() {
         {/* ── Templates ── */}
         <TabsContent value="templates" className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto">
+
+            {/* ── AI Sample Generator ── */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-1">
+                <Wand2 className="h-4 w-4 text-primary" />
+                <h2 className="text-base font-semibold">AI Sample Generator</h2>
+                <Badge variant="secondary" className="text-xs">Powered by AI</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">Describe what you want to build — the AI writes a complete, production-ready code sample instantly.</p>
+
+              {/* Config */}
+              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Type</label>
+                    <select
+                      value={sampleConfig.type}
+                      onChange={e => setSampleConfig(s => ({ ...s, type: e.target.value as ProjectType }))}
+                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      {(["chatbot","agent","rag","workflow","api","custom"] as ProjectType[]).map(t => (
+                        <option key={t} value={t} className="capitalize">{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Language</label>
+                    <select
+                      value={sampleConfig.language}
+                      onChange={e => setSampleConfig(s => ({ ...s, language: e.target.value as ProjectLanguage }))}
+                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      {(["typescript","python","javascript"] as ProjectLanguage[]).map(l => (
+                        <option key={l} value={l}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-1 col-span-2">
+                    <label className="text-xs font-medium text-muted-foreground">Topic / Idea</label>
+                    <input
+                      value={sampleConfig.topic}
+                      onChange={e => setSampleConfig(s => ({ ...s, topic: e.target.value }))}
+                      placeholder="e.g. PDF summarizer with citations"
+                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      onKeyDown={e => { if (e.key === "Enter") generateSample(false); }}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    onClick={() => generateSample(false)}
+                    disabled={generatingSample}
+                    className="gap-2 flex-1 sm:flex-none"
+                    size="sm"
+                  >
+                    {generatingSample ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                    Generate Sample
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => generateSample(true)}
+                    disabled={generatingSample}
+                    className="gap-2"
+                    size="sm"
+                  >
+                    <Shuffle className="h-3.5 w-3.5" />
+                    Surprise Me
+                  </Button>
+                  {aiSamples.length > 0 && (
+                    <Button variant="ghost" size="sm" className="gap-2 ml-auto text-xs text-muted-foreground" onClick={() => setAiSamples([])}>
+                      <X className="h-3.5 w-3.5" /> Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Generated samples */}
+              <AnimatePresence>
+                {generatingSample && aiSamples.length === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mt-3 rounded-xl border border-border bg-muted/10 p-6 text-center"
+                  >
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Writing your code sample…</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {aiSamples.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Generated Samples</p>
+                    <span className="text-xs text-muted-foreground">{aiSamples.length} / 6</span>
+                  </div>
+                  {aiSamples.map((sample, idx) => {
+                    const Icon = TYPE_ICONS[sample.type];
+                    return (
+                      <motion.div
+                        key={sample.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx === 0 ? 0 : 0 }}
+                      >
+                        <Card className="overflow-hidden">
+                          <div className={`h-0.5 bg-gradient-to-r ${TYPE_COLORS[sample.type]}`} />
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-start gap-3">
+                              <div className={`h-9 w-9 rounded-lg bg-gradient-to-br ${TYPE_COLORS[sample.type]} flex items-center justify-center flex-shrink-0`}>
+                                <Icon className="h-4 w-4 text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-semibold">{sample.name}</p>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${LANG_COLORS[sample.language]}`}>{sample.language}</span>
+                                  <Badge variant="secondary" className="text-xs gap-1"><Sparkles className="h-2.5 w-2.5" />AI Generated</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">{sample.description}</p>
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {sample.tags.map(t => <Badge key={t} variant="outline" className="text-xs">{t}</Badge>)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Code preview */}
+                            <div className="rounded-lg bg-[#1e1e2e] overflow-hidden">
+                              <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/10">
+                                <span className="text-[10px] text-gray-500 font-mono">{sample.name.toLowerCase().replace(/\s+/g, "_")}.{sample.language === "python" ? "py" : sample.language === "typescript" ? "ts" : "js"}</span>
+                                <span className="text-[10px] text-gray-600">{sample.code.split("\n").length} lines</span>
+                              </div>
+                              <pre className="px-3 py-2 text-[11px] text-[#cdd6f4] font-mono overflow-x-auto max-h-32 leading-relaxed scrollbar-hide">
+                                {sample.code.split("\n").slice(0, 12).join("\n")}
+                                {sample.code.split("\n").length > 12 && "\n// …"}
+                              </pre>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => loadAiSample(sample)} className="gap-2 text-xs flex-1">
+                                <Code className="h-3.5 w-3.5" /> Open in Editor
+                              </Button>
+                              <Button size="sm" variant="outline" className="gap-2 text-xs" onClick={async () => {
+                                await navigator.clipboard.writeText(sample.code);
+                                toast.success("Code copied!");
+                              }}>
+                                <Copy className="h-3.5 w-3.5" /> Copy
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => setAiSamples(prev => prev.filter(s => s.id !== sample.id))}>
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-border mb-6" />
+
             <div className="mb-6">
               <h2 className="text-base font-semibold mb-1">Starter Templates</h2>
               <p className="text-sm text-muted-foreground">Click a template to load it in the editor, customize it, and save your project.</p>
