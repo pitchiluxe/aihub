@@ -31,6 +31,6 @@ export const FREE_MODELS = [
   { id: "qwen/qwen3-next-80b-a3b-instruct:free", label: "Qwen3 80B (Free)",   category: "Qwen" },
 ] as const;
 
-export const DEFAULT_MODEL = "openai/gpt-oss-120b:free";
+export const DEFAULT_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 export type FreeModel = (typeof FREE_MODELS)[number];

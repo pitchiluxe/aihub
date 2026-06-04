@@ -33,8 +33,7 @@ const BATCH_GROUPS: Record<number, string[]> = {
   4: ["Education", "E-commerce", "Logistics", "Real Estate", "Automation"],
 };
 
-// Confirmed available on OpenRouter June 2026
-const IDEAS_MODEL = "openai/gpt-oss-120b:free";
+const IDEAS_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 function systemPrompt(batch: number, date: string): string {
   const industries = BATCH_GROUPS[batch]?.join(", ") ?? "any industry";

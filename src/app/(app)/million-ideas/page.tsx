@@ -1009,6 +1009,7 @@ export default function MillionIdeasPage() {
   const [ratings, setRatings] = useState<Record<string, IdeaRating>>({});
   const [reviewTarget, setReviewTarget] = useState<Idea | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [countdown, setCountdown] = useState("");
   const [locked, setLocked] = useState(true);
@@ -1099,6 +1100,7 @@ export default function MillionIdeasPage() {
     }
 
     setAiLoading(true);
+    setAiError(null);
     setAiIdeas([]);
     const allIdeas: GeneratedIdea[] = [];
     let cancelled = false;
@@ -1107,13 +1109,20 @@ export default function MillionIdeasPage() {
       try {
         const r = await fetch(`/api/daily-ideas?date=${today}&batch=${batch}`);
         if (cancelled) return;
-        const { ideas }: { ideas: GeneratedIdea[] } = await r.json();
-        if (!cancelled && Array.isArray(ideas) && ideas.length > 0) {
-          allIdeas.push(...ideas);
+        const data: { ideas: GeneratedIdea[]; error?: string } = await r.json();
+        if (data.error) {
+          console.error(`[daily-ideas] batch ${batch} API error:`, data.error);
+          if (!cancelled) setAiError(data.error);
+        }
+        if (!cancelled && Array.isArray(data.ideas) && data.ideas.length > 0) {
+          allIdeas.push(...data.ideas);
           setAiIdeas([...allIdeas].map(toIdea));
         }
       } catch (err) {
-        if (!cancelled) console.error(`[daily-ideas] batch ${batch} failed:`, err);
+        if (!cancelled) {
+          console.error(`[daily-ideas] batch ${batch} failed:`, err);
+          setAiError(String(err));
+        }
       }
     }
 
@@ -1286,7 +1295,12 @@ export default function MillionIdeasPage() {
               </div>
             ) : (
               <div className="text-center py-10 bg-white/2 border border-white/5 rounded-2xl flex flex-col items-center gap-3">
-                <p className="text-slate-400 text-sm">AI idea generation failed — the model may be temporarily unavailable.</p>
+                <p className="text-slate-400 text-sm">AI idea generation failed — retrying with fallback models.</p>
+                {aiError && (
+                  <p className="text-slate-600 text-xs max-w-xl font-mono bg-black/30 px-3 py-2 rounded-lg">
+                    {aiError.slice(0, 200)}
+                  </p>
+                )}
                 <p className="text-slate-600 text-xs">Showing today&apos;s curated set below.</p>
                 <button
                   onClick={() => setRetryKey((k) => k + 1)}

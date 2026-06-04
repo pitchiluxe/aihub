@@ -33,15 +33,17 @@ function primaryModel(override?: string): string {
   );
 }
 
-// Fallback chain — verified responding on OpenRouter as of June 2026.
-// openai/gpt-oss-* confirmed OK; others are fallbacks when rate limits ease.
+// Fallback chain — ordered by reliability. Llama 3.3 70B is the most stable
+// free model on OpenRouter for structured JSON output.
 const FALLBACK_MODELS = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "deepseek/deepseek-r1:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "qwen/qwen-2.5-72b-instruct:free",
+  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.1-8b-instruct:free",
   "openai/gpt-oss-120b:free",
   "openai/gpt-oss-20b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "google/gemma-4-31b-it:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
 ];
 
 // Strip non-ASCII chars from header values — HTTP headers only allow bytes 0-255.
