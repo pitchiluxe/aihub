@@ -4,7 +4,7 @@ import { callModel } from "@/lib/ai/client";
 export const runtime = "edge";
 export const maxDuration = 30;
 
-const SKILL_GENERATION_PROMPT = `You are an expert at creating AI skills for the AIHub platform. 
+const SKILL_GENERATION_PROMPT = `You are an expert at creating AI skills for the AIHub platform.
 Generate a complete SKILL.md file based on the user's request.
 
 The skill should include:
@@ -80,15 +80,96 @@ Rules:
 - Optimize for the requested tone and format
 - Use markdown formatting within the prompt where it improves clarity`;
 
+const MODELS = [
+  "openai/gpt-oss-120b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
+  "moonshotai/kimi-k2.6:free",
+  "qwen/qwen3-coder:free",
+];
+
+function buildHeaders(): Record<string, string> {
+  const key = (process.env.ANTHROPIC_AUTH_TOKEN || process.env.OPENROUTER_API_KEY || "").replace(/[^\x00-\x7F]/g, "");
+  const referer = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${key}`,
+    "HTTP-Referer": referer,
+    "X-Title": "AIHub",
+  };
+}
+
+// Skill/agent: stream SSE directly from OpenRouter to client so Vercel never times out
+async function handleStreaming(
+  systemPrompt: string,
+  userMessage: string,
+  type: string,
+): Promise<Response> {
+  for (const model of MODELS) {
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: buildHeaders(),
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          max_tokens: 900,
+          stream: true,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!res.ok || !res.body) continue;
+
+      // Peek at first chunk to detect error JSON vs SSE data
+      const reader = res.body.getReader();
+      const { done, value: firstChunk } = await reader.read();
+      if (done || !firstChunk) continue;
+
+      const firstText = new TextDecoder().decode(firstChunk);
+      // OpenRouter error responses are plain JSON objects, not SSE lines
+      if (firstText.trimStart().startsWith("{")) continue;
+
+      // Good: pipe entire stream to client
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(firstChunk);
+          function pump(): Promise<void> {
+            return reader.read().then(({ done, value }) => {
+              if (done) { controller.close(); return; }
+              controller.enqueue(value);
+              return pump();
+            });
+          }
+          pump().catch(() => controller.close());
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "X-Generate-Type": type,
+        },
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  return NextResponse.json({ error: "All models failed or unavailable" }, { status: 503 });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { type, prompt } = await req.json();
 
     if (!prompt || !type) {
-      return NextResponse.json(
-        { error: "Missing required fields: type and prompt" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields: type and prompt" }, { status: 400 });
     }
 
     let systemPrompt: string;
@@ -97,9 +178,6 @@ export async function POST(req: NextRequest) {
     else if (type === "idea") systemPrompt = IDEA_GENERATION_PROMPT;
     else systemPrompt = AGENT_GENERATION_PROMPT;
 
-    console.log(`[Generate] Creating ${type} from prompt: "${prompt.substring(0, 100)}..."`);
-
-    // Build user message
     let userMessage: string;
     if (type === "prompt") {
       try {
@@ -129,7 +207,12 @@ Make it truly original. Think deeply before responding.`;
       userMessage = `Please generate a ${type} based on this request: ${prompt}`;
     }
 
-    // Call model — isolated catch so archive never masks this error
+    // Skill/agent use streaming — avoids Vercel timeout on long model responses
+    if (type === "skill" || type === "agent") {
+      return handleStreaming(systemPrompt, userMessage, type);
+    }
+
+    // Prompt/idea use non-streaming JSON response (faster, shorter output)
     let content: string;
     try {
       content = await callModel(
@@ -141,13 +224,9 @@ Make it truly original. Think deeply before responding.`;
       );
     } catch (error) {
       console.error(`[Generate] Model error: ${error}`);
-      return NextResponse.json(
-        { error: `Failed to generate ${type}. Please try again in a moment.` },
-        { status: 503 }
-      );
+      return NextResponse.json({ error: `Failed to generate ${type}. Please try again.` }, { status: 503 });
     }
 
-    // Parse name + description from content
     let name: string;
     let description: string;
     if (type === "prompt") {
@@ -158,7 +237,7 @@ Make it truly original. Think deeply before responding.`;
         name = "Generated Prompt";
       }
       description = "AI-optimized prompt ready for immediate use";
-    } else if (type === "idea") {
+    } else {
       try {
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
@@ -168,43 +247,20 @@ Make it truly original. Think deeply before responding.`;
         name = "Generated Idea";
         description = "A never-before-seen product concept";
       }
-    } else {
-      const lines = content.split("\n");
-      name = lines[0].replace(/^#+\s*/, "").trim() || `Generated ${type}`;
-      description = lines.slice(1, 3).join(" ").slice(0, 200);
     }
 
-    console.log(`[Generate] Success: ${name}`);
-
-    // Archive independently — never block or fail the response
-    let archiveData: { id: string; shareUrl: string } | null = null;
+    // Archive fire-and-forget
     try {
-      const archiveRes = await fetch(new URL("/api/archive", req.url).toString(), {
+      await fetch(new URL("/api/archive", req.url).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description, code: content, type }),
       });
-      if (archiveRes.ok) {
-        archiveData = await archiveRes.json();
-        console.log(`[Generate] Auto-archived as: ${archiveData!.id}`);
-      }
-    } catch {
-      console.warn("[Generate] Auto-archive failed, generation succeeded");
-    }
+    } catch { /* non-critical */ }
 
-    return NextResponse.json({
-      name,
-      description,
-      code: content,
-      type,
-      archivedId: archiveData?.id,
-      shareUrl: archiveData?.shareUrl,
-    });
+    return NextResponse.json({ name, description, code: content, type });
   } catch (error) {
     console.error("[Generate] Unexpected error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

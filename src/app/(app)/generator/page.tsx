@@ -149,22 +149,50 @@ export default function GeneratorPage() {
         body: JSON.stringify({ type: activeTab, prompt }),
       });
       if (!response.ok) throw new Error("Generation failed");
-      const data = await response.json();
+      if (!response.body) throw new Error("No response body");
+
+      // Parse SSE stream — server pipes OpenRouter chunks directly to avoid Vercel timeout
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (!raw || raw === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(raw);
+            fullContent += parsed.choices?.[0]?.delta?.content ?? "";
+          } catch { /* partial chunk, skip */ }
+        }
+      }
+
+      if (!fullContent.trim()) throw new Error("Empty response from model");
+
+      const contentLines = fullContent.split("\n");
+      const name = contentLines[0].replace(/^#+\s*/, "").trim() || `Generated ${activeTab}`;
+      const description = contentLines.slice(1, 3).join(" ").replace(/\s+/g, " ").slice(0, 200);
+
       const newItem: GeneratedItem = {
         id: Date.now().toString(),
-        name: data.name,
+        name,
         type: activeTab,
-        description: data.description,
-        code: data.code,
+        description,
+        code: fullContent,
         createdAt: new Date(),
         prompt,
-        archivedId: data.archivedId,
-        shareUrl: data.shareUrl,
       };
       setGenerated((prev) => [newItem, ...prev]);
       setPreview(newItem);
       setPrompt("");
-      saveToArchive({ name: data.name, type: activeTab as "skill" | "agent", description: data.description, code: data.code, prompt });
+      saveToArchive({ name, type: activeTab as "skill" | "agent", description, code: fullContent, prompt });
       toast.success(`${activeTab === "skill" ? "Skill" : "Agent"} generated & saved to archive!`, { duration: 3000 });
     } catch {
       toast.error("Failed to generate. Please try again.");
