@@ -65,9 +65,6 @@ interface OAMessage {
   content: string;
 }
 
-async function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
 
 export async function callModel(
   messages: OAMessage[],
@@ -80,54 +77,39 @@ export async function callModel(
   let lastError: Error = new Error("No models tried");
 
   for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: headers(),
-          body: JSON.stringify({
-            model,
-            messages,
-            max_tokens: maxTokens,
-            include_reasoning: false,
-            temperature,
-          }),
-        });
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: maxTokens,
+          include_reasoning: false,
+          temperature,
+        }),
+      });
 
-        // Rate-limited: wait briefly then retry once before moving to next model
-        if (res.status === 429) {
-          if (attempt === 0) {
-            console.warn(`[AI] Rate limited on ${model}, retrying in 3s...`);
-            await sleep(3000);
-            continue;
-          }
-          throw new Error(`429 rate-limited on ${model}`);
-        }
-
-        if (!res.ok) {
-          const txt = await res.text().catch(() => `HTTP ${res.status}`);
-          throw new Error(`${model} → ${res.status}: ${txt.slice(0, 200)}`);
-        }
-
-        const data = await res.json();
-
-        if (data.error) {
-          throw new Error(`${model} error: ${data.error.message}`);
-        }
-
-        const content: string = data.choices?.[0]?.message?.content ?? "";
-        if (!content) throw new Error(`${model} returned empty content`);
-
-        console.log(`[AI] Success with model: ${model.split('/')[0]}`);
-        return content;
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        // Only retry the 429 path; for other errors move straight to next model
-        if (!lastError.message.includes("429")) break;
+      if (!res.ok) {
+        const txt = await res.text().catch(() => `HTTP ${res.status}`);
+        throw new Error(`${model} → ${res.status}: ${txt.slice(0, 200)}`);
       }
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(`${model} error: ${data.error.message || data.error.code}`);
+      }
+
+      const content: string = data.choices?.[0]?.message?.content ?? "";
+      if (!content) throw new Error(`${model} returned empty content`);
+
+      console.log(`[AI] Success with model: ${model.split('/')[0]}`);
+      return content;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[AI] Model ${model} failed: ${lastError.message} — trying next`);
     }
-    // Log the failure and try the next model in the waterfall
-    console.warn(`[AI] Model ${model} failed: ${lastError.message} — trying next`);
   }
 
   throw new Error(`All models failed. Last error: ${lastError.message}`);

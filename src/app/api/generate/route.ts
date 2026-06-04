@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callModel } from "@/lib/ai/client";
 
-export const maxDuration = 60;
+export const runtime = "edge";
+export const maxDuration = 30;
 
 const SKILL_GENERATION_PROMPT = `You are an expert at creating AI skills for the AIHub platform. 
 Generate a complete SKILL.md file based on the user's request.
@@ -136,7 +137,7 @@ Make it truly original. Think deeply before responding.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
-        1500,
+        900,
       );
     } catch (error) {
       console.error(`[Generate] Model error: ${error}`);
