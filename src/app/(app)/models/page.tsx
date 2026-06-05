@@ -13,7 +13,7 @@ import {
   Search, Brain, ExternalLink, Cpu, Sparkles, Flame,
   ChevronDown, ChevronUp, Copy, Check, X,
   Download, BookOpen, Clock, TrendingUp, RefreshCw, Code,
-  LayoutGrid, Table2,
+  LayoutGrid, Table2, Star, Heart,
 } from "lucide-react";
 
 type SortKey = "newest" | "name" | "context" | "provider";
@@ -33,8 +33,10 @@ function timeAgo(iso: string): string {
 export default function ModelsPage() {
   const [models, setModels] = useState<AIModel[]>([]);
   const [recentModels, setRecentModels] = useState<AIModel[]>([]);
+  const [hfTrending, setHfTrending] = useState<AIModel[]>([]);
   const [dynamicProviders, setDynamicProviders] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "openrouter" | "huggingface" | "ollama">("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -49,8 +51,15 @@ export default function ModelsPage() {
     try {
       const res = await fetch("/api/models?source=all", { cache: "no-store" });
       const data = await res.json();
-      setModels(data.models ?? []);
+      const allModels: AIModel[] = data.models ?? [];
+      setModels(allModels);
       setRecentModels(data.recentModels ?? []);
+      setHfTrending(
+        allModels
+          .filter((m: AIModel) => m.source === "huggingface")
+          .sort((a: AIModel, b: AIModel) => (b.hfDownloads ?? 0) - (a.hfDownloads ?? 0))
+          .slice(0, 24)
+      );
       const counts: Record<string, number> = {};
       for (const m of (data.models ?? []) as AIModel[]) {
         counts[m.provider] = (counts[m.provider] ?? 0) + 1;
@@ -70,6 +79,7 @@ export default function ModelsPage() {
   const filtered = useMemo(() => {
     let result = [...models];
     if (freeOnly) result = result.filter((m) => m.isFree);
+    if (sourceFilter !== "all") result = result.filter((m) => m.source === sourceFilter);
     if (selectedProvider !== "all") {
       result = result.filter((m) => m.provider.toLowerCase().includes(selectedProvider));
     }
@@ -153,6 +163,18 @@ export default function ModelsPage() {
                 <Button variant={freeOnly ? "default" : "outline"} size="sm" onClick={() => setFreeOnly(!freeOnly)} className="gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" /> Free Only
                 </Button>
+                {/* Source filter */}
+                <div className="flex border border-border rounded-lg overflow-hidden text-xs">
+                  {(["all","openrouter","huggingface","ollama"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSourceFilter(s)}
+                      className={`px-2.5 py-1.5 capitalize transition-colors ${sourceFilter === s ? "bg-primary text-primary-foreground" : "hover:bg-accent text-muted-foreground"}`}
+                    >
+                      {s === "all" ? "All" : s === "openrouter" ? "OpenRouter" : s === "huggingface" ? "🤗 HF" : "Ollama"}
+                    </button>
+                  ))}
+                </div>
                 <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
@@ -252,6 +274,46 @@ export default function ModelsPage() {
                           )}
                         </button>
                       ))}
+                </div>
+              </div>
+            )}
+
+            {/* HuggingFace Trending */}
+            {!loading && hfTrending.length > 0 && !search && sourceFilter !== "openrouter" && sourceFilter !== "ollama" && (
+              <div className="px-4 md:px-6 pt-4 pb-4 border-b border-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
+                    🤗 HUGGINGFACE TRENDING
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">Most downloaded free open-source models</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {hfTrending.slice(0, 12).map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedModel(m)}
+                      className="text-left bg-gradient-to-br from-amber-500/8 to-orange-500/8 border border-amber-500/20 rounded-xl p-3 hover:border-amber-500/40 transition-all hover:-translate-y-0.5"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">🤗 HF</span>
+                        <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">FREE</span>
+                      </div>
+                      <p className="text-xs font-semibold line-clamp-2 leading-tight">{m.name}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1 capitalize">{m.provider.split("/")[0]}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {m.hfDownloads && m.hfDownloads > 0 && (
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <Download className="h-2.5 w-2.5" />{formatNumber(m.hfDownloads)}
+                          </p>
+                        )}
+                        {m.hfLikes && m.hfLikes > 0 && (
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <Heart className="h-2.5 w-2.5" />{formatNumber(m.hfLikes)}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -469,8 +531,17 @@ function ModelGridCard({ model, onClick }: { model: AIModel; onClick?: () => voi
               )}
               {model.source === "huggingface" && <Badge variant="secondary" className="text-xs">HF</Badge>}
             </div>
-            {model.hfDownloads && model.hfDownloads > 1000 && (
-              <p className="text-[10px] text-muted-foreground">↓ {formatNumber(model.hfDownloads)} downloads</p>
+            {model.source === "huggingface" && (model.hfDownloads ?? 0) > 1000 && (
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                  <Download className="h-2.5 w-2.5" />{formatNumber(model.hfDownloads ?? 0)}
+                </p>
+                {(model.hfLikes ?? 0) > 0 && (
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                    <Heart className="h-2.5 w-2.5" />{formatNumber(model.hfLikes ?? 0)}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </CardContent>
@@ -695,6 +766,15 @@ function ModelDetailModal({
                 </a>
                 <a href="https://github.com/jmorganca/ollama" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm">
                   <Code className="h-4 w-4" /> GitHub
+                </a>
+              </>
+            ) : model.source === "huggingface" ? (
+              <>
+                <a href={`https://huggingface.co/${model.hfId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm">
+                  <ExternalLink className="h-4 w-4" /> 🤗 Model Page
+                </a>
+                <a href={`https://huggingface.co/${model.hfId}/tree/main`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 border border-border rounded-lg hover:bg-accent transition-colors text-sm">
+                  <Code className="h-4 w-4" /> Model Files
                 </a>
               </>
             ) : (

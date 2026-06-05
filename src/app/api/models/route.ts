@@ -8,7 +8,7 @@ export const revalidate = 0;
 
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 
-// ── HuggingFace Hub: newest text-generation models ────────────
+// ── HuggingFace Hub ───────────────────────────────────────────
 interface HFModel {
   id: string;
   author?: string;
@@ -17,34 +17,97 @@ interface HFModel {
   downloads?: number;
   likes?: number;
   pipeline_tag?: string;
+  tags?: string[];
   private?: boolean;
   gated?: boolean | string;
+  config?: { model_type?: string; max_position_embeddings?: number };
+  safetensors?: { total?: number };
+}
+
+const HF_BASE = "https://huggingface.co/api/models";
+const HF_OPTS = { next: { revalidate: 3600 } };
+
+async function hfFetch(url: string): Promise<HFModel[]> {
+  try {
+    const r = await fetch(url, HF_OPTS);
+    return r.ok ? r.json() : [];
+  } catch { return []; }
 }
 
 async function fetchHuggingFaceModels(): Promise<HFModel[]> {
-  try {
-    // Pull two lists: most downloaded (proven popular) + most recently created (cutting edge)
-    const [popular, newest] = await Promise.all([
-      fetch(
-        "https://huggingface.co/api/models?sort=downloads&direction=-1&limit=80&filter=text-generation&full=false",
-        { next: { revalidate: 3600 } }
-      ).then((r) => (r.ok ? r.json() : [])),
-      fetch(
-        "https://huggingface.co/api/models?sort=createdAt&direction=-1&limit=80&filter=text-generation&full=false",
-        { next: { revalidate: 3600 } }
-      ).then((r) => (r.ok ? r.json() : [])),
-    ]);
-    const seen = new Set<string>();
-    const combined: HFModel[] = [];
-    for (const m of [...newest, ...popular]) {
-      if (!m?.id || seen.has(m.id) || m.private || m.gated) continue;
-      seen.add(m.id);
-      combined.push(m);
-    }
-    return combined;
-  } catch {
-    return [];
+  const [trending, newest, popular] = await Promise.all([
+    hfFetch(`${HF_BASE}?sort=trending&direction=-1&limit=60&filter=text-generation&full=true`),
+    hfFetch(`${HF_BASE}?sort=createdAt&direction=-1&limit=60&filter=text-generation&full=true`),
+    hfFetch(`${HF_BASE}?sort=downloads&direction=-1&limit=60&filter=text-generation&full=true`),
+  ]);
+
+  const seen = new Set<string>();
+  const combined: HFModel[] = [];
+  // trending first so they surface at the top
+  for (const m of [...trending, ...newest, ...popular]) {
+    if (!m?.id || seen.has(m.id) || m.private || m.gated) continue;
+    seen.add(m.id);
+    combined.push(m);
   }
+  return combined;
+}
+
+// Estimate context window from HF tags / config
+function hfContextWindow(m: HFModel): number {
+  const max = m.config?.max_position_embeddings;
+  if (max && max > 512) return max;
+  const tags = (m.tags ?? []).join(" ").toLowerCase();
+  if (tags.includes("1m") || tags.includes("1000k")) return 1_000_000;
+  if (tags.includes("256k")) return 262_144;
+  if (tags.includes("128k")) return 131_072;
+  if (tags.includes("64k"))  return  65_536;
+  if (tags.includes("32k"))  return  32_768;
+  if (tags.includes("16k"))  return  16_384;
+  if (tags.includes("8k"))   return   8_192;
+  return 4_096;
+}
+
+// Build a real description from HF tags
+function hfDescription(m: HFModel): string {
+  const tags = m.tags ?? [];
+  const parts: string[] = [];
+  if (m.author) parts.push(`By ${m.author}.`);
+
+  const task = m.pipeline_tag?.replace(/-/g, " ") ?? "text generation";
+  parts.push(`Open-source ${task} model.`);
+
+  const notable = tags.filter(t =>
+    ["instruct","chat","rlhf","dpo","reasoning","vision","multimodal",
+     "code","math","multilingual","gguf","quantized"].includes(t.toLowerCase())
+  ).slice(0, 4);
+  if (notable.length) parts.push(`Capabilities: ${notable.join(", ")}.`);
+
+  if (m.downloads && m.downloads > 10_000)
+    parts.push(`${(m.downloads / 1_000).toFixed(0)}K downloads on HuggingFace.`);
+
+  return parts.join(" ");
+}
+
+// Extra capabilities from HF tags
+function hfCapabilities(m: HFModel): string[] {
+  const base = ["text-generation"];
+  const tags = (m.tags ?? []).map(t => t.toLowerCase());
+  if (tags.some(t => /vision|multimodal|vl/.test(t))) base.push("vision");
+  if (tags.some(t => /code|coding|coder/.test(t))) base.push("code");
+  if (tags.some(t => /instruct|chat|rlhf|dpo/.test(t))) base.push("instruction-following");
+  if (tags.some(t => /reason|math|logic/.test(t))) base.push("reasoning");
+  if (tags.some(t => /multilingual/.test(t))) base.push("multilingual");
+  return base;
+}
+
+function hfTags(m: HFModel): string[] {
+  const base = ["free", "open-source", "huggingface"];
+  const tags = (m.tags ?? []).map(t => t.toLowerCase());
+  if (tags.some(t => /vision|multimodal/.test(t))) base.push("multimodal");
+  if (tags.some(t => /code/.test(t))) base.push("coding");
+  if (tags.some(t => /reason|math/.test(t))) base.push("reasoning");
+  if (tags.some(t => /instruct|chat/.test(t))) base.push("chat");
+  return base;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -157,12 +220,12 @@ export async function GET(req: NextRequest) {
 
       models.push({
         id: `hf/${m.id}`,
-        name: m.id.split("/").pop() ?? m.id,
+        name: m.id.split("/").pop()?.replace(/-/g, " ") ?? m.id,
         provider: m.author ?? m.id.split("/")[0] ?? "huggingface",
-        description: `Open-source model on HuggingFace Hub.`,
-        contextWindow: 4096,
+        description: hfDescription(m),
+        contextWindow: hfContextWindow(m),
         pricing: { prompt: 0, completion: 0, unit: "per_token" },
-        capabilities: ["text-generation"],
+        capabilities: hfCapabilities(m),
         releaseDate,
         createdAt: createdAt ? Math.floor(createdAt / 1000) : undefined,
         isFree: true,
@@ -171,7 +234,7 @@ export async function GET(req: NextRequest) {
         hfId: m.id,
         hfDownloads: m.downloads,
         hfLikes: m.likes,
-        tags: ["free", "open-source", "huggingface"],
+        tags: hfTags(m),
         source: "huggingface",
       });
     }
