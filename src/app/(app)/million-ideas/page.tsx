@@ -377,7 +377,7 @@ function IdeaCard({ idea, index, onGetCode, onReview, rating, locked }: {
         {/* Top accent bar */}
         <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${meta?.color ?? "#6366f1"}, transparent)` }} />
 
-        {/* Visible: category + title + emoji */}
+        {/* Visible: emoji + category only — title blurred */}
         <div className="p-5 pb-3">
           <div className="flex items-start gap-3">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 border border-white/5" style={{ background: `${meta?.color ?? "#6366f1"}18` }}>
@@ -388,7 +388,7 @@ function IdeaCard({ idea, index, onGetCode, onReview, rating, locked }: {
                 <CatIcon className="w-3 h-3 flex-shrink-0" style={{ color: meta?.color ?? "#6366f1" }} />
                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: meta?.color ?? "#6366f1" }}>{idea.category}</span>
               </div>
-              <h3 className="text-sm font-bold text-white leading-tight">{idea.title}</h3>
+              <h3 className="text-sm font-bold text-white leading-tight blur-sm select-none">{idea.title}</h3>
             </div>
           </div>
         </div>
