@@ -17,6 +17,10 @@
       ]
     },
     {
+      "source": "/api/check-network",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }]
+    },
+    {
       "source": "/api/heartbeat",
       "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     },

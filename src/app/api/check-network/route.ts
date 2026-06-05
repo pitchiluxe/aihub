@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 // Comma-separated list of trusted public IPs (home, office, carrier, etc.)
 // Set OWNER_TRUSTED_IPS in .env.local — e.g. "98.12.34.56,76.88.99.10"
 const TRUSTED_IPS = (process.env.OWNER_TRUSTED_IPS ?? "")
@@ -31,5 +33,8 @@ export async function GET(req: NextRequest) {
     TRUSTED_IPS.length > 0 &&
     TRUSTED_IPS.some((trusted) => ip === trusted || ip.startsWith(trusted));
 
-  return NextResponse.json({ trusted: isLocalhost || isConfigured });
+  const trusted = isLocalhost || isConfigured;
+  const res = NextResponse.json({ trusted, ip });
+  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return res;
 }
