@@ -1005,15 +1005,8 @@ function InlinePaymentGate() {
               <ArrowRight className="w-4 h-4" />
             </a>
 
-            <button
-              onClick={() => { window.location.href = "/million-ideas/success"; }}
-              className="w-full text-center text-xs text-slate-500 hover:text-indigo-400 transition-colors py-2"
-            >
-              Already paid? Click here to activate access
-            </button>
-
-            <p className="text-center text-[10px] text-slate-600 mt-2">
-              Powered by Stripe · 256-bit SSL
+            <p className="text-center text-[10px] text-slate-600 mt-3">
+              Powered by Stripe · 256-bit SSL · Cancel anytime
             </p>
           </div>
         </div>

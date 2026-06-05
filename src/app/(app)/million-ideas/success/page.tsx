@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircle, Zap, ArrowRight, Sparkles, Loader2 } from "lucide-react";
+import { CheckCircle, Zap, ArrowRight, Sparkles, Loader2, XCircle } from "lucide-react";
 
 const LS_ACCESS_KEY = "aihub_million_ideas_access";
 
@@ -26,47 +26,40 @@ function SuccessContent() {
   const [validating, setValidating] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
 
+  const [accessError, setAccessError] = useState<string | null>(null);
+
   useEffect(() => {
     async function activate() {
       const sessionId = searchParams.get("session_id");
 
-      if (sessionId) {
-        // Validate with Stripe and get subscription details
-        try {
-          const res = await fetch(`/api/validate-stripe-session?session_id=${sessionId}`);
-          if (res.ok) {
-            const data = await res.json();
-            grantAccess({
-              granted:        true,
-              expiresAt:      data.expiresAt,
-              grantedAt:      Date.now(),
-              subscriptionId: data.subscriptionId ?? null,
-              customerId:     data.customerId ?? null,
-            });
-            if (data.email) setEmail(data.email);
-          } else {
-            // Stripe validation failed — grant 30-day fallback
-            grantFallback();
-          }
-        } catch {
-          grantFallback();
+      if (!sessionId) {
+        // No session_id — reject. Never grant free access without Stripe proof.
+        setAccessError("No payment session found. Please complete checkout via Stripe to get access.");
+        setValidating(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/validate-stripe-session?session_id=${sessionId}`);
+        if (res.ok) {
+          const data = await res.json();
+          grantAccess({
+            granted:        true,
+            expiresAt:      data.expiresAt,
+            grantedAt:      Date.now(),
+            subscriptionId: data.subscriptionId ?? null,
+            customerId:     data.customerId ?? null,
+          });
+          if (data.email) setEmail(data.email);
+        } else {
+          // Stripe validation failed — do NOT grant access
+          setAccessError("Payment could not be verified. Please contact support or try again.");
         }
-      } else {
-        // No session_id (e.g. "already paid" button) — grant 30-day fallback
-        grantFallback();
+      } catch {
+        setAccessError("Network error verifying payment. Please try again.");
       }
 
       setValidating(false);
-    }
-
-    function grantFallback() {
-      grantAccess({
-        granted:        true,
-        expiresAt:      Date.now() + 30 * 24 * 60 * 60 * 1000,
-        grantedAt:      Date.now(),
-        subscriptionId: null,
-        customerId:     null,
-      });
     }
 
     activate();
@@ -96,11 +89,31 @@ function SuccessContent() {
 
         <div className="p-10">
           {validating ? (
-            /* Activating spinner */
             <div className="py-8 flex flex-col items-center gap-4">
               <Loader2 className="w-12 h-12 text-indigo-400 animate-spin" />
               <p className="text-slate-300 font-semibold">Activating your access…</p>
               <p className="text-xs text-slate-500">Verifying payment with Stripe</p>
+            </div>
+          ) : accessError ? (
+            <div className="py-6 flex flex-col items-center gap-4">
+              <XCircle className="w-14 h-14 text-red-400" />
+              <h2 className="text-xl font-black text-white">Access Not Granted</h2>
+              <p className="text-slate-400 text-sm leading-relaxed text-center">{accessError}</p>
+              <a
+                href="https://buy.stripe.com/3cIeVd8vG2AJ6eM3EQdMI04"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-2xl transition-all text-sm"
+              >
+                <Zap className="w-4 h-4" />
+                Complete Payment — $19.99/month
+              </a>
+              <button
+                onClick={() => router.replace("/million-ideas")}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Back to 1M Ideas
+              </button>
             </div>
           ) : (
             <>
