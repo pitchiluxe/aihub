@@ -536,7 +536,7 @@ export default function GraphPage() {
       else                  entranceMap.set(node.id, { delay: 450, duration: 350 }); // leaves
       burstMap.set(node.id, {
         angle:    Math.random() * Math.PI * 2,
-        distance: 200 + Math.random() * 150,
+        distance: (200 + Math.random() * 150) / fitK,  // screen-space consistent regardless of zoom
       });
     });
     nodeEntranceRef.current = entranceMap;
@@ -624,20 +624,58 @@ export default function GraphPage() {
 
   useEffect(() => { const cleanup=buildGraph(); return cleanup; }, [buildGraph]);
 
-  // Pause/resume when switching tabs
+  // Replay burst entrance animation — called each time graph tab is revealed
+  const triggerEntranceAnimation = useCallback(() => {
+    const nodes = nodesRef.current;
+    const canvas = canvasRef.current, container = containerRef.current;
+    if (!nodes.length || !canvas || !container) return;
+
+    // Re-fit zoom to current positions
+    const W = container.clientWidth, H = container.clientHeight;
+    const xs = nodes.map(nd => nd.x ?? 0), ys = nodes.map(nd => nd.y ?? 0), pad = 60;
+    const fitK = Math.min((W-pad*2)/Math.max(Math.max(...xs)-Math.min(...xs),1), (H-pad*2)/Math.max(Math.max(...ys)-Math.min(...ys),1), 2.5);
+    transformRef.current = { k: fitK, x: W/2-fitK*(Math.min(...xs)+Math.max(...xs))/2, y: H/2-fitK*(Math.min(...ys)+Math.max(...ys))/2 };
+    setZoom(fitK);
+
+    // Rebuild 3-wave cascade with fresh random burst directions
+    const linkCount: Record<string, number> = {};
+    for (const l of INITIAL_GRAPH_DATA.links) {
+      linkCount[String(l.source)] = (linkCount[String(l.source)] ?? 0) + 1;
+      linkCount[String(l.target)] = (linkCount[String(l.target)] ?? 0) + 1;
+    }
+    const sortedByHub = [...nodes].sort((a, b) => (linkCount[b.id] ?? 0) - (linkCount[a.id] ?? 0));
+    const entranceMap = new Map<string, { delay: number; duration: number }>();
+    const burstMap    = new Map<string, { angle: number; distance: number }>();
+    sortedByHub.forEach((node, i) => {
+      const pct = i / nodes.length;
+      if (pct < 0.15)      entranceMap.set(node.id, { delay: 0,   duration: 480 });
+      else if (pct < 0.45) entranceMap.set(node.id, { delay: 200, duration: 400 });
+      else                  entranceMap.set(node.id, { delay: 450, duration: 350 });
+      burstMap.set(node.id, {
+        angle:    Math.random() * Math.PI * 2,
+        distance: (200 + Math.random() * 150) / fitK,
+      });
+    });
+    nodeEntranceRef.current = entranceMap;
+    burstParamsRef.current  = burstMap;
+    animStartRef.current    = performance.now();
+    animActiveRef.current   = true;
+  }, []);
+
+  // Pause/resume when switching tabs — replay fireworks on each graph reveal
   useEffect(() => {
     if (activeTab==="graph" && prevTabRef.current==="articles") {
       requestAnimationFrame(() => {
         const c=canvasRef.current, ct=containerRef.current;
         if (c&&ct) { c.width=ct.clientWidth; c.height=ct.clientHeight; }
         startLoop();
-        simRef.current?.alpha(0.1).restart();
+        triggerEntranceAnimation();
       });
     } else if (activeTab==="articles") {
       stopLoop();
     }
     prevTabRef.current=activeTab;
-  }, [activeTab, startLoop, stopLoop]);
+  }, [activeTab, startLoop, stopLoop, triggerEntranceAnimation]);
 
   // Resize canvas + refit graph whenever the container grows/shrinks
   useEffect(() => {
