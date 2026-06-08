@@ -50,6 +50,8 @@ const EDGE_LABEL_ZOOM = 3.0;
 function nodeRadius(size: number) { return Math.max(7, Math.round(size * 0.42)); }
 function easeOutCubic(t: number): number { return 1 - Math.pow(1 - t, 3); }
 function easeOutBack(t: number): number { const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
+function bounceOut(t: number): number { const n1=7.5625,d1=2.75; if(t<1/d1) return n1*t*t; if(t<2/d1) return n1*(t-=1.5/d1)*t+0.75; if(t<2.5/d1) return n1*(t-=2.25/d1)*t+0.9375; return n1*(t-=2.625/d1)*t+0.984375; }
+function elasticBounce(t: number): number { const c=(2*Math.PI)/3; return t===0?0:t===1?1:Math.pow(2,-10*t)*Math.sin((t*10-0.75)*c)+1; }
 function hexToRgba(hex: string, a: number) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -99,7 +101,6 @@ interface ExtNode extends GraphNode, d3.SimulationNodeDatum {
   x?: number; y?: number; vx?: number; vy?: number;
   fx?: number | null; fy?: number | null;
 }
-interface EdgePulse { linkIdx: number; speed: number; offset: number; color: string }
 interface Transform { x: number; y: number; k: number }
 
 export default function GraphPage() {
@@ -119,9 +120,9 @@ export default function GraphPage() {
   const prevTabRef    = useRef<"graph" | "articles">("articles");
   const animStartRef    = useRef<number>(0);
   const animActiveRef   = useRef<boolean>(false);
-  const nodeDelayRef    = useRef<Map<string, number>>(new Map());
+  const nodeEntranceRef = useRef<Map<string, { delay: number; duration: number }>>(new Map());
+  const burstParamsRef  = useRef<Map<string, { angle: number; distance: number }>>(new Map());
   const nodeClickAnim   = useRef<Map<string, { t0: number; duration: number }>>(new Map());
-  const edgePulsesRef   = useRef<EdgePulse[]>([]);
   const nodeAnimRef     = useRef<Map<string, { t0: number; duration: number }>>(new Map());
   // Timelapse refs (ported from QB Brain)
   const timelapseModeRef  = useRef(false);
@@ -151,7 +152,6 @@ export default function GraphPage() {
   const [articleCategory, setArticleCategory] = useState("all");
   const [readerMode,     setReaderMode]     = useState<"raw" | "preview">("raw");
   const [folderOpen,     setFolderOpen]     = useState(false);
-  const [showIntro,      setShowIntro]      = useState(true);
 
   useEffect(() => { showMiniMapRef.current = showMiniMap; }, [showMiniMap]);
   useEffect(() => { selectedIdRef.current = selectedNode?.id ?? null; }, [selectedNode]);
@@ -234,7 +234,8 @@ export default function GraphPage() {
 
     const animActive        = animActiveRef.current;
     const animElapsedGlobal = animActive ? now - animStartRef.current : Infinity;
-    const edgeAlpha         = animActive ? Math.min(1, animElapsedGlobal / 1200) : 1;
+    const edgeAlpha         = animActive ? Math.min(1, animElapsedGlobal / 700) : 1;
+    if (animActive && animElapsedGlobal > 900) animActiveRef.current = false;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -289,21 +290,6 @@ export default function GraphPage() {
       void tgt; // suppress unused warning
     }
 
-    // Traveling edge pulses — neural signal effect
-    for (const pulse of edgePulsesRef.current) {
-      const l = links[pulse.linkIdx];
-      if (!l?.source || !l?.target) continue;
-      const sx = (l.source as ExtNode).x ?? 0, sy = (l.source as ExtNode).y ?? 0;
-      const ex = (l.target as ExtNode).x ?? 0, ey = (l.target as ExtNode).y ?? 0;
-      const t  = ((now * pulse.speed * 0.0004) + pulse.offset) % 1;
-      const px = sx + (ex - sx) * t, py = sy + (ey - sy) * t;
-      const prevA = ctx.globalAlpha;
-      ctx.globalAlpha = edgeAlpha * 0.75;
-      ctx.beginPath(); ctx.arc(px, py, 2.2 / k, 0, Math.PI * 2);
-      ctx.fillStyle = pulse.color; ctx.fill();
-      ctx.globalAlpha = prevA;
-    }
-
     // Nodes
     for (const node of nodes) {
       // Timelapse: only draw revealed nodes
@@ -315,21 +301,27 @@ export default function GraphPage() {
       const matchQ=!q||node.label.toLowerCase().includes(q)||(node.description??"").toLowerCase().includes(q);
       if (q&&!matchQ) { ctx.globalAlpha=0.04; }
 
-      const APPEAR_DUR  = 600;
-      const nodeDelay   = nodeDelayRef.current.get(node.id) ?? 0;
-      const nodeElapsed = animActive ? (now - animStartRef.current - nodeDelay) : APPEAR_DUR;
       let animScale = 1;
-      let showGlow  = false;
+      let offsetX = 0, offsetY = 0;
 
-      if (nodeElapsed < 0) { ctx.globalAlpha = 1; continue; }
-      if (nodeElapsed < APPEAR_DUR) {
-        const t = Math.min(nodeElapsed / APPEAR_DUR, 1);
-        ctx.globalAlpha = easeOutCubic(t);
-        animScale = easeOutBack(Math.min(t * 1.05, 1));
-        showGlow = t < 0.55;
-      } else {
-        const nodeIdx = nodesRef.current.indexOf(node);
-        animScale = 1 + Math.sin(now * 0.0013 + nodeIdx * 0.7) * 0.04;
+      if (animActive) {
+        const info = nodeEntranceRef.current.get(node.id);
+        if (info) {
+          const elapsed = animElapsedGlobal - info.delay;
+          if (elapsed < 0) {
+            animScale = 0;
+          } else if (elapsed < info.duration) {
+            const t = elapsed / info.duration;
+            animScale = bounceOut(t);
+            const bp = burstParamsRef.current.get(node.id);
+            if (bp) {
+              const burstProgress = Math.max(0, 1 - t);
+              const burstEase = elasticBounce(burstProgress * 0.85);
+              offsetX = Math.cos(bp.angle) * bp.distance * burstEase;
+              offsetY = Math.sin(bp.angle) * bp.distance * burstEase;
+            }
+          }
+        }
       }
 
       // Click-pop animation
@@ -341,12 +333,12 @@ export default function GraphPage() {
         } else nodeClickAnim.current.delete(node.id);
       }
 
-      // Timelapse pop animation (kept for timelapse feature)
+      // Timelapse pop animation
       const anim = nodeAnimRef.current.get(node.id);
       if (anim) {
         const el = now - anim.t0;
         if (el < anim.duration) {
-          animScale = easeOutBack(Math.min(el / anim.duration * 1.05, 1));
+          animScale = bounceOut(Math.min(el / anim.duration, 1));
         } else nodeAnimRef.current.delete(node.id);
       }
 
@@ -354,15 +346,8 @@ export default function GraphPage() {
       if (drawR <= 0) { ctx.globalAlpha = 1; continue; }
       const fillA  = isSel ? 1 : isConn ? 0.88 : 0.12;
       const realR  = isSel ? drawR * 1.35 : drawR;
-      const finalX = nx;
-      const finalY = ny;
-
-      // Expanding glow ring on first appearance
-      if (showGlow) {
-        const glowT = Math.min(nodeElapsed / APPEAR_DUR, 1);
-        ctx.beginPath(); ctx.arc(finalX, finalY, realR * (1 + (1 - glowT) * 2.2), 0, Math.PI * 2);
-        ctx.strokeStyle = hexToRgba(col, (1 - glowT) * 0.5); ctx.lineWidth = 2.5 / k; ctx.stroke();
-      }
+      const finalX = nx + offsetX;
+      const finalY = ny + offsetY;
 
       if (isSel) { ctx.shadowColor = col; ctx.shadowBlur = 18; }
       ctx.beginPath(); ctx.arc(finalX, finalY, realR, 0, Math.PI * 2);
@@ -397,15 +382,27 @@ export default function GraphPage() {
         ctx.globalAlpha=q&&!matchQ?0.04:(node.id===selId?1:isConn?0.80:0.28);
         const lbl=node.label.length>22?node.label.slice(0,22)+"…":node.label;
         
-        const APPEAR_DUR_LBL = 600;
-        const lblDelay   = nodeDelayRef.current.get(node.id) ?? 0;
-        const lblElapsed = animActive ? (now - animStartRef.current - lblDelay) : APPEAR_DUR_LBL;
-        if (lblElapsed < 0) { ctx.globalAlpha = 1; continue; }
-        const lblFade = lblElapsed < APPEAR_DUR_LBL ? easeOutCubic(lblElapsed / APPEAR_DUR_LBL) : 1;
-        ctx.globalAlpha *= lblFade;
-
-        const finalX = node.x ?? 0;
-        const finalY = node.y ?? 0;
+        // Apply same burst offset as node rendering
+        let lblOffsetX = 0, lblOffsetY = 0;
+        if (animActive) {
+          const info = nodeEntranceRef.current.get(node.id);
+          if (info) {
+            const elapsed = animElapsedGlobal - info.delay;
+            if (elapsed < 0) { ctx.globalAlpha = 1; continue; }
+            if (elapsed < info.duration) {
+              const t = elapsed / info.duration;
+              const bp = burstParamsRef.current.get(node.id);
+              if (bp) {
+                const burstProgress = Math.max(0, 1 - t);
+                const burstEase = elasticBounce(burstProgress * 0.85);
+                lblOffsetX = Math.cos(bp.angle) * bp.distance * burstEase;
+                lblOffsetY = Math.sin(bp.angle) * bp.distance * burstEase;
+              }
+            }
+          }
+        }
+        const finalX = (node.x ?? 0) + lblOffsetX;
+        const finalY = (node.y ?? 0) + lblOffsetY;
 
         // Text shadow for readability
         ctx.fillStyle = "rgba(0,0,0,0.6)";
@@ -514,50 +511,38 @@ export default function GraphPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     linksRef.current=(sim.force("link") as any).links();
 
-    // ── Neural Awakening entrance — staggered materialization by connectivity ──
-    for (let i = 0; i < 8; i++) sim.tick();
+    // ── Hub-first cascade entrance with balloon-burst animation (QB Brain style) ──
+    for (let i = 0; i < Math.min(120, Math.max(40, n)); i++) sim.tick();
 
-    transformRef.current = { k: 0.5, x: W * 0.25, y: H * 0.25 };
-    setZoom(0.5);
+    // Zoom-to-fit from pre-warmed positions before animation starts
+    const xs = visNodes.map(nd => nd.x ?? 0), ys = visNodes.map(nd => nd.y ?? 0), pad = 60;
+    const fitK = Math.min((W - pad*2) / Math.max(Math.max(...xs) - Math.min(...xs), 1), (H - pad*2) / Math.max(Math.max(...ys) - Math.min(...ys), 1), 2.5);
+    transformRef.current = { k: fitK, x: W/2 - fitK*(Math.min(...xs)+Math.max(...xs))/2, y: H/2 - fitK*(Math.min(...ys)+Math.max(...ys))/2 };
+    setZoom(fitK);
 
-    // Assign reveal delays by connectivity rank (hubs appear first)
+    // Build 3-wave cascade: hubs first, then mid-tier, then leaves
     const linkCount: Record<string, number> = {};
     for (const l of INITIAL_GRAPH_DATA.links) {
       linkCount[String(l.source)] = (linkCount[String(l.source)] ?? 0) + 1;
       linkCount[String(l.target)] = (linkCount[String(l.target)] ?? 0) + 1;
     }
-    const sorted = [...visNodes].sort((a, b) => (linkCount[b.id] ?? 0) - (linkCount[a.id] ?? 0));
-    const delayMap = new Map<string, number>();
-    sorted.forEach((nd, i) => {
-      delayMap.set(nd.id, (i / Math.max(sorted.length - 1, 1)) * 1200);
+    const sortedByHub = [...visNodes].sort((a, b) => (linkCount[b.id] ?? 0) - (linkCount[a.id] ?? 0));
+    const entranceMap = new Map<string, { delay: number; duration: number }>();
+    const burstMap    = new Map<string, { angle: number; distance: number }>();
+    sortedByHub.forEach((node, i) => {
+      const pct = i / visNodes.length;
+      if (pct < 0.15)      entranceMap.set(node.id, { delay: 0,   duration: 480 }); // hubs
+      else if (pct < 0.45) entranceMap.set(node.id, { delay: 200, duration: 400 }); // mid-tier
+      else                  entranceMap.set(node.id, { delay: 450, duration: 350 }); // leaves
+      burstMap.set(node.id, {
+        angle:    Math.random() * Math.PI * 2,
+        distance: 200 + Math.random() * 150,
+      });
     });
-    nodeDelayRef.current = delayMap;
-
-    // Seed up to 30 traveling edge pulses (neural signal effect)
-    const pulseLinks = linksRef.current.slice(0, 30);
-    edgePulsesRef.current = pulseLinks.map((_, idx) => {
-      const src = (linksRef.current[idx]?.source) as ExtNode | undefined;
-      const col = src ? (src.color ?? NODE_COLORS[src.type] ?? "#8b5cf6") : "#8b5cf6";
-      return { linkIdx: idx, speed: 0.6 + Math.random() * 0.8, offset: Math.random(), color: col };
-    });
-
-    animStartRef.current = performance.now();
-    animActiveRef.current = true;
-
-    setTimeout(() => setShowIntro(false), 800);
-    setTimeout(() => {
-      animActiveRef.current = false;
-      const nds = nodesRef.current;
-      if (!nds.length) return;
-      const fxs = nds.map(nd => nd.x ?? 0), fys = nds.map(nd => nd.y ?? 0), fpad = 80;
-      const fk = Math.min(
-        (W - fpad * 2) / Math.max(Math.max(...fxs) - Math.min(...fxs), 1),
-        (H - fpad * 2) / Math.max(Math.max(...fys) - Math.min(...fys), 1),
-        2.2
-      );
-      transformRef.current = { k: fk, x: W / 2 - fk * (Math.min(...fxs) + Math.max(...fxs)) / 2, y: H / 2 - fk * (Math.min(...fys) + Math.max(...fys)) / 2 };
-      setZoom(fk);
-    }, 2200);
+    nodeEntranceRef.current = entranceMap;
+    burstParamsRef.current  = burstMap;
+    animStartRef.current    = performance.now();
+    animActiveRef.current   = true;
 
     let isPanning=false, panStart={x:0,y:0}, panStartTx={x:0,y:0,k:1}, mouseDownPos={x:0,y:0}, didDrag=false;
     let clickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -959,119 +944,6 @@ export default function GraphPage() {
           className={cn("flex-1 relative overflow-hidden", activeTab!=="graph"&&"hidden")}
         >
           <canvas ref={canvasRef} className="w-full h-full" style={{cursor:"default"}} />
-
-          {/* ── Big Bang Intro Overlay ──────────────────────────────────── */}
-          <AnimatePresence>
-            {showIntro && (
-              <motion.div
-                initial={{ opacity: 1 }}
-                exit={{ opacity: 0, scale: 1.04 }}
-                transition={{ duration: 0.7, ease: "easeInOut" }}
-                className="absolute inset-0 z-50 flex items-center justify-center bg-[#07090f] overflow-hidden"
-              >
-                {/* Animated background particles */}
-                {[...Array(28)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute rounded-full pointer-events-none"
-                    style={{
-                      width: `${Math.random() * 3 + 1}px`,
-                      height: `${Math.random() * 3 + 1}px`,
-                      backgroundColor: `hsl(${255 + Math.random() * 60}, 85%, ${60 + Math.random() * 20}%)`,
-                      left: `${Math.random() * 100}%`,
-                      top: `${Math.random() * 100}%`,
-                    }}
-                    animate={{
-                      opacity: [0, 0.9, 0],
-                      scale: [0, 1.8, 0],
-                      y: [0, -(Math.random() * 120 + 40)],
-                      x: [(Math.random() - 0.5) * 60],
-                    }}
-                    transition={{
-                      duration: Math.random() * 1.8 + 1,
-                      delay: Math.random() * 0.6,
-                      repeat: Infinity,
-                      repeatDelay: Math.random() * 2.5,
-                      ease: "easeOut",
-                    }}
-                  />
-                ))}
-
-                {/* Glowing ring pulse */}
-                {[1, 1.6, 2.2].map((scale, i) => (
-                  <motion.div
-                    key={`ring-${i}`}
-                    className="absolute rounded-full border border-violet-500/20 pointer-events-none"
-                    style={{ width: 160, height: 160, marginLeft: -80, marginTop: -80, top: "50%", left: "50%" }}
-                    animate={{ scale: [scale, scale + 1.2, scale + 2.4], opacity: [0.4, 0.15, 0] }}
-                    transition={{ duration: 2.4, delay: i * 0.55, repeat: Infinity, ease: "easeOut" }}
-                  />
-                ))}
-
-                {/* Center content */}
-                <div className="relative z-10 text-center select-none">
-                  <motion.div
-                    initial={{ scale: 0, rotate: -180, opacity: 0 }}
-                    animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 220, damping: 14, delay: 0.1 }}
-                    className="w-24 h-24 rounded-3xl bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600 flex items-center justify-center mx-auto mb-5 shadow-2xl shadow-violet-500/50"
-                  >
-                    <Brain className="w-12 h-12 text-white" />
-                  </motion.div>
-
-                  <motion.h1
-                    initial={{ opacity: 0, y: 24, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ type: "spring", stiffness: 280, damping: 20, delay: 0.35 }}
-                    className="text-4xl font-black text-white mb-1 tracking-tight"
-                  >
-                    AI Brain
-                  </motion.h1>
-
-                  <motion.p
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.55 }}
-                    className="text-sm text-gray-500 mb-6"
-                  >
-                    Building knowledge graph…
-                  </motion.p>
-
-                  {/* Bouncing dots loader */}
-                  <div className="flex justify-center gap-2">
-                    {[0, 1, 2, 3, 4].map(i => (
-                      <motion.div
-                        key={i}
-                        className="rounded-full"
-                        style={{
-                          width: 8, height: 8,
-                          background: `hsl(${255 + i * 15}, 80%, 65%)`,
-                        }}
-                        animate={{ y: [0, -18, 0], scale: [1, 1.3, 1] }}
-                        transition={{
-                          duration: 0.65,
-                          delay: i * 0.1,
-                          repeat: Infinity,
-                          repeatType: "loop",
-                          ease: "easeInOut",
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Node count hint */}
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                    className="text-xs text-gray-700 mt-4 font-mono"
-                  >
-                    {INITIAL_GRAPH_DATA.nodes.length} nodes · {INITIAL_GRAPH_DATA.links.length} connections
-                  </motion.p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Stats — top-right overlay (QB Brain style) */}
           <div className="absolute top-4 right-16 z-10 text-right pointer-events-none">
