@@ -316,7 +316,7 @@ export default function GraphPage() {
             const bp = burstParamsRef.current.get(node.id);
             if (bp) {
               const burstProgress = Math.max(0, 1 - t);
-              const burstEase = elasticBounce(burstProgress * 0.85);
+              const burstEase = elasticBounce(burstProgress * 0.55);
               offsetX = Math.cos(bp.angle) * bp.distance * burstEase;
               offsetY = Math.sin(bp.angle) * bp.distance * burstEase;
             }
@@ -394,7 +394,7 @@ export default function GraphPage() {
               const bp = burstParamsRef.current.get(node.id);
               if (bp) {
                 const burstProgress = Math.max(0, 1 - t);
-                const burstEase = elasticBounce(burstProgress * 0.85);
+                const burstEase = elasticBounce(burstProgress * 0.55);
                 lblOffsetX = Math.cos(bp.angle) * bp.distance * burstEase;
                 lblOffsetY = Math.sin(bp.angle) * bp.distance * burstEase;
               }
@@ -536,7 +536,8 @@ export default function GraphPage() {
       else                  entranceMap.set(node.id, { delay: 450, duration: 350 }); // leaves
       burstMap.set(node.id, {
         angle:    Math.random() * Math.PI * 2,
-        distance: (200 + Math.random() * 150) / fitK,  // screen-space consistent regardless of zoom
+        // Target 120-220 screen px; cap graph-units at 450 to prevent cross-node chaos
+        distance: Math.min((120 + Math.random() * 100) / Math.max(fitK, 0.2), 450),
       });
     });
     nodeEntranceRef.current = entranceMap;
@@ -670,6 +671,7 @@ export default function GraphPage() {
         if (c&&ct) { c.width=ct.clientWidth; c.height=ct.clientHeight; }
         startLoop();
         triggerEntranceAnimation();
+        simRef.current?.alpha(0.06).restart();
       });
     } else if (activeTab==="articles") {
       stopLoop();
