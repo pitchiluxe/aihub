@@ -28,9 +28,17 @@ export function FooterTimestamp() {
   });
 
   return (
-    <div className="fixed bottom-3 right-4 z-40 flex items-center gap-2 bg-[#0d1421] border border-white/15 rounded-lg px-3 py-1.5 select-none pointer-events-none shadow-lg">
+    <div
+      className="fixed bottom-3 right-4 z-50 flex items-center gap-2 rounded-lg px-3 py-1.5 select-none pointer-events-none"
+      style={{
+        backgroundColor: "#0A0F1E",
+        border: "1px solid rgba(99, 102, 241, 0.4)",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.8)",
+        isolation: "isolate",
+      }}
+    >
       <Clock className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
-      <span className="text-[10px] font-mono text-slate-300 tracking-tight">
+      <span className="text-[10px] font-mono text-slate-200 tracking-tight">
         {datePart}
       </span>
       <span className="text-[10px] font-mono text-slate-500">·</span>
