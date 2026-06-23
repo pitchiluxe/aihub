@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { callModel } from "@/lib/ai/client";
 import JSZip from "jszip";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // ── Industry-Authentic Design Systems ─────────────────────────────────────────
 // Each entry is a curated design brief for that business type.
@@ -653,7 +653,8 @@ No markdown fences. No explanation. Imports: only "use client", useState, React.
 Raw .tsx code starting with "use client";
 
 The code MUST be COMPLETE and FUNCTIONAL — all state wired up, all buttons do something, form shows feedback.
-A developer must be able to run "npm install && npm run dev" and immediately see a working, interactive website.`;
+A developer must be able to run "npm install && npm run dev" and immediately see a working, interactive website.
+CONCISENESS: Target 250-350 lines. Use .map() for repeated items. No excessive comments or blank lines.`;
 }
 
 function packageJson(businessName: string) {
@@ -752,11 +753,14 @@ export async function POST(req: NextRequest) {
       [
         {
           role: "system",
-          content: `You are a senior UI engineer who builds industry-specific websites that look like they were made by a human designer for that specific industry — not a generic AI-generated template. You follow the design brief exactly and never produce generic floating blobs, gradient meshes, or lorem ipsum. Raw .tsx code only, no markdown.`,
+          content: `You are a senior UI engineer who builds industry-specific websites that look like they were made by a human designer for that specific industry — not a generic AI-generated template. You follow the design brief exactly and never produce generic floating blobs, gradient meshes, or lorem ipsum. Raw .tsx code only, no markdown. Be concise — target 250-350 lines of clean, functional TSX.`,
         },
         { role: "user", content: prompt },
       ],
-      8000,
+      4500,  // Reduced from 8000 — fewer tokens = faster generation, prevents timeout
+      undefined,
+      0.7,
+      50_000, // 50s per model attempt (vs default 18s) — code generation needs more time
     );
 
     const cleanCode = pageCode
