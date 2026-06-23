@@ -83,6 +83,44 @@ CRITICAL RULES:
 - Optimize for the requested tone and format
 - Use markdown formatting within the prompt where it improves clarity`;
 
+const CLAUDEMD_GENERATION_PROMPT = `You are an expert at creating CLAUDE.md project instruction files for Claude Code — Anthropic's AI coding assistant CLI.
+
+CLAUDE.md is placed at the root of a project and gives Claude Code persistent, authoritative context about the codebase before every task.
+
+Generate a complete, production-quality CLAUDE.md based on the user's project description.
+
+The file MUST include all of these sections:
+## Project Overview
+- What the project is, its mission, who uses it
+## Tech Stack
+- Every key technology, framework, language, database, deployment target
+## Development Commands
+- Exact commands for: dev server, build, test, lint, typecheck, deploy (in code blocks)
+## Architecture
+- Key directories and what lives in each (e.g. src/app, src/components, src/lib)
+- Important files and their roles
+## Coding Conventions
+- Naming conventions (files, components, functions, variables)
+- Import order, file structure patterns
+- State management approach
+- Error handling style
+## Key Rules for Claude
+- What Claude MUST always do in this project
+- What Claude must NEVER do (no broad rewrites, no removing comments, etc.)
+- Preferred patterns and anti-patterns
+## Common Tasks
+- How to add a new page/route
+- How to add a new component
+- How to add an API endpoint
+- How to run migrations or seed data
+
+Rules:
+- Output ONLY the raw CLAUDE.md markdown — no preamble, no explanation, no code fences around the whole file
+- Use ## headers, bullet points, and inline code blocks for commands
+- Be specific and actionable — Claude Code reads this before every single task
+- Write for an AI assistant, not a human developer — be explicit about intent, not just mechanics
+- If tech stack / commands are provided, use them exactly; otherwise infer sensible defaults from context`;
+
 const MODELS = [
   "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
@@ -179,6 +217,7 @@ export async function POST(req: NextRequest) {
     if (type === "skill") systemPrompt = SKILL_GENERATION_PROMPT;
     else if (type === "prompt") systemPrompt = PROMPT_GENERATION_PROMPT;
     else if (type === "idea") systemPrompt = IDEA_GENERATION_PROMPT;
+    else if (type === "claudemd") systemPrompt = CLAUDEMD_GENERATION_PROMPT;
     else systemPrompt = AGENT_GENERATION_PROMPT;
 
     let userMessage: string;
@@ -205,6 +244,19 @@ Scale: ${config.scale || "Full Product"}
 Make it truly original. Think deeply before responding.`;
       } catch {
         userMessage = `Generate a never-before-seen original product idea. Be bold and original.`;
+      }
+    } else if (type === "claudemd") {
+      try {
+        const config = JSON.parse(prompt);
+        userMessage = `Generate a complete CLAUDE.md for the following project:
+Project Description: ${config.description}
+${config.stack ? `Tech Stack: ${config.stack}` : ""}
+${config.commands ? `Key Commands: ${config.commands}` : ""}
+${config.conventions ? `Conventions / Preferences: ${config.conventions}` : ""}
+
+Make it comprehensive, specific, and immediately useful for Claude Code.`.trim();
+      } catch {
+        userMessage = `Generate a complete CLAUDE.md for this project: ${prompt}`;
       }
     } else {
       userMessage = `Please generate a ${type} based on this request: ${prompt}`;

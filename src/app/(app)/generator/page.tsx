@@ -11,13 +11,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Download, Share2, Sparkles, Code, Zap, Wand2,
   Copy, Check, ChevronDown, Lightbulb, Rocket,
-  Target, Cpu, DollarSign, Star, ArrowRight, Shuffle,
+  Target, Cpu, DollarSign, Star, ArrowRight, Shuffle, FileCode2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { useArchiveStore } from "@/store/archive";
 
-type TabType = "skill" | "agent" | "prompt" | "idea";
+type TabType = "skill" | "agent" | "prompt" | "idea" | "claudemd";
 
 interface GeneratedItem {
   id: string;
@@ -43,6 +43,13 @@ interface IdeaConfig {
   category: string;
   domain: string;
   scale: string;
+}
+
+interface ClaudeMdConfig {
+  description: string;
+  stack: string;
+  commands: string;
+  conventions: string;
 }
 
 interface IdeaResult {
@@ -136,6 +143,13 @@ export default function GeneratorPage() {
     category: "Surprise Me 🎲",
     domain: "",
     scale: "Full Product",
+  });
+
+  const [claudeMdConfig, setClaudeMdConfig] = useState<ClaudeMdConfig>({
+    description: "",
+    stack: "",
+    commands: "",
+    conventions: "",
   });
 
   async function handleGenerate(e: React.FormEvent) {
@@ -306,6 +320,42 @@ export default function GeneratorPage() {
     }
   }
 
+  async function handleGenerateClaudeMd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!claudeMdConfig.description.trim()) { toast.error("Describe your project"); return; }
+    setIsGenerating(true);
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "claudemd", prompt: JSON.stringify(claudeMdConfig) }),
+      });
+      if (!response.ok) throw new Error("Generation failed");
+      const code = await readSSEContent(response);
+      if (!code.trim()) throw new Error("Empty response");
+      const name = `CLAUDE.md — ${claudeMdConfig.description.slice(0, 45)}`;
+      const description = "Claude Code project instructions file";
+      const newItem: GeneratedItem = {
+        id: Date.now().toString(),
+        name,
+        type: "claudemd",
+        description,
+        code,
+        createdAt: new Date(),
+        prompt: claudeMdConfig.description,
+      };
+      setGenerated((prev) => [newItem, ...prev]);
+      setPreview(newItem);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      saveToArchive({ name, type: "skill" as any, description, code, prompt: claudeMdConfig.description });
+      toast.success("CLAUDE.md generated & saved to archive!");
+    } catch {
+      toast.error("Failed to generate CLAUDE.md.");
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
   function handleUseIdeaAsPrompt(idea: IdeaResult) {
     setPromptConfig(p => ({
       ...p,
@@ -326,7 +376,9 @@ export default function GeneratorPage() {
 
   function handleDownload(item: GeneratedItem) {
     const ext = item.type === "idea" ? "json" : "md";
-    const filename = `${item.name.toLowerCase().replace(/\s+/g, "-")}-${item.type}.${ext}`;
+    const filename = item.type === "claudemd"
+      ? "CLAUDE.md"
+      : `${item.name.toLowerCase().replace(/\s+/g, "-")}-${item.type}.${ext}`;
     const blob = new Blob([item.code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -373,11 +425,12 @@ export default function GeneratorPage() {
                   {activeTab === "skill" ? "Create Skill"
                     : activeTab === "agent" ? "Create Agent"
                     : activeTab === "prompt" ? "Generate Prompt"
+                    : activeTab === "claudemd" ? "Generate CLAUDE.md"
                     : "Generate Idea"}
                 </h3>
 
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="mb-4">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="skill" className="gap-1 text-xs px-1">
                       <Code className="h-3.5 w-3.5" />
                       Skill
@@ -393,6 +446,10 @@ export default function GeneratorPage() {
                     <TabsTrigger value="idea" className="gap-1 text-xs px-1">
                       <Lightbulb className="h-3.5 w-3.5" />
                       Idea
+                    </TabsTrigger>
+                    <TabsTrigger value="claudemd" className="gap-1 text-xs px-1">
+                      <FileCode2 className="h-3.5 w-3.5" />
+                      MD
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -563,6 +620,60 @@ export default function GeneratorPage() {
                       <Shuffle className="h-4 w-4" />
                     </Button>
                   </div>
+                </form>
+              )}
+
+              {/* ── CLAUDE.md Generator Form ── */}
+              {activeTab === "claudemd" && (
+                <form onSubmit={handleGenerateClaudeMd} className="space-y-3">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 border border-violet-200 dark:border-violet-800 text-xs text-violet-800 dark:text-violet-300">
+                    <p className="font-semibold mb-1">🤖 CLAUDE.md Generator</p>
+                    <p className="text-violet-700 dark:text-violet-400">Generate a CLAUDE.md file that gives Claude Code full context about your project — conventions, commands, architecture, and rules.</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Project Description *</label>
+                    <Textarea
+                      placeholder="e.g., Next.js 15 SaaS app for AI content generation with Supabase auth, OpenRouter API, deployed on Vercel..."
+                      value={claudeMdConfig.description}
+                      onChange={(e) => setClaudeMdConfig(p => ({ ...p, description: e.target.value }))}
+                      className="min-h-[90px] resize-none text-sm"
+                      disabled={isGenerating}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Tech Stack</label>
+                    <input
+                      placeholder="e.g., Next.js, TypeScript, TailwindCSS, Supabase, OpenRouter..."
+                      value={claudeMdConfig.stack}
+                      onChange={(e) => setClaudeMdConfig(p => ({ ...p, stack: e.target.value }))}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      disabled={isGenerating}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Key Commands</label>
+                    <input
+                      placeholder="e.g., npm run dev, npm run build, npm test..."
+                      value={claudeMdConfig.commands}
+                      onChange={(e) => setClaudeMdConfig(p => ({ ...p, commands: e.target.value }))}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      disabled={isGenerating}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Conventions / Preferences</label>
+                    <Textarea
+                      placeholder="e.g., Always use TypeScript strict mode, prefer server components, no default exports..."
+                      value={claudeMdConfig.conventions}
+                      onChange={(e) => setClaudeMdConfig(p => ({ ...p, conventions: e.target.value }))}
+                      className="min-h-[60px] resize-none text-sm"
+                      disabled={isGenerating}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full gap-2 ai-gradient border-0" disabled={isGenerating} size="lg">
+                    <FileCode2 className="h-4 w-4" />
+                    {isGenerating ? "Generating CLAUDE.md..." : "Generate CLAUDE.md"}
+                  </Button>
                 </form>
               )}
 
@@ -789,6 +900,52 @@ export default function GeneratorPage() {
                         </div>
                       </>
                     )}
+
+                    {/* ── CLAUDE.md preview ── */}
+                    {preview.type === "claudemd" && (
+                      <>
+                        <div>
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <FileCode2 className="h-5 w-5 text-violet-500" />
+                                <h3 className="text-lg font-semibold">CLAUDE.md</h3>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{preview.description}</p>
+                            </div>
+                            <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 border-violet-300 dark:border-violet-700">CLAUDE.md</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Created {new Date(preview.createdAt).toLocaleDateString()}</p>
+                        </div>
+
+                        <div className="flex-1 bg-[#1e1e2e] rounded-xl border border-border overflow-auto">
+                          <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                            <span className="text-xs text-white/50 font-mono">CLAUDE.md</span>
+                            <button onClick={() => handleCopyPrompt(preview.code)} className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors">
+                              {copied ? <><Check className="h-3 w-3 text-green-400" /><span className="text-green-400">Copied</span></> : <><Copy className="h-3 w-3" />Copy</>}
+                            </button>
+                          </div>
+                          <pre className="p-5 text-sm text-[#cdd6f4] whitespace-pre-wrap font-mono leading-relaxed">
+                            {preview.code}
+                          </pre>
+                        </div>
+
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button onClick={() => handleDownload(preview)} className="flex-1 gap-2 ai-gradient border-0" size="sm">
+                            <Download className="h-4 w-4" />
+                            Download CLAUDE.md
+                          </Button>
+                          <Button onClick={() => handleCopyPrompt(preview.code)} variant="outline" className="flex-1 gap-2" size="sm">
+                            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                            {copied ? "Copied!" : "Copy"}
+                          </Button>
+                        </div>
+                        <div className="bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-lg p-3">
+                          <p className="text-xs font-semibold text-violet-700 dark:text-violet-400 mb-1">HOW TO USE</p>
+                          <p className="text-xs text-violet-800 dark:text-violet-300">Place this file at the root of your project as <code className="bg-violet-100 dark:bg-violet-900 px-1 rounded">CLAUDE.md</code>. Claude Code reads it automatically before every task.</p>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -800,12 +957,15 @@ export default function GeneratorPage() {
                       <Lightbulb className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                     ) : activeTab === "prompt" ? (
                       <Wand2 className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                    ) : activeTab === "claudemd" ? (
+                      <FileCode2 className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                     ) : (
                       <Sparkles className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                     )}
                     <p className="text-muted-foreground font-medium">
                       {activeTab === "idea" ? "Your next big idea is one click away"
                         : activeTab === "prompt" ? "Fill in the task details to generate an optimized prompt"
+                        : activeTab === "claudemd" ? "Describe your project to generate a CLAUDE.md"
                         : `Generate a ${activeTab} to see the preview`}
                     </p>
                     <p className="text-xs text-muted-foreground/60 mt-2 max-w-xs mx-auto">
@@ -813,6 +973,8 @@ export default function GeneratorPage() {
                         ? "Generate original product ideas, then use them in the Prompt Generator to get a build-ready brief"
                         : activeTab === "prompt"
                         ? "Your prompt will be engineered with best practices — clear role, precise task, proper constraints"
+                        : activeTab === "claudemd"
+                        ? "CLAUDE.md tells Claude Code everything about your project — drop it in your repo root and it's read automatically"
                         : "Generated items are automatically archived and ready to share"}
                     </p>
                   </div>

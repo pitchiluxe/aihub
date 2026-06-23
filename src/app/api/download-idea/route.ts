@@ -176,7 +176,7 @@ src/
 supabase/
   schema.sql              # Database schema — run in Supabase SQL editor
 .claude/
-  SKILLS/${skillName(idea)}Skill/
+  skills/${skillName(idea)}Skill/
     skill.md              # Claude skill definition for this tool
 agent.md                  # AI agent configuration
 CLAUDE.md                 # This file
@@ -1205,9 +1205,9 @@ export async function POST(req: NextRequest) {
       exclude: ["node_modules"],
     }, null, 2));
 
-    // ── .claude/SKILLS/ — idea skill + bundled design/dev skills ───
+    // ── .claude/skills/ — idea skill + bundled design/dev skills ───
     const claudeDir = root.folder(".claude")!;
-    const skillsDir = claudeDir.folder("SKILLS")!;
+    const skillsDir = claudeDir.folder("skills")!;
     const skillDir  = skillsDir.folder(`${name}Skill`)!;
     skillDir.file("skill.md", skillMd(idea));
 
