@@ -29,6 +29,7 @@ import {
   Package,
   Lightbulb,
   Mail,
+  CirclePlay,
 } from "lucide-react";
 
 type BadgeType = "HOT" | "NEW" | "AI" | null;
@@ -52,6 +53,7 @@ const NAV_ITEMS: { href: string; label: string; icon: React.ElementType; desc: s
   { href: "/aihumlm",    label: "AIHub LM",        icon: NotebookPen,     desc: "AI assistant & digest",      badge: "AI",   highlight: true },
   { href: "/playground",     label: "Playground",      icon: Code,            desc: "Model testing sandbox",      badge: "NEW" },
   { href: "/million-ideas",  label: "1M Ideas",        icon: Lightbulb,       desc: "World-changing AI tools",    badge: "HOT",  highlight: true },
+  { href: "/tube",           label: "AI Tube",         icon: CirclePlay,      desc: "Top AI creators on YouTube", badge: "NEW",  highlight: true },
 ];
 
 const BONUS_ITEMS: { href: string; label: string; icon: React.ElementType; desc: string; badge: BadgeType }[] = [
