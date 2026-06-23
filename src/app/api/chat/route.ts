@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ChatMessage } from "@/types";
 import { callModel } from "@/lib/ai/client";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 // Extend Next.js function timeout beyond the default 60s
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+  // 20 requests per minute per IP
+  const { allowed, remaining } = rateLimit(getClientIp(req), 20, 60_000);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a minute and try again." },
+      { status: 429, headers: { "X-RateLimit-Remaining": String(remaining) } },
+    );
+  }
+
   try {
     const { messages, model, stream = false, provider = "openrouter" } = await req.json();
 

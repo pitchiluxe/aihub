@@ -12,7 +12,118 @@ import { formatDate } from "@/lib/utils";
 import {
   Search, Sparkles, Newspaper, ExternalLink,
   Loader2, Send, ChevronDown, ChevronRight, Copy, Check,
+  Cpu, FlaskConical, LayoutGrid,
 } from "lucide-react";
+
+// ─── Browse / Keyword Search ────────────────────────────────────────────────
+interface SearchResult {
+  type: string;
+  id: string;
+  title: string;
+  description: string;
+  url?: string;
+  meta?: string;
+  score: number;
+}
+
+const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  news:   { label: "News",   icon: Newspaper,    color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+  model:  { label: "Model",  icon: Cpu,          color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20" },
+  paper:  { label: "Paper",  icon: FlaskConical, color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20" },
+};
+
+function BrowseResults({ query }: { query: string }) {
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [searched, setSearched] = useState("");
+
+  useEffect(() => {
+    if (!query || query === searched) return;
+    setLoading(true);
+    setSearched(query);
+    fetch(`/api/search?q=${encodeURIComponent(query)}&type=${typeFilter}`)
+      .then((r) => r.json())
+      .then((d) => setResults(d.results ?? []))
+      .catch(() => setResults([]))
+      .finally(() => setLoading(false));
+  }, [query, typeFilter, searched]);
+
+  const filtered = typeFilter === "all" ? results : results.filter((r) => r.type === typeFilter);
+
+  const counts = { news: results.filter((r) => r.type === "news").length, model: results.filter((r) => r.type === "model").length, paper: results.filter((r) => r.type === "paper").length };
+
+  if (!query) {
+    return (
+      <div className="text-center py-20 text-muted-foreground">
+        <LayoutGrid className="w-12 h-12 mx-auto mb-4 opacity-20" />
+        <p>Type a search query above to browse news, models, and papers.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-6">
+      {/* Type filters */}
+      <div className="flex gap-2 mb-5 flex-wrap">
+        {[["all", "All", results.length], ["news", "News", counts.news], ["model", "Models", counts.model], ["paper", "Papers", counts.paper]].map(([val, label, count]) => (
+          <button
+            key={val}
+            onClick={() => setTypeFilter(val as string)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+              typeFilter === val ? "bg-primary/20 border-primary/40 text-primary" : "border-border text-muted-foreground hover:border-primary/30"
+            }`}
+          >
+            {label} ({count})
+          </button>
+        ))}
+      </div>
+
+      {loading && (
+        <div className="flex items-center gap-3 text-muted-foreground py-12 justify-center">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          Searching news, models, and papers…
+        </div>
+      )}
+
+      {!loading && filtered.length === 0 && query && (
+        <div className="text-center py-16 text-muted-foreground">
+          <p className="text-sm">No results for <strong className="text-foreground">&quot;{query}&quot;</strong>. Try the AI Chat tab.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {filtered.map((r) => {
+          const cfg = TYPE_CONFIG[r.type] ?? TYPE_CONFIG.news;
+          const Icon = cfg.icon;
+          return (
+            <motion.a
+              key={r.id}
+              href={r.url ?? "#"}
+              target={r.url?.startsWith("http") ? "_blank" : undefined}
+              rel="noopener noreferrer"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-3 p-4 rounded-xl border border-border hover:border-primary/40 bg-card hover:bg-accent transition-all group block"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.color}`}>
+                    <Icon className="w-3 h-3" />{cfg.label}
+                  </span>
+                  {r.meta && <span className="text-[10px] text-muted-foreground">{r.meta}</span>}
+                </div>
+                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">{r.title}</p>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.description}</p>
+              </div>
+              {r.url?.startsWith("http") && <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />}
+            </motion.a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface AgentMsg {
   id: string;
@@ -36,8 +147,10 @@ const SUGGESTIONS = [
 
 function SearchContent() {
   const searchParams = useSearchParams();
+  const [mode, setMode]                 = useState<"ai" | "browse">("ai");
   const [messages, setMessages]         = useState<AgentMsg[]>([]);
   const [input, setInput]               = useState(searchParams.get("q") ?? "");
+  const [browseQuery, setBrowseQuery]   = useState(searchParams.get("q") ?? "");
   const [loading, setLoading]           = useState(false);
   const [showSources, setShowSources]   = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId]         = useState<string | null>(null);
@@ -190,7 +303,62 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
     <div className="flex flex-col h-screen">
       <TopBar title="AIHub Google" description="AI-powered intelligence agent for everything AI" />
 
+      {/* Mode tab bar */}
+      <div className="flex gap-1 px-4 pt-3 pb-0 border-b border-border bg-background/95 backdrop-blur">
+        {([
+          { id: "ai",     label: "✦ AI Chat",      desc: "Ask Aria anything about AI" },
+          { id: "browse", label: "⊞ Browse",        desc: "Search news, models, papers" },
+        ] as const).map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setMode(tab.id)}
+            className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 transition-all ${
+              mode === tab.id
+                ? "text-primary border-primary bg-primary/5"
+                : "text-muted-foreground border-transparent hover:text-foreground hover:border-border"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Browse mode */}
+        {mode === "browse" && (
+          <div className="flex-1 overflow-y-auto">
+            {/* Browse search bar */}
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 py-3">
+              <div className="max-w-3xl mx-auto flex gap-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search news, models, arXiv papers…"
+                    defaultValue={browseQuery}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") setBrowseQuery((e.target as HTMLInputElement).value);
+                    }}
+                    className="w-full pl-9 pr-4 py-2.5 text-sm bg-muted border border-border rounded-xl outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+                <Button
+                  onClick={(e) => {
+                    const inp = (e.currentTarget.previousElementSibling?.querySelector("input") as HTMLInputElement);
+                    if (inp) setBrowseQuery(inp.value);
+                  }}
+                  className="ai-gradient border-0"
+                >
+                  <Search className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <BrowseResults query={browseQuery} />
+          </div>
+        )}
+
+        {/* AI Chat mode */}
+        {mode === "ai" && <>
         {/* Chat Area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
@@ -350,6 +518,7 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
             </p>
           </div>
         </div>
+        </>}
       </div>
     </div>
   );

@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ResearchPaper } from "@/types";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 // NEVER cache — always fetch live data
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const { allowed } = rateLimit(getClientIp(req), 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Rate limit exceeded. Try again in a minute." }, { status: 429 });
+  }
+
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("q") ?? "large language models";
   const limit = parseInt(searchParams.get("limit") ?? "30");

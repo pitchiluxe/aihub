@@ -42,7 +42,7 @@ export default function ModelsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(48);
   const [view, setView] = useState<ViewMode>("grid");
   const { selectedProvider, setSelectedProvider, freeOnly, setFreeOnly } = useStore();
 
@@ -105,8 +105,8 @@ export default function ModelsPage() {
 
   const freeCount = models.filter((m) => m.isFree).length;
   const openSourceCount = models.filter((m) => m.isOpenSource).length;
-  const GRID_LIMIT = showAll ? filtered.length : 60;
-  const TABLE_LIMIT = showAll ? filtered.length : 100;
+  const GRID_LIMIT = Math.min(visibleCount, filtered.length);
+  const TABLE_LIMIT = Math.min(visibleCount + 48, filtered.length);
 
   function toggleSort(col: SortKey) {
     if (sortBy === col) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -340,8 +340,8 @@ export default function ModelsPage() {
                     </motion.div>
                     {filtered.length > GRID_LIMIT && (
                       <div className="mt-6 text-center">
-                        <Button variant="outline" onClick={() => setShowAll(true)} className="gap-2">
-                          Show all {filtered.length.toLocaleString()} models
+                        <Button variant="outline" onClick={() => setVisibleCount((v) => v + 48)} className="gap-2">
+                          Load 48 more · {filtered.length - GRID_LIMIT} remaining
                         </Button>
                       </div>
                     )}
@@ -433,8 +433,8 @@ export default function ModelsPage() {
                   </div>
                   {filtered.length > TABLE_LIMIT && (
                     <div className="p-4 text-center border-t border-border">
-                      <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
-                        Show all {filtered.length.toLocaleString()} models
+                      <Button variant="outline" size="sm" onClick={() => setVisibleCount((v) => v + 48)}>
+                        Load 48 more · {filtered.length - TABLE_LIMIT} remaining
                       </Button>
                     </div>
                   )}

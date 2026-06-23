@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ChatBot } from "@/components/ChatBot";
 import { Toaster } from "react-hot-toast";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -123,6 +124,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <link rel="canonical" href={appUrl} />
+        <link rel="alternate" type="application/rss+xml" title="AIHub AI News Feed" href={`${appUrl}/feed.xml`} />
       </head>
       <body>
         <ThemeProvider
@@ -133,6 +135,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           {children}
           <ChatBot />
+          <Analytics />
           <Toaster
             position="bottom-right"
             toastOptions={{

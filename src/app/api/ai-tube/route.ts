@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 // ── AI YouTuber channel-specific queries ─────────────────────────────────────
 // Each entry targets a specific creator or topic cluster for diversity
@@ -71,6 +72,11 @@ function getPublishedAfter(weeksBack: number): string {
 }
 
 export async function GET(req: NextRequest) {
+  const { allowed } = rateLimit(getClientIp(req), 10, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Rate limit exceeded. Try again in a minute." }, { status: 429 });
+  }
+
   const apiKey = process.env.YOUTUBE_API_KEY?.trim();
 
   if (!apiKey) {

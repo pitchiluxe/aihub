@@ -102,6 +102,7 @@ export const INITIAL_GRAPH_DATA: GraphData = {
     { id: "minicpm",        label: "MiniCPM 3",         type: "model", description: "ModelBest's efficient on-device model family", size: 14, color: "#8b5cf6", url: "https://github.com/OpenBMB/MiniCPM" },
     { id: "aya",            label: "Aya Expanse",       type: "model", description: "Cohere's multilingual model across 23 languages", size: 18, color: "#d946ef", url: "https://cohere.com/research/aya" },
     { id: "llama32",        label: "Llama 3.2",         type: "model", description: "Meta's multimodal Llama — vision + 1B/3B edge models", size: 24, color: "#0866ff", url: "https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/" },
+    { id: "titan",          label: "Amazon Titan",      type: "model", description: "Amazon's family of foundation models available via Bedrock", size: 18, color: "#ff9900", url: "https://aws.amazon.com/bedrock/titan/" },
 
     // ════════════════════════════════════════════════════════════
     // RESEARCH PAPERS & TECHNIQUES
