@@ -853,14 +853,23 @@ export async function POST(req: NextRequest) {
       50_000, // 50s per model attempt (vs default 18s) — code generation needs more time
     );
 
-    const cleanCode = pageCode
-      .replace(/^```(?:tsx?|jsx?)?\n?/gm, "")
-      .replace(/```$/gm, "")
-      .trim()
-      // AI sometimes omits the double-quotes around the use client directive
-      .replace(/^use client;/m, '"use client";')
-      // Also fix if it comes after a stray newline at the start
-      .replace(/^\n+use client;/m, '\n"use client";');
+    const cleanCode = (() => {
+      let code = pageCode
+        .replace(/^```(?:tsx?|jsx?)?\n?/gm, "")
+        .replace(/```$/gm, "")
+        .trim();
+
+      // Normalise ALL variants the AI produces:
+      //   use client         (no quotes, no semi)
+      //   use client;        (no quotes, with semi)
+      //   'use client'       (single quotes, no semi)
+      //   'use client';      (single quotes, with semi)
+      //   "use client"       (double quotes, no semi — missing semicolon)
+      // → always becomes:    "use client";
+      code = code.replace(/^(['"]?)use client\1;?/m, '"use client";');
+
+      return code;
+    })();
 
     const files = [
       { name: "README.md", content: readme(businessName, businessType, brief.name) },
