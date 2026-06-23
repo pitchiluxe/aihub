@@ -413,6 +413,48 @@ STRICT RULES — These make websites look AI-generated and are FORBIDDEN:
 - Addresses must be specific: "847 Oak Street, Suite 204, [City], [State]"
 `;
 
+// ── Applied skill: UI/UX Pro Max + React Best Practices ──────────────────────
+const SKILL_REQUIREMENTS = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SKILL: UI/UX PRO MAX — ACCESSIBILITY & INTERACTION RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Applied from ui-ux-pro-max + react-best-practices skills:
+
+ACCESSIBILITY (CRITICAL):
+- All interactive elements MUST have aria-label or visible label
+- Color contrast minimum 4.5:1 — never gray text on gray bg
+- All form inputs MUST have associated <label htmlFor="...">
+- Focus states: add focus:ring-2 focus:ring-offset-2 on all buttons/inputs
+- Icon-only buttons must have aria-label
+
+INTERACTION & STATE (CRITICAL — this is what makes it FUNCTIONAL, not just layout):
+- Mobile hamburger menu MUST use useState(false) and actually toggle open/close
+- Contact/booking form MUST use useState for: input values, loading, success, error
+- Form submission MUST show: loading spinner during submit, success message on done, error on fail
+- NEVER use href="#" as a dead link — either a real section anchor or a functional button
+- All buttons that trigger actions MUST be disabled during loading (disabled={loading})
+- Minimum 44×44px touch targets on all interactive elements
+
+REACT BEST PRACTICES:
+- Use const [menuOpen, setMenuOpen] = useState(false) for mobile nav
+- Use const [formState, setFormState] = useState<"idle"|"loading"|"success"|"error">("idle")
+- Controlled inputs: value={field} onChange={(e) => setField(e.target.value)}
+- Async form handlers: async function handleSubmit(e: FormEvent) { e.preventDefault(); ... }
+- Keep unrelated state in separate useState calls (don't merge into one object)
+
+LAYOUT & RESPONSIVE:
+- Every section MUST be mobile-first with sm: md: lg: breakpoints
+- Readable font size minimum 16px (text-base) for body content
+- Navigation must collapse to hamburger below md: breakpoint
+- Max content width: max-w-6xl or max-w-7xl with mx-auto
+
+DESIGN QUALITY:
+- Sections must alternate between light and dark backgrounds — never same bg twice in a row
+- Cards need hover effects: hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300
+- Typography hierarchy: one large hero heading (text-5xl+), section headings (text-3xl), body (text-base)
+- Use consistent spacing: py-16 sm:py-20 px-4 sm:px-6 for sections
+`;
+
 // ── Business structure configs ─────────────────────────────────────────────────
 const BUSINESS_CONFIGS: Record<string, { sections: string[]; lucideIcons: string; copyGuidance: string }> = {
   "Trade Business": {
@@ -507,8 +549,16 @@ function buildPrompt(
   const config = BUSINESS_CONFIGS[businessType] ?? BUSINESS_CONFIGS["Trade Business"];
   const sections = config.sections.map((s, i) => `${i + 1}. ${s}`).join("\n");
 
-  return `You are a world-class React/Next.js developer who specializes in industry-specific web design.
-Generate a COMPLETE, stunning, production-ready homepage for a ${businessType}.
+  return `You are a world-class React/Next.js developer who specialises in building FUNCTIONAL, INTERACTIVE, industry-specific web applications.
+
+CRITICAL MANDATE: This is NOT just a layout. You are building a WORKING application. The code you produce must:
+1. Have a contact/booking form that ACTUALLY WORKS with useState validation and submission feedback
+2. Have a mobile menu that ACTUALLY OPENS AND CLOSES with useState
+3. Have at least one interactive component: FAQ accordion, service tabs, or testimonial slider
+4. Use proper React patterns — controlled inputs, loading states, success/error feedback
+5. Be deployable immediately with "npm run dev" and look professional on both mobile and desktop
+
+Generate a COMPLETE, production-ready homepage for a ${businessType}.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BUSINESS INFORMATION
@@ -574,12 +624,36 @@ TECHNICAL REQUIREMENTS
 
 ${ANTI_PATTERNS}
 
+${SKILL_REQUIREMENTS}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY FUNCTIONAL COMPONENTS (MUST be present)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A) MOBILE NAVIGATION — must actually open/close:
+   const [menuOpen, setMenuOpen] = useState(false);
+   Button with onClick={() => setMenuOpen(!menuOpen)}
+   Conditional menu: {menuOpen && <div>...nav links...</div>}
+
+B) CONTACT/BOOKING FORM — must have real state:
+   const [formStatus, setFormStatus] = useState<"idle"|"loading"|"success"|"error">("idle");
+   Controlled inputs with useState per field
+   async handleSubmit: setFormStatus("loading") → await delay → setFormStatus("success")
+   Show spinner when loading, "Sent!" confirmation on success, retry on error
+
+C) INTERACTIVE SECTION — pick one that fits the business:
+   - FAQ accordion: const [openFaq, setOpenFaq] = useState<number|null>(null)
+   - Service tabs: const [activeTab, setActiveTab] = useState(0)
+   - Before/after toggle or feature comparison
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Return ONLY the complete TypeScript JSX for src/app/page.tsx.
-No markdown fences. No explanation. No imports other than React useState and lucide-react.
-Raw .tsx code starting with "use client";`;
+No markdown fences. No explanation. Imports: only "use client", useState, React.FormEvent, and lucide-react.
+Raw .tsx code starting with "use client";
+
+The code MUST be COMPLETE and FUNCTIONAL — all state wired up, all buttons do something, form shows feedback.
+A developer must be able to run "npm install && npm run dev" and immediately see a working, interactive website.`;
 }
 
 function packageJson(businessName: string) {

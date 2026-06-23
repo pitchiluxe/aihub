@@ -3,6 +3,7 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { FooterTimestamp } from "@/components/layout/FooterTimestamp";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </ErrorBoundary>
       </main>
       <CommandPalette />
+      <FooterTimestamp />
     </div>
   );
 }
