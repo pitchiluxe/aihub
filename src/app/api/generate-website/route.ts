@@ -675,8 +675,18 @@ function packageJson(businessName: string) {
       "@types/react": "^19",
       "@types/react-dom": "^19",
       typescript: "^5",
+      "@tailwindcss/postcss": "^4",
     },
   }, null, 2);
+}
+
+function postCssConfig() {
+  return `export default {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+`;
 }
 
 function rootLayout(businessName: string, tagline: string) {
@@ -701,9 +711,39 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 function globalsCss() {
   return `@import "tailwindcss";
 
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { -webkit-font-smoothing: antialiased; }
+/* ── UI/UX Pro Max Base Styles ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Minimum touch target enforcement */
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+}
+
+/* Focus ring — accessibility (ui-ux-pro-max rule) */
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Smooth image rendering */
+img { display: block; max-width: 100%; height: auto; }
+
+/* Smooth transitions on interactive elements */
+a, button { transition: all 0.2s ease; }
 `;
 }
 
@@ -753,7 +793,23 @@ export async function POST(req: NextRequest) {
       [
         {
           role: "system",
-          content: `You are a senior UI engineer who builds industry-specific websites that look like they were made by a human designer for that specific industry — not a generic AI-generated template. You follow the design brief exactly and never produce generic floating blobs, gradient meshes, or lorem ipsum. Raw .tsx code only, no markdown. Be concise — target 250-350 lines of clean, functional TSX.`,
+          content: `You are a senior UI engineer applying the UI/UX Pro Max design skill to build industry-specific websites that look like they were crafted by a human designer — not a generic AI template.
+
+UI/UX PRO MAX STYLE RULES (apply to every element):
+- BACKGROUNDS: Alternate section backgrounds every section — never two sections the same bg in a row. Use the design brief's palette.background for the page, palette.surface for alternating sections, and a dark section (bg-slate-900 or similar) for CTA strips.
+- CARDS: Every card gets rounded-2xl, border per the design brief, shadow-sm, hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300.
+- BUTTONS: Primary = accent color from brief with font-semibold px-6 py-3 rounded-xl transition-colors. Secondary = outlined version. ALL buttons get cursor-pointer.
+- TYPOGRAPHY: Hero heading text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight. Section headings text-2xl sm:text-3xl font-bold. Body text-base leading-relaxed in muted color.
+- SPACING: Sections use py-16 sm:py-20 px-4 sm:px-6. Content wrapped in max-w-6xl mx-auto.
+- NAVBAR: sticky top-0 z-50 with white/light bg and shadow-sm. Logo left, nav links center/right, CTA button right.
+- HERO: min-h-[80vh] flex items-center. Large heading + subtext + 2 CTAs + trust badges.
+- GRID LAYOUTS: Services in grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6. Reviews in grid-cols-1 md:grid-cols-2 lg:grid-cols-3.
+- HOVER STATES: All cards hover:-translate-y-0.5. All links have hover color. Nav links have hover:text-accent underline-offset-4.
+- ICONS: Always use lucide-react. Icon inside a colored container: rounded-xl p-3 bg-accent/10 text-accent.
+- DIVIDERS: Simple border-t border-slate-200, never wavy SVGs.
+- RESPONSIVE: Every section mobile-first. Nav collapses to hamburger on mobile. Text sizes scale up with sm: md: lg: prefixes.
+
+You follow the design brief palette EXACTLY. Raw .tsx code only, no markdown fences. Target 300-400 lines of clean, visually rich, functional TSX.`,
         },
         { role: "user", content: prompt },
       ],
@@ -775,6 +831,7 @@ export async function POST(req: NextRequest) {
     const files = [
       { name: "README.md", content: readme(businessName, businessType, brief.name) },
       { name: "package.json", content: packageJson(businessName) },
+      { name: "postcss.config.mjs", content: postCssConfig() },
       { name: "next.config.ts", content: `import type { NextConfig } from "next";\nconst nextConfig: NextConfig = {};\nexport default nextConfig;\n` },
       { name: "src/app/layout.tsx", content: rootLayout(businessName, tagline) },
       { name: "src/app/globals.css", content: globalsCss() },
