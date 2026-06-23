@@ -549,112 +549,162 @@ function buildPrompt(
   const config = BUSINESS_CONFIGS[businessType] ?? BUSINESS_CONFIGS["Trade Business"];
   const sections = config.sections.map((s, i) => `${i + 1}. ${s}`).join("\n");
 
-  return `You are a world-class React/Next.js developer who specialises in building FUNCTIONAL, INTERACTIVE, industry-specific web applications.
+  const BG = brief.palette.background;
+  const SURFACE = brief.palette.surface;
+  const TEXT = brief.palette.text;
+  const MUTED = brief.palette.muted;
+  const ACCENT = brief.palette.accent;
+  const ACCENT_TEXT = brief.palette.accentText;
+  const BORDER = brief.palette.border;
+  const BTN = brief.tailwindExamples.button;
+  const CARD = brief.tailwindExamples.card;
+  const H1 = brief.tailwindExamples.heading;
+  const SECTION = brief.tailwindExamples.section;
 
-CRITICAL MANDATE: This is NOT just a layout. You are building a WORKING application. The code you produce must:
-1. Have a contact/booking form that ACTUALLY WORKS with useState validation and submission feedback
-2. Have a mobile menu that ACTUALLY OPENS AND CLOSES with useState
-3. Have at least one interactive component: FAQ accordion, service tabs, or testimonial slider
-4. Use proper React patterns — controlled inputs, loading states, success/error feedback
-5. Be deployable immediately with "npm run dev" and look professional on both mobile and desktop
+  return `You are a senior React/Next.js engineer. Build a COMPLETE, production-ready homepage for a ${businessType}. The result must look professionally designed — not an AI prototype.
 
-Generate a COMPLETE, production-ready homepage for a ${businessType}.
+━━━ BUSINESS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: "${businessName || (businessType + " of " + (city || "New York"))}"
+Tagline: "${tagline || "Professional " + businessType + " services in " + (city || "New York")}"
+City: "${city || "New York, NY"}"
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-BUSINESS INFORMATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Business Name: "${businessName || (businessType + " of " + (city || "New York"))}"
-- Tagline: "${tagline || "Professional " + businessType + " services in " + (city || "New York")}"
-- City: "${city || "New York, NY"}"
-- Type: ${businessType}
+━━━ DESIGN SYSTEM: ${brief.name} ━━━━━━━━━━━━━━
+Feel: ${brief.feel}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DESIGN SYSTEM: ${brief.name}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Visual Feel: ${brief.feel}
+Page bg: ${BG} | Surface/cards: ${SURFACE} | Text: ${TEXT} | Muted: ${MUTED}
+Accent button: ${ACCENT} | Accent text: ${ACCENT_TEXT} | Borders: ${BORDER}
+Headings: ${brief.typography.heading}
+Body: ${brief.typography.body}
+Special: ${brief.typography.special}
 
-Color System:
-- Page background: ${brief.palette.background}
-- Surface/cards: ${brief.palette.surface}
-- Primary text: ${brief.palette.text}
-- Muted text: ${brief.palette.muted}
-- Accent (buttons, highlights): ${brief.palette.accent}
-- Accent text/links: ${brief.palette.accentText}
-- Borders: ${brief.palette.border}
+━━━ LOCKED COMPONENT PATTERNS — COPY EXACTLY ━━
+You MUST use these exact structural patterns. Do not deviate.
 
-Typography Rules:
-- Headings: ${brief.typography.heading}
-- Body: ${brief.typography.body}
-- Special elements: ${brief.typography.special}
+NAVBAR (copy this structure):
+<nav className="sticky top-0 z-50 ${BG} border-b ${BORDER} shadow-sm">
+  <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+    <span className="text-xl font-bold ${ACCENT_TEXT}">Business Name</span>
+    <div className="hidden md:flex items-center gap-8">
+      <a href="#services" className="${MUTED} hover:${ACCENT_TEXT} transition-colors text-sm font-medium">Services</a>
+      {/* more links with gap-8 between them */}
+    </div>
+    <div className="flex items-center gap-3">
+      <a href="#contact" className="${BTN} hidden sm:inline-flex">CTA Button</a>
+      <button className="md:hidden p-2 ${MUTED}" onClick={() => setMenuOpen(!menuOpen)}><Menu className="h-5 w-5" /></button>
+    </div>
+  </div>
+  {menuOpen && (
+    <div className="${BG} border-t ${BORDER} px-4 py-4 flex flex-col gap-4 md:hidden">
+      <a href="#services" className="${TEXT} font-medium" onClick={() => setMenuOpen(false)}>Services</a>
+    </div>
+  )}
+</nav>
 
-Tailwind Class Examples (use as base patterns):
-- Section wrapper: ${brief.tailwindExamples.section}
-- Cards: ${brief.tailwindExamples.card}
-- Primary button: ${brief.tailwindExamples.button}
-- Main heading: ${brief.tailwindExamples.heading}
+SECTION WRAPPER (every section must use this):
+<section id="sectionId" className="${BG === 'bg-white' ? 'bg-white' : BG} py-16 sm:py-20">
+  <div className="max-w-6xl mx-auto px-4 sm:px-6">
+    <h2 className="text-3xl sm:text-4xl font-bold ${TEXT} text-center mb-4">Section Title</h2>
+    <p className="text-center ${MUTED} mb-12 max-w-2xl mx-auto">Subtitle text</p>
+    {/* content */}
+  </div>
+</section>
+ALTERNATE: odd sections use ${BG}, even sections use ${SURFACE} — never two sections same bg in a row.
 
-Industry-Specific Component Rules:
-${brief.components.map((c, i) => `${i + 1}. ${c}`).join("\n")}
+SERVICE/FEATURE CARD (copy this):
+<div className="${CARD} hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
+  <div className="w-12 h-12 rounded-xl ${ACCENT.replace('hover:', '')} bg-opacity-10 flex items-center justify-center mb-4">
+    <IconName className="h-6 w-6 ${ACCENT_TEXT}" />
+  </div>
+  <h3 className="text-lg font-bold ${TEXT} mb-2">Title</h3>
+  <p className="${MUTED} text-sm leading-relaxed">Description</p>
+</div>
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REQUIRED PAGE SECTIONS (in order)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GRID LAYOUTS:
+- 3-col grid: className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+- 2-col grid: className="grid grid-cols-1 md:grid-cols-2 gap-8"
+- Stats row: className="grid grid-cols-2 sm:grid-cols-4 gap-6"
+
+PERSON/TEAM CARD (NO <img> tags — use avatar placeholder):
+<div className="${CARD}">
+  <div className="w-16 h-16 rounded-full ${SURFACE} ${BORDER} border-2 flex items-center justify-center mx-auto mb-4">
+    <span className="text-2xl font-bold ${ACCENT_TEXT}">JA</span>
+  </div>
+  <h3 className="font-bold ${TEXT} text-center">John A. Smith</h3>
+  <p className="${MUTED} text-sm text-center">Senior Partner</p>
+</div>
+
+REVIEW CARD:
+<div className="${CARD}">
+  <div className="flex gap-0.5 mb-3">{[...Array(5)].map((_,i) => <Star key={i} className="h-4 w-4 fill-current ${ACCENT_TEXT}" />)}</div>
+  <p className="${MUTED} text-sm leading-relaxed mb-4">"Specific testimonial with real detail about the service."</p>
+  <div className="flex items-center gap-3">
+    <div className="w-9 h-9 rounded-full ${SURFACE} flex items-center justify-center text-sm font-bold ${ACCENT_TEXT}">MR</div>
+    <div><p className="text-sm font-semibold ${TEXT}">Maria Rodriguez</p><p className="text-xs ${MUTED}">Brooklyn, NY</p></div>
+  </div>
+</div>
+
+PRIMARY BUTTON: className="${BTN}"
+SECONDARY BUTTON: className="border-2 ${BORDER} ${TEXT} font-semibold px-6 py-3 rounded-xl hover:${BG === 'bg-white' ? 'bg-slate-50' : 'bg-slate-800'} transition-colors cursor-pointer"
+
+━━━ HERO SECTION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<section className="${BG} py-20 sm:py-28">
+  <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
+    <div className="inline-flex items-center gap-2 ${SURFACE} border ${BORDER} rounded-full px-4 py-1.5 text-xs font-medium ${MUTED} mb-6">
+      Trust badge text
+    </div>
+    <h1 className="${H1} mb-6 max-w-4xl mx-auto">Compelling headline for ${businessType}</h1>
+    <p className="${MUTED} text-lg sm:text-xl mb-8 max-w-2xl mx-auto leading-relaxed">Supporting tagline</p>
+    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      <a href="#contact" className="${BTN}">Primary CTA</a>
+      <a href="#services" className="border-2 ${BORDER} ${TEXT} font-semibold px-6 py-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer inline-flex items-center justify-center gap-2">Secondary CTA</a>
+    </div>
+    <div className="mt-10 flex flex-wrap justify-center gap-6 text-sm ${MUTED}">
+      <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 ${ACCENT_TEXT}" /> Trust point 1</span>
+      <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 ${ACCENT_TEXT}" /> Trust point 2</span>
+      <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 ${ACCENT_TEXT}" /> Trust point 3</span>
+    </div>
+  </div>
+</section>
+
+━━━ REQUIRED SECTIONS (in order) ━━━━━━━━━━━━━
 ${sections}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-COPYWRITING GUIDANCE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━ COPYWRITING ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${config.copyGuidance}
+Phone format: (555) 847-XXXX | Address: "847 Oak Street, Suite 204, ${city || "New York"}"
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TECHNICAL REQUIREMENTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. FIRST LINE MUST BE EXACTLY (with literal double-quote characters): "use client"; — then a blank line, then imports
-2. Import ONLY these lucide-react icons at the top: ${config.lucideIcons}
-3. Use ONLY Tailwind CSS v4 utility classes
-4. Every section MUST be mobile-responsive (sm: md: lg: breakpoints)
-5. Include smooth hover effects: hover:shadow-lg, transition-all duration-300, hover:-translate-y-0.5
-6. Mobile hamburger menu with useState (open/close) on navbar
-7. All clickable elements must have cursor-pointer
-8. Minimum touch target size 44x44px for all interactive elements
-9. At least 5 customer reviews with realistic content (full name, neighborhood, specific detail)
-10. All form inputs must have associated label elements
-11. Business phone format: (555) 847-XXXX
-12. Sections should alternate backgrounds meaningfully per the design system
+━━━ INDUSTRY COMPONENTS ━━━━━━━━━━━━━━━━━━━━━━
+${brief.components.map((c, i) => `${i + 1}. ${c}`).join("\n")}
+
+━━━ MANDATORY STATE (MUST be wired up) ━━━━━━━
+const [menuOpen, setMenuOpen] = useState(false);
+const [name, setName] = useState("");
+const [email, setEmail] = useState("");
+const [message, setMessage] = useState("");
+const [formStatus, setFormStatus] = useState<"idle"|"loading"|"success"|"error">("idle");
+const [openFaq, setOpenFaq] = useState<number|null>(null);  // or activeTab for tabs
+
+Contact form: real controlled inputs + async handleSubmit that sets loading→success/error.
+FAQ or tabs: fully interactive with openFaq/activeTab state.
+
+━━━ ABSOLUTE RULES ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- NEVER use <img> tags — use initials avatar divs (see PERSON CARD pattern above)
+- NEVER use href="#" — always #sectionId or onClick handler
+- NEVER put nav links directly adjacent without gap-8 between them
+- NEVER skip the max-w-6xl mx-auto px-4 sm:px-6 content wrapper inside every section
+- NEVER use same background for two consecutive sections
+- NEVER use Lorem ipsum — write real industry-specific content
+- NO floating blobs, gradient meshes, wavy SVG dividers, particle animations
+- ALL buttons get cursor-pointer
+- ALL interactive elements min 44×44px touch target
 
 ${ANTI_PATTERNS}
 
-${SKILL_REQUIREMENTS}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MANDATORY FUNCTIONAL COMPONENTS (MUST be present)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-A) MOBILE NAVIGATION — must actually open/close:
-   const [menuOpen, setMenuOpen] = useState(false);
-   Button with onClick={() => setMenuOpen(!menuOpen)}
-   Conditional menu: {menuOpen && <div>...nav links...</div>}
-
-B) CONTACT/BOOKING FORM — must have real state:
-   const [formStatus, setFormStatus] = useState<"idle"|"loading"|"success"|"error">("idle");
-   Controlled inputs with useState per field
-   async handleSubmit: setFormStatus("loading") → await delay → setFormStatus("success")
-   Show spinner when loading, "Sent!" confirmation on success, retry on error
-
-C) INTERACTIVE SECTION — pick one that fits the business:
-   - FAQ accordion: const [openFaq, setOpenFaq] = useState<number|null>(null)
-   - Service tabs: const [activeTab, setActiveTab] = useState(0)
-   - Before/after toggle or feature comparison
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OUTPUT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Return ONLY the complete TypeScript JSX for src/app/page.tsx.
-No markdown fences. No explanation. Imports: only "use client", useState, React.FormEvent, and lucide-react.
-Raw .tsx code. The absolute first line of your output must be exactly: "use client"; (with double-quote characters, as a React directive — not the word use followed by client without quotes).
-
-The code MUST be COMPLETE and FUNCTIONAL — all state wired up, all buttons do something, form shows feedback.
-A developer must be able to run "npm install && npm run dev" and immediately see a working, interactive website.
-CONCISENESS: Target 250-350 lines. Use .map() for repeated items. No excessive comments or blank lines.`;
+━━━ OUTPUT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Return ONLY raw .tsx code for src/app/page.tsx.
+First line must be exactly: "use client";
+Imports: useState, React.FormEvent from react + lucide-react icons only: ${config.lucideIcons}
+No markdown fences. No comments. No explanation. Target 350-450 lines.`;
 }
 
 function packageJson(businessName: string) {
@@ -793,27 +843,11 @@ export async function POST(req: NextRequest) {
       [
         {
           role: "system",
-          content: `You are a senior UI engineer applying the UI/UX Pro Max design skill to build industry-specific websites that look like they were crafted by a human designer — not a generic AI template.
-
-UI/UX PRO MAX STYLE RULES (apply to every element):
-- BACKGROUNDS: Alternate section backgrounds every section — never two sections the same bg in a row. Use the design brief's palette.background for the page, palette.surface for alternating sections, and a dark section (bg-slate-900 or similar) for CTA strips.
-- CARDS: Every card gets rounded-2xl, border per the design brief, shadow-sm, hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300.
-- BUTTONS: Primary = accent color from brief with font-semibold px-6 py-3 rounded-xl transition-colors. Secondary = outlined version. ALL buttons get cursor-pointer.
-- TYPOGRAPHY: Hero heading text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight. Section headings text-2xl sm:text-3xl font-bold. Body text-base leading-relaxed in muted color.
-- SPACING: Sections use py-16 sm:py-20 px-4 sm:px-6. Content wrapped in max-w-6xl mx-auto.
-- NAVBAR: sticky top-0 z-50 with white/light bg and shadow-sm. Logo left, nav links center/right, CTA button right.
-- HERO: min-h-[80vh] flex items-center. Large heading + subtext + 2 CTAs + trust badges.
-- GRID LAYOUTS: Services in grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6. Reviews in grid-cols-1 md:grid-cols-2 lg:grid-cols-3.
-- HOVER STATES: All cards hover:-translate-y-0.5. All links have hover color. Nav links have hover:text-accent underline-offset-4.
-- ICONS: Always use lucide-react. Icon inside a colored container: rounded-xl p-3 bg-accent/10 text-accent.
-- DIVIDERS: Simple border-t border-slate-200, never wavy SVGs.
-- RESPONSIVE: Every section mobile-first. Nav collapses to hamburger on mobile. Text sizes scale up with sm: md: lg: prefixes.
-
-You follow the design brief palette EXACTLY. Raw .tsx code only, no markdown fences. Target 300-400 lines of clean, visually rich, functional TSX.`,
+          content: `You are a senior React/Next.js UI engineer who builds beautiful, industry-specific websites that look professionally designed. You follow provided code patterns EXACTLY — copying the structural patterns given in the prompt for navbar, sections, cards, and buttons. You never deviate from the locked component patterns. Raw .tsx code only, no markdown fences, no explanation. Follow every rule and pattern in the user prompt precisely.`,
         },
         { role: "user", content: prompt },
       ],
-      4500,  // Reduced from 8000 — fewer tokens = faster generation, prevents timeout
+      6000,  // Enough for 350-450 line styled component
       undefined,
       0.7,
       50_000, // 50s per model attempt (vs default 18s) — code generation needs more time
