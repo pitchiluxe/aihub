@@ -1,30 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
-// ── AI YouTuber channel-specific queries ─────────────────────────────────────
-// Each entry targets a specific creator or topic cluster for diversity
-const AI_QUERIES = [
-  'Nate Herk AI agents automation',
-  'Matt Wolfe AI news tools weekly',
-  'Two Minute Papers AI research explained',
-  'AI Jason agents workflows tutorial',
-  'Andrej Karpathy neural network deep learning',
-  'Sam Witteveen LLM tutorial langchain',
-  'David Shapiro AI automation future',
-  'Yannic Kilcher machine learning paper explained',
-  'Skill Leap AI tutorial productivity',
-  'AI Explained GPT Claude Gemini',
-  'Cole Medin AI agent build tutorial',
-  'The AI Advantage ChatGPT tutorial',
-  'Matthew Berman AI news latest',
-  'Riley Brown AI coding assistant',
-  'Fireship AI coding programming 2024',
-  'OpenAI Claude Anthropic Gemini latest model',
-  'LangGraph CrewAI multi agent AI tutorial',
-  'prompt engineering ChatGPT tutorial 2024',
-  'local AI Ollama LLM run tutorial',
-  'AI automation n8n make zapier workflow',
+// ── AI-specific search queries grouped into sets ──────────────────────────────
+// Grouped so each "load more" call uses a DIFFERENT set, ensuring fresh results.
+// Every query explicitly contains AI keywords to minimize off-topic results.
+const AI_QUERY_GROUPS: string[][] = [
+  // Group 0 — initial load: top creators
+  [
+    'Matt Wolfe AI news tools 2025',
+    'Andrej Karpathy neural network LLM tutorial',
+    'AI Jason LangChain agents workflow tutorial',
+  ],
+  // Group 1 — load more batch 1
+  [
+    'Two Minute Papers AI research explained 2025',
+    'Yannic Kilcher machine learning paper review',
+    'Cole Medin AI agent build n8n automation',
+    'Sam Witteveen LLM OpenAI tutorial 2025',
+    'Nate Herk AI automation agents workflow',
+  ],
+  // Group 2 — load more batch 2
+  [
+    'Matthew Berman AI model review GPT Claude Gemini',
+    'Fireship AI coding tutorial cursor copilot',
+    'AI Explained large language model GPT-4',
+    'Skill Leap AI ChatGPT productivity tutorial',
+    'David Shapiro AI future automation agents',
+  ],
+  // Group 3 — load more batch 3
+  [
+    'LangGraph CrewAI multi agent AI build tutorial',
+    'prompt engineering advanced ChatGPT Claude tutorial',
+    'Ollama local LLM run open source AI tutorial',
+    'OpenAI Claude Anthropic Gemini model release 2025',
+    'n8n make zapier AI workflow automation tutorial',
+  ],
+  // Group 4 — load more batch 4
+  [
+    'RAG retrieval augmented generation tutorial 2025',
+    'AI coding assistant Cursor GitHub Copilot review',
+    'Hugging Face transformer fine tuning LLM tutorial',
+    'AI agent framework AutoGen LangGraph build 2025',
+    'DeepSeek Mistral Llama open source model review',
+  ],
+  // Group 5 — load more batch 5
+  [
+    'stable diffusion midjourney AI image generation 2025',
+    'vector database embeddings AI RAG Pinecone tutorial',
+    'Claude Anthropic AI tutorial prompt engineering',
+    'Gemini Google AI model API coding tutorial',
+    'AI startup product build launch 2025 tutorial',
+  ],
 ];
+
+// ── Hard AI relevance filter ──────────────────────────────────────────────────
+// Every returned video MUST contain at least one of these keywords.
+// Prevents off-topic results from slipping through YouTube's search ranking.
+const AI_KEYWORDS = [
+  'ai', 'artificial intelligence', 'machine learning', 'deep learning',
+  'llm', 'large language model', 'gpt', 'chatgpt', 'claude', 'gemini',
+  'llama', 'mistral', 'deepseek', 'openai', 'anthropic', 'google ai',
+  'neural', 'transformer', 'diffusion', 'stable diffusion', 'midjourney',
+  'agents', 'ai agent', 'langchain', 'langgraph', 'crewai', 'autogen',
+  'ollama', 'hugging face', 'cursor ai', 'copilot', 'rag', 'embedding',
+  'fine-tun', 'prompt engineering', 'n8n ai', 'automation ai',
+  'model review', 'ai tutorial', 'ai coding', 'ai workflow',
+];
+
+function isAIRelevant(title: string, desc: string): boolean {
+  const text = (title + ' ' + desc).toLowerCase();
+  return AI_KEYWORDS.some((kw) => text.includes(kw));
+}
 
 type AIVideoCategory =
   | 'Tutorials'
@@ -92,16 +138,18 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const append = searchParams.get('append') === 'true';
-  // For "load more" we pick different random queries and return 10-15 videos
-  const targetCount = append ? 15 : 21;
-  const maxPerQuery = append ? 8 : 8;
-  const queryCount = append ? 2 : 3;
+  // page tracks which query group to use — client passes this so each click is fresh
+  const page = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10));
 
-  // Pick random non-overlapping queries
-  const shuffled = [...AI_QUERIES].sort(() => Math.random() - 0.5);
-  const selectedQueries = shuffled.slice(0, queryCount);
+  // Initial load: group 0 (3 queries, last 2 weeks)
+  // Load more: rotate through groups 1-5 (5 queries each, up to 12 weeks back)
+  const groupIndex = append ? ((page % (AI_QUERY_GROUPS.length - 1)) + 1) : 0;
+  const selectedQueries = AI_QUERY_GROUPS[groupIndex] ?? AI_QUERY_GROUPS[1];
+  const weeksBack = append ? Math.min(2 + page * 2, 12) : 2; // grow window each page
+  const targetCount = append ? 18 : 21;
+  const maxPerQuery = 8;
 
-  const publishedAfter = getPublishedAfter(2); // last 2 weeks
+  const publishedAfter = getPublishedAfter(weeksBack);
 
   const fetchQuery = async (query: string) => {
     const params = new URLSearchParams({
@@ -141,13 +189,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Merge, deduplicate by video id
+    // Merge, deduplicate by video id, then hard-filter for AI relevance
     const seen = new Set<string>();
     const videos = results
       .flatMap((r) => r.items)
       .map(mapItem)
       .filter((v) => {
         if (!v.id || seen.has(v.id)) return false;
+        // Hard AI relevance gate — reject any video not mentioning AI topics
+        if (!isAIRelevant(v.title, v.description)) return false;
         seen.add(v.id);
         return true;
       })

@@ -163,23 +163,32 @@ export default function TubePage() {
   const [activeCategory, setActiveCategory] = useState<AIVideoCategory>("All");
   const [selectedVideo, setSelectedVideo] = useState<AIVideo | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
+  // Tracks which "load more" page we're on so the API uses a fresh query group each click
+  const [loadPage, setLoadPage] = useState(0);
 
   async function fetchVideos(append = false) {
     if (append) setLoadingMore(true);
     else { setLoading(true); setSelectedVideo(null); setNeedsSetup(false); }
 
+    const nextPage = append ? loadPage + 1 : 0;
+
     try {
-      const res = await fetch(`/api/ai-tube${append ? "?append=true" : ""}`);
+      const url = append
+        ? `/api/ai-tube?append=true&page=${nextPage}`
+        : `/api/ai-tube`;
+      const res = await fetch(url);
       const data = await res.json();
       if (data.setup) { setNeedsSetup(true); return; }
       if (!res.ok) throw new Error(data.error || "Failed to fetch videos");
       const incoming: AIVideo[] = data.videos ?? [];
       if (append) {
+        setLoadPage(nextPage);
         setVideos((prev) => {
           const ids = new Set(prev.map((v) => v.id));
           return [...prev, ...incoming.filter((v) => !ids.has(v.id))];
         });
       } else {
+        setLoadPage(0);
         setVideos(incoming);
         setHasFetched(true);
       }
