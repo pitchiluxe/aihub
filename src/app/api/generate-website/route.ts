@@ -609,7 +609,7 @@ ${config.copyGuidance}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TECHNICAL REQUIREMENTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Start with: "use client";\n\nimport { useState } from "react";
+1. FIRST LINE MUST BE EXACTLY (with literal double-quote characters): "use client"; — then a blank line, then imports
 2. Import ONLY these lucide-react icons at the top: ${config.lucideIcons}
 3. Use ONLY Tailwind CSS v4 utility classes
 4. Every section MUST be mobile-responsive (sm: md: lg: breakpoints)
@@ -650,7 +650,7 @@ OUTPUT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Return ONLY the complete TypeScript JSX for src/app/page.tsx.
 No markdown fences. No explanation. Imports: only "use client", useState, React.FormEvent, and lucide-react.
-Raw .tsx code starting with "use client";
+Raw .tsx code. The absolute first line of your output must be exactly: "use client"; (with double-quote characters, as a React directive — not the word use followed by client without quotes).
 
 The code MUST be COMPLETE and FUNCTIONAL — all state wired up, all buttons do something, form shows feedback.
 A developer must be able to run "npm install && npm run dev" and immediately see a working, interactive website.
@@ -766,7 +766,11 @@ export async function POST(req: NextRequest) {
     const cleanCode = pageCode
       .replace(/^```(?:tsx?|jsx?)?\n?/gm, "")
       .replace(/```$/gm, "")
-      .trim();
+      .trim()
+      // AI sometimes omits the double-quotes around the use client directive
+      .replace(/^use client;/m, '"use client";')
+      // Also fix if it comes after a stray newline at the start
+      .replace(/^\n+use client;/m, '\n"use client";');
 
     const files = [
       { name: "README.md", content: readme(businessName, businessType, brief.name) },
