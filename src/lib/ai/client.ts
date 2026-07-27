@@ -147,6 +147,7 @@ export async function callModel(
   const models = [...new Set([primaryModel(modelOverride), ...FALLBACK_MODELS])].filter(isUsable);
   const url = `${baseUrl()}/chat/completions`;
   let lastError: Error = new Error("No models tried");
+  let quotaHit = false;
 
   for (const model of models) {
     const controller = new AbortController();
@@ -193,13 +194,29 @@ export async function callModel(
       return content;
     } catch (err) {
       clearTimeout(timeoutId);
-      // Account-wide cap — every remaining model would 429 too.
-      if (err instanceof QuotaExceededError) throw err;
+      // Account-wide cap — every remaining hosted model would 429 too.
+      if (err instanceof QuotaExceededError) {
+        quotaHit = true;
+        break;
+      }
       lastError = err instanceof Error ? err : new Error(String(err));
       console.warn(`[AI] Model ${model} failed: ${lastError.message} — trying next`);
     }
   }
 
+  // Local models have no daily cap. Unavailable in production, where this
+  // returns null immediately and the hosted error is reported as before.
+  const { generateWithOllama } = await import("./ollama");
+  const local = await generateWithOllama(
+    messages.find((m) => m.role === "system")?.content ?? "",
+    messages.filter((m) => m.role !== "system").map((m) => m.content).join("\n\n"),
+    maxTokens,
+    temperature,
+    (c) => c.trim().length > 0 && !isDegenerate(c),
+  );
+  if (local) return local.content;
+
+  if (quotaHit) throw new QuotaExceededError();
   throw new Error(`All models failed. Last error: ${lastError.message}`);
 }
 

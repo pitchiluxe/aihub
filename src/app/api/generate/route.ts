@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FALLBACK_CHAIN } from "@/lib/ai/models";
 import { sanitizeContent, isDegenerate, looksLikeReasoning, extractJson } from "@/lib/ai/client";
+import { generateWithOllama } from "@/lib/ai/ollama";
 
 // Node runtime + Fluid Compute: free models take 5-90s, well past the old
 // 30s edge budget. Chain is latency-ordered so the happy path returns in ~6s.
@@ -363,6 +364,8 @@ async function generate(type: GenerateType, user: string): Promise<string> {
   const startedAt = Date.now();
   const attempts: string[] = [];
 
+  let quotaHit = false;
+
   for (const model of FALLBACK_CHAIN) {
     if (Date.now() - startedAt > GLOBAL_DEADLINE_MS) break;
     try {
@@ -372,15 +375,28 @@ async function generate(type: GenerateType, user: string): Promise<string> {
       console.log(`[Generate] ${type} OK via ${model} in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
       return content;
     } catch (err) {
-      // The daily cap is account-wide — every remaining model will 429 too.
-      // Stop immediately and report the one thing the user can act on.
-      if (err instanceof QuotaExceededError) throw err;
+      // The daily cap is account-wide — every remaining hosted model will 429
+      // too, so stop walking the chain and go straight to the local fallback.
+      if (err instanceof QuotaExceededError) {
+        quotaHit = true;
+        break;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       attempts.push(`${model}: ${msg}`);
       console.warn(`[Generate] ${type} — ${model} rejected (${msg})`);
     }
   }
 
+  // Hosted models are unavailable. Ollama has no daily cap, so a developer
+  // running it locally keeps working through a quota wall. In production there
+  // is no Ollama to reach and this returns null within milliseconds.
+  const local = await generateWithOllama(system, user, maxTokens, temperature, validate);
+  if (local) {
+    console.log(`[Generate] ${type} served locally by ${local.model}`);
+    return local.content;
+  }
+
+  if (quotaHit) throw new QuotaExceededError();
   throw new Error(`All models failed for ${type}. ${attempts.join(" | ")}`);
 }
 
