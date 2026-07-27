@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callModel } from "@/lib/ai/client";
+import { callModel, DEFAULT_MODEL, QuotaExceededError } from "@/lib/ai/client";
 
-export const maxDuration = 55; // under Vercel 60s serverless limit
+// Free models take 5-90s each and callModel walks a fallback chain, so the old
+// 55s budget cut generation off mid-chain and returned an empty ideas array.
+export const maxDuration = 300;
 
 const cache = new Map<string, GeneratedIdea[]>();
 
@@ -33,7 +35,10 @@ const BATCH_GROUPS: Record<number, string[]> = {
   4: ["Education", "E-commerce", "Logistics", "Real Estate", "Automation"],
 };
 
-const IDEAS_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+// Was pinned to Llama 3.3 70B, whose free tier OpenRouter retired — it now
+// 404s, so every request burned the whole fallback chain before producing
+// anything. Track the shared registry instead of hardcoding an id here.
+const IDEAS_MODEL = DEFAULT_MODEL;
 
 function systemPrompt(batch: number, date: string): string {
   const industries = BATCH_GROUPS[batch]?.join(", ") ?? "any industry";
@@ -75,7 +80,16 @@ function extractIdeas(raw: string): GeneratedIdea[] {
   // Fix common model mistakes: trailing commas
   jsonStr = jsonStr.replace(/,(\s*[}\]])/g, "$1");
 
-  const parsed = JSON.parse(jsonStr);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    // A truncated response leaves a half-written object at the tail. Salvage
+    // the complete ones rather than discarding the whole batch.
+    const lastComplete = jsonStr.lastIndexOf("},");
+    if (lastComplete === -1) throw new Error("No complete idea objects found");
+    parsed = JSON.parse(`${jsonStr.slice(0, lastComplete + 1)}]`);
+  }
   if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Empty array");
 
   return parsed
@@ -116,10 +130,12 @@ export async function GET(req: NextRequest) {
           content: `Generate 5 AI tool ideas for batch ${batch + 1}. JSON array only.`,
         },
       ],
-      1500,
+      // 5 ideas x ~14 JSON fields needs real headroom; 1500 truncated the
+      // array mid-object and extractIdeas threw on the partial JSON.
+      4000,
       IDEAS_MODEL,
-      0.3,
-      50_000, // 50s — generous for free-tier models
+      0.4,
+      75_000, // per-model ceiling; callModel falls through to the next model
     );
 
     const ideas = extractIdeas(raw);
@@ -134,9 +150,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ideas, date, batch, cached: false });
   } catch (err) {
     console.error(`[daily-ideas] batch=${batch} error:`, String(err));
+    // A quota wall is not a server fault, and the client should not keep
+    // retrying it — 429 says "stop and tell the user", 500 says "try again".
+    const quota = err instanceof QuotaExceededError;
     return NextResponse.json(
-      { error: String(err), ideas: [], date, batch },
-      { status: 500 },
+      { error: err instanceof Error ? err.message : String(err), ideas: [], date, batch },
+      { status: quota ? 429 : 500 },
     );
   }
 }

@@ -448,7 +448,7 @@ const toolCall = response.tool_calls[0];
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
       messages,
       tools,
       tool_choice: 'auto', // let model decide when to use tools
@@ -641,7 +641,7 @@ export async function POST(req: Request) {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'openai/gpt-oss-120b:free', messages: [{ role: 'user', content: message }], stream: true }),
+        body: JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages: [{ role: 'user', content: message }], stream: true }),
       });
 
       const reader = response.body!.getReader();
@@ -1096,7 +1096,7 @@ async function cachedSearch(query: string, count = 5) {
     description: "Build a model router that automatically selects the best free model for each task type.",
     steps: [
       { title: "Why Route Between Models?", explanation: "A 70B model is overkill for simple classification. An 8B model is too weak for complex reasoning. Routing sends each task to the right-sized model — improving quality AND reducing cost.", code: `// Without routing: one model for everything
-const response = await callModel('meta-llama/llama-3.1-70b:free', prompt);
+const response = await callModel('inclusionai/ling-3.0-flash:free', prompt);
 // 70B for a simple sentiment check = wasteful
 
 // With routing: specialized models per task
@@ -1115,11 +1115,11 @@ function classifyTask(prompt: string): TaskType {
   return 'chat';
 }`, language: "typescript" },
       { title: "Free Model Map", explanation: "Map each task type to the best free model available on OpenRouter. Update this as new models are released.", code: `const FREE_MODELS: Record<TaskType, string> = {
-  code:      'openai/gpt-oss-120b:free',
-  reasoning: 'openai/gpt-oss-120b:free',
-  creative:  'meta-llama/llama-3.1-70b-instruct:free',
+  code:      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  reasoning: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  creative:  'inclusionai/ling-3.0-flash:free',
   classify:  'openai/gpt-oss-20b:free',
-  chat:      'openai/gpt-oss-120b:free',
+  chat:      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
 };
 
 export async function smartCall(prompt: string): Promise<string> {
@@ -1129,8 +1129,8 @@ export async function smartCall(prompt: string): Promise<string> {
   return callOpenRouter(model, prompt);
 }`, language: "typescript", tip: "Log every routing decision — after a week you'll see patterns to improve your classifier." },
       { title: "Fallback Chain", explanation: "When a model fails or rate-limits, automatically try the next model in the chain.", code: `const FALLBACK_CHAIN: string[] = [
-  'openai/gpt-oss-120b:free',
-  'meta-llama/llama-3.1-70b-instruct:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'inclusionai/ling-3.0-flash:free',
   'openai/gpt-oss-20b:free',
   'qwen/qwen-2-7b-instruct:free',
 ];
@@ -1172,7 +1172,7 @@ async function callWithFallback(prompt: string): Promise<string> {
 
 const PRICING: Record<string, [number, number]> = {
   'gpt-4o': [5.00, 15.00],
-  'openai/gpt-oss-120b:free': [0, 0],
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free': [0, 0],
   'openai/gpt-oss-20b:free': [0, 0],
 };
 
@@ -1538,7 +1538,7 @@ export async function POST(req: Request) {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_API_KEY}\` },
-    body: JSON.stringify({ model: 'openai/gpt-oss-120b:free', messages }),
+    body: JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages }),
   });
   return Response.json(await response.json());
 }`, language: "typescript" },
@@ -1551,7 +1551,7 @@ export async function POST(req: Request) {
   const upstreamRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_API_KEY}\`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'openai/gpt-oss-120b:free', messages: [{ role: 'user', content: message }], stream: true }),
+    body: JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages: [{ role: 'user', content: message }], stream: true }),
   });
   // Pipe upstream stream directly to client
   return new Response(upstreamRes.body, {

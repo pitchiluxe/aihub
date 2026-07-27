@@ -96,7 +96,7 @@ export function ChatBot() {
               content: m.content,
             })),
           ],
-          model: "openai/gpt-oss-120b:free",
+          model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
           provider: "openrouter",
         }),
       });

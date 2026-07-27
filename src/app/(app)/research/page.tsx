@@ -100,7 +100,7 @@ export default function ResearchPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           provider: "openrouter",
-          model: "openai/gpt-oss-120b:free",
+          model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
           messages: [
             {
               role: "system",
@@ -172,7 +172,7 @@ Keep it concise and actionable for AI practitioners.`,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "openai/gpt-oss-120b:free",
+          model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
           messages: [{
             role: "system",
             content: `You are a world-class AI research explainer. Break down research papers into clear, actionable insights for AI practitioners.

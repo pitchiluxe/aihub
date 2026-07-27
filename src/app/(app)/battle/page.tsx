@@ -13,10 +13,11 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Every id here is verified live on OpenRouter's free tier — see src/lib/ai/models.ts
 const PRESET_BATTLES = [
-  { name: "Coding Giants", models: ["openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free"], label: "Code Test" },
-  { name: "Free Champions", models: ["openai/gpt-oss-20b:free", "openai/gpt-oss-20b:free"], label: "General Test" },
-  { name: "Reasoning Duel", models: ["openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free"], label: "Reasoning Test" },
+  { name: "Coding Giants",   models: ["cohere/north-mini-code:free", "poolside/laguna-xs-2.1:free"], label: "Code Test" },
+  { name: "Free Champions",  models: ["inclusionai/ling-3.0-flash:free", "google/gemma-4-26b-a4b-it:free"], label: "General Test" },
+  { name: "Reasoning Duel",  models: ["nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "openai/gpt-oss-20b:free"], label: "Reasoning Test" },
 ];
 
 const PROMPT_SUGGESTIONS = [

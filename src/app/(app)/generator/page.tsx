@@ -18,11 +18,12 @@ import Link from "next/link";
 import { useArchiveStore } from "@/store/archive";
 
 type TabType = "skill" | "agent" | "prompt" | "idea" | "claudemd";
+type ItemType = TabType | "buildprompt";
 
 interface GeneratedItem {
   id: string;
   name: string;
-  type: TabType;
+  type: ItemType;
   description: string;
   code: string;
   createdAt: Date;
@@ -63,6 +64,8 @@ interface IdeaResult {
   monetization: string;
   uniqueAngle: string;
   promptForGenerator: string;
+  targetUser?: string;
+  dataModel?: string;
 }
 
 const FORMAT_OPTIONS = [
@@ -121,6 +124,22 @@ function parseIdea(json: string): IdeaResult | null {
   }
 }
 
+/**
+ * The API answers 503 with `{ error }` describing which models were tried and
+ * why each was rejected. Surfacing that beats a blanket "failed, try again".
+ */
+async function describeFailure(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = await response.json();
+    if (typeof body?.error === "string") {
+      return body.error.length > 160 ? `${body.error.slice(0, 160)}…` : body.error;
+    }
+  } catch {
+    /* not JSON */
+  }
+  return fallback;
+}
+
 export default function GeneratorPage() {
   const { addItem: saveToArchive } = useArchiveStore();
 
@@ -152,6 +171,11 @@ export default function GeneratorPage() {
     conventions: "",
   });
 
+  // Set when the user sends an idea over from the Idea tab. Holding the whole
+  // idea (not just its one-line brief) is what lets the build prompt inherit
+  // the real features, stack, data model and angle.
+  const [buildIdea, setBuildIdea] = useState<IdeaResult | null>(null);
+
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!prompt.trim()) { toast.error("Please enter a prompt"); return; }
@@ -162,7 +186,7 @@ export default function GeneratorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: activeTab, prompt }),
       });
-      if (!response.ok) throw new Error("Generation failed");
+      if (!response.ok) throw new Error(await describeFailure(response, "Generation failed"));
       if (!response.body) throw new Error("No response body");
 
       // Parse SSE stream — server pipes OpenRouter chunks directly to avoid Vercel timeout
@@ -208,8 +232,8 @@ export default function GeneratorPage() {
       setPrompt("");
       saveToArchive({ name, type: activeTab as "skill" | "agent", description, code: fullContent, prompt });
       toast.success(`${activeTab === "skill" ? "Skill" : "Agent"} generated & saved to archive!`, { duration: 3000 });
-    } catch {
-      toast.error("Failed to generate. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -250,7 +274,7 @@ export default function GeneratorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "prompt", prompt: JSON.stringify(promptConfig) }),
       });
-      if (!response.ok) throw new Error("Generation failed");
+      if (!response.ok) throw new Error(await describeFailure(response, "Generation failed"));
       const code = await readSSEContent(response);
       if (!code.trim()) throw new Error("Empty response");
       const name = `Prompt: ${promptConfig.task.slice(0, 50)}`;
@@ -268,8 +292,8 @@ export default function GeneratorPage() {
       setPreview(newItem);
       saveToArchive({ name, type: "prompt", description, code, prompt: promptConfig.task });
       toast.success("Prompt generated & saved to archive!");
-    } catch {
-      toast.error("Failed to generate prompt.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate prompt.");
     } finally {
       setIsGenerating(false);
     }
@@ -289,7 +313,7 @@ export default function GeneratorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "idea", prompt: configStr }),
       });
-      if (!response.ok) throw new Error("Generation failed");
+      if (!response.ok) throw new Error(await describeFailure(response, "Generation failed"));
       const code = await readSSEContent(response);
       if (!code.trim()) throw new Error("Empty response");
       let name = "Original Idea";
@@ -313,8 +337,8 @@ export default function GeneratorPage() {
       setPreview(newItem);
       saveToArchive({ name, type: "idea", description, code, prompt: ideaConfig.domain || ideaConfig.category });
       toast.success("New idea generated & saved to archive! 🚀");
-    } catch {
-      toast.error("Failed to generate idea.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate idea.");
     } finally {
       setIsGenerating(false);
     }
@@ -330,7 +354,7 @@ export default function GeneratorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "claudemd", prompt: JSON.stringify(claudeMdConfig) }),
       });
-      if (!response.ok) throw new Error("Generation failed");
+      if (!response.ok) throw new Error(await describeFailure(response, "Generation failed"));
       const code = await readSSEContent(response);
       if (!code.trim()) throw new Error("Empty response");
       const name = `CLAUDE.md — ${claudeMdConfig.description.slice(0, 45)}`;
@@ -349,22 +373,64 @@ export default function GeneratorPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       saveToArchive({ name, type: "skill" as any, description, code, prompt: claudeMdConfig.description });
       toast.success("CLAUDE.md generated & saved to archive!");
-    } catch {
-      toast.error("Failed to generate CLAUDE.md.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate CLAUDE.md.");
     } finally {
       setIsGenerating(false);
     }
   }
 
   function handleUseIdeaAsPrompt(idea: IdeaResult) {
+    setBuildIdea(idea);
     setPromptConfig(p => ({
       ...p,
-      task: idea.promptForGenerator,
+      task: idea.promptForGenerator || `Build ${idea.name} — ${idea.tagline}`,
       role: "Senior full-stack developer",
       tone: "Technical / Expert",
     }));
     setActiveTab("prompt");
-    toast.success("Idea loaded into Prompt Generator!");
+    toast.success(`"${idea.name}" loaded — generate the build prompt`);
+  }
+
+  /**
+   * Produces the paste-into-Claude/ChatGPT master prompt. Sends the entire idea
+   * object so the builder AI receives a real spec — role, stack, features, data
+   * model, routes, UI, build order — rather than a request for a JSON file.
+   */
+  async function handleGenerateBuildPrompt(e: React.FormEvent) {
+    e.preventDefault();
+    if (!buildIdea) return;
+    setIsGenerating(true);
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "buildprompt", prompt: JSON.stringify(buildIdea) }),
+      });
+      if (!response.ok) throw new Error(await describeFailure(response, "Generation failed"));
+      const code = await readSSEContent(response);
+      if (!code.trim()) throw new Error("Empty response");
+
+      const name = `Build Prompt — ${buildIdea.name}`;
+      const description = `Paste into Claude or ChatGPT to start building ${buildIdea.name}`;
+      const newItem: GeneratedItem = {
+        id: Date.now().toString(),
+        name,
+        type: "buildprompt",
+        description,
+        code,
+        createdAt: new Date(),
+        prompt: buildIdea.promptForGenerator || buildIdea.tagline,
+      };
+      setGenerated((prev) => [newItem, ...prev]);
+      setPreview(newItem);
+      saveToArchive({ name, type: "prompt", description, code, prompt: buildIdea.name });
+      toast.success("Build prompt ready — paste it into any AI to start building 🚀");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate build prompt.");
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   async function handleCopyPrompt(text: string) {
@@ -406,7 +472,10 @@ export default function GeneratorPage() {
     }
   }
 
-  const tabItems = generated.filter(i => i.type === activeTab);
+  // Build prompts are produced from the Prompt tab, so they belong in its list.
+  const tabItems = generated.filter(i =>
+    i.type === activeTab || (activeTab === "prompt" && i.type === "buildprompt"),
+  );
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -483,9 +552,27 @@ export default function GeneratorPage() {
 
               {/* ── Prompt Generator Form ── */}
               {activeTab === "prompt" && (
-                <form onSubmit={handleGeneratePrompt} className="space-y-3">
+                <form onSubmit={buildIdea ? handleGenerateBuildPrompt : handleGeneratePrompt} className="space-y-3">
+                  {buildIdea && (
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 mb-0.5">🏗️ BUILD MODE — {buildIdea.name}</p>
+                          <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
+                            Generates a complete master prompt. Paste it into Claude, ChatGPT, or Cursor and it starts writing the app immediately.
+                          </p>
+                        </div>
+                        <button type="button" onClick={() => setBuildIdea(null)}
+                          className="flex-shrink-0 text-xs text-emerald-700 dark:text-emerald-400 hover:underline" disabled={isGenerating}>
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Task Description *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                      {buildIdea ? "Product Brief (from your idea)" : "Task Description *"}
+                    </label>
                     <Textarea
                       placeholder="e.g., Write a detailed competitive analysis comparing two SaaS products..."
                       value={promptConfig.task}
@@ -494,6 +581,9 @@ export default function GeneratorPage() {
                       disabled={isGenerating}
                     />
                   </div>
+                  {/* In build mode the spec comes from the idea object, so the
+                      generic prompt-shaping controls below are not applied. */}
+                  {!buildIdea && (<>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Role / Persona</label>
                     <input
@@ -548,9 +638,12 @@ export default function GeneratorPage() {
                       ))}
                     </div>
                   </div>
-                  <Button type="submit" className="w-full gap-2" disabled={isGenerating} size="lg">
-                    <Wand2 className="h-4 w-4" />
-                    {isGenerating ? "Crafting Prompt..." : "Generate Prompt"}
+                  </>)}
+                  <Button type="submit" className={`w-full gap-2 ${buildIdea ? "ai-gradient border-0" : ""}`} disabled={isGenerating} size="lg">
+                    {buildIdea ? <Rocket className="h-4 w-4" /> : <Wand2 className="h-4 w-4" />}
+                    {isGenerating
+                      ? (buildIdea ? "Writing Build Prompt..." : "Crafting Prompt...")
+                      : (buildIdea ? "Generate Build Prompt" : "Generate Prompt")}
                   </Button>
                 </form>
               )}
@@ -792,7 +885,7 @@ export default function GeneratorPage() {
                           <div className="flex gap-2 pt-2 border-t">
                             <Button onClick={() => handleUseIdeaAsPrompt(idea)} className="flex-1 gap-2 ai-gradient border-0" size="sm">
                               <ArrowRight className="h-4 w-4" />
-                              Generate Prompt for This Idea
+                              Generate Build Prompt for This Idea
                             </Button>
                             <Button onClick={() => handleCopyPrompt(JSON.stringify(idea, null, 2))} variant="outline" className="gap-2" size="sm">
                               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -803,24 +896,38 @@ export default function GeneratorPage() {
                       );
                     })()}
 
-                    {/* ── PROMPT preview ── */}
-                    {preview.type === "prompt" && (
+                    {/* ── PROMPT / BUILD PROMPT preview ── */}
+                    {(preview.type === "prompt" || preview.type === "buildprompt") && (
                       <>
                         <div>
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
-                              <h3 className="text-lg font-semibold">{preview.name}</h3>
+                              <div className="flex items-center gap-2">
+                                {preview.type === "buildprompt" && <Rocket className="h-5 w-5 text-emerald-500" />}
+                                <h3 className="text-lg font-semibold">{preview.name}</h3>
+                              </div>
                               <p className="text-sm text-muted-foreground">{preview.description}</p>
                             </div>
-                            <Badge variant="outline">prompt</Badge>
+                            <Badge variant="outline">{preview.type === "buildprompt" ? "build prompt" : "prompt"}</Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">Created {new Date(preview.createdAt).toLocaleDateString()}</p>
                         </div>
 
+                        {preview.type === "buildprompt" && (
+                          <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3">
+                            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1">HOW TO USE</p>
+                            <p className="text-xs text-emerald-800 dark:text-emerald-300">
+                              Copy this whole prompt and paste it into Claude, ChatGPT, Claude Code, or Cursor. It will start writing the application code file by file — no further instructions needed.
+                            </p>
+                          </div>
+                        )}
+
                         {/* Dark high-contrast code block */}
                         <div className="flex-1 bg-[#1e1e2e] rounded-xl border border-border overflow-auto">
                           <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
-                            <span className="text-xs text-white/50 font-mono">Generated Prompt</span>
+                            <span className="text-xs text-white/50 font-mono">
+                              {preview.type === "buildprompt" ? "Master Build Prompt" : "Generated Prompt"}
+                            </span>
                             <button onClick={() => handleCopyPrompt(preview.code)} className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors">
                               {copied ? <><Check className="h-3 w-3 text-green-400" /><span className="text-green-400">Copied</span></> : <><Copy className="h-3 w-3" />Copy</>}
                             </button>
@@ -841,7 +948,9 @@ export default function GeneratorPage() {
                           </Button>
                         </div>
                         <div className="bg-muted/50 rounded-lg p-3">
-                          <p className="text-xs font-semibold text-muted-foreground mb-1">TASK</p>
+                          <p className="text-xs font-semibold text-muted-foreground mb-1">
+                            {preview.type === "buildprompt" ? "SOURCE IDEA" : "TASK"}
+                          </p>
                           <p className="text-xs">{preview.prompt}</p>
                         </div>
                       </>

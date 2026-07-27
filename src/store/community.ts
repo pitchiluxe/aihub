@@ -79,7 +79,7 @@ Use headers, bullets, and code blocks where appropriate.`,
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 const OLLAMA_URL = 'http://localhost:11434';
 
-async function chat(messages, model = 'openai/gpt-oss-120b:free') {
+async function chat(messages, model = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free') {
   try {
     const res = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
       model, messages, max_tokens: 1024
@@ -515,7 +515,7 @@ async function generateCommitMessage(): Promise<string> {
       'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`,
     },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
       messages: [{
         role: 'user',
         content: \`Write a git commit message for this diff.
@@ -544,9 +544,9 @@ Return ONLY the commit message, nothing else.\n\n\${diff}\`,
     code: `type TaskType = 'code' | 'reasoning' | 'creative' | 'analysis' | 'simple';
 
 const MODEL_MAP: Record<TaskType, string> = {
-  code:      'openai/gpt-oss-120b:free',
-  reasoning: 'openai/gpt-oss-120b:free',
-  creative:  'meta-llama/llama-3.1-70b-instruct:free',
+  code:      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  reasoning: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  creative:  'inclusionai/ling-3.0-flash:free',
   analysis:  'google/gemini-flash-1.5:free',
   simple:    'openai/gpt-oss-20b:free',
 };
@@ -588,7 +588,7 @@ export async function smartRoute(prompt: string, systemPrompt?: string) {
       'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`,
     },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
       messages,
       stream: true,
     }),
@@ -718,7 +718,7 @@ export async function withRetry<T>(
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
       messages: [{
         role: 'system',
         content: \`You are an expert TypeScript test engineer. Generate comprehensive Jest tests.
@@ -795,7 +795,7 @@ Use describe/it blocks. Mock external dependencies. Add meaningful test names.\`
 const PRICING: Record<string, [number, number]> = {
   'gpt-4o': [5.00, 15.00],
   'claude-3-5-sonnet': [3.00, 15.00],
-  'openai/gpt-oss-120b:free': [0, 0],
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free': [0, 0],
   'openai/gpt-oss-20b:free': [0, 0],
 };
 
@@ -828,7 +828,7 @@ export function trackUsage(record: Omit<UsageRecord, 'costUsd'>): UsageRecord {
 
 const MODELS_TO_TEST = [
   'openai/gpt-oss-20b:free',
-  'openai/gpt-oss-120b:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
   'openai/gpt-oss-20b:free',
   'openai/gpt-oss-20b:free',
   'qwen/qwen-2-7b-instruct:free',
@@ -877,7 +877,7 @@ async function generateChangelog(fromTag: string, toTag = 'HEAD'): Promise<strin
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
       messages: [{
         role: 'user',
         content: \`Convert these git commits into a user-facing CHANGELOG.md section.
@@ -914,7 +914,7 @@ export async function askDocument(document: string, question: string): Promise<s
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
       messages: [
         { role: 'system', content: SYSTEM },
         { role: 'user', content: \`Document:\n\n\${document.slice(0, 15000)}\n\n---\n\nQuestion: \${question}\` },
@@ -936,7 +936,7 @@ export async function askDocument(document: string, question: string): Promise<s
     code: `interface TestCase { input: string; expectedBehavior: string; }
 interface ABResult { promptA: number; promptB: number; winner: 'A' | 'B' | 'tie'; confidence: number; }
 
-async function judgeOutput(output: string, expected: string, judgeModel = 'openai/gpt-oss-120b:free'): Promise<number> {
+async function judgeOutput(output: string, expected: string, judgeModel = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'): Promise<number> {
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
@@ -1039,7 +1039,7 @@ export async function withTenantContext(
     method: 'POST',
     headers: { 'Authorization': \`Bearer \${process.env.OPENROUTER_KEY}\`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'openai/gpt-oss-120b:free',
+      model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
       messages: [{
         role: 'user',
         content: \`Generate a JavaScript regex for: \${description}

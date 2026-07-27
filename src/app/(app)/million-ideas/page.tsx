@@ -1234,7 +1234,9 @@ export default function MillionIdeasPage() {
         const stored = localStorage.getItem(cacheKey);
         if (stored) {
           const parsed: GeneratedIdea[] = JSON.parse(stored);
-          if (parsed.length >= 15) {
+          // 5 batches x 5 ideas. Anything short is a stale partial write from
+          // before complete-run caching — ignore it and refetch.
+          if (parsed.length >= 25) {
             setAiIdeas(parsed.map(toIdea));
             setAiLoading(false);
             return;
@@ -1249,52 +1251,92 @@ export default function MillionIdeasPage() {
     const allIdeas: GeneratedIdea[] = [];
     let cancelled = false;
 
+    const BATCHES = [0, 1, 2, 3, 4];
+    const ATTEMPTS_PER_BATCH = 3;
+    const failures: string[] = [];
+
+    // A 429 is the account's daily free-model cap — retrying cannot help and
+    // only burns time, so it ends the run instead of looping.
+    class FatalBatchError extends Error {}
+
+    /** One attempt. Returns the ideas, or throws so the caller can retry. */
+    async function attemptBatch(batch: number): Promise<GeneratedIdea[]> {
+      const r = await fetch(`/api/daily-ideas?date=${today}&batch=${batch}`);
+      const ct = r.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        const text = await r.text().catch(() => `HTTP ${r.status}`);
+        throw new Error(`Server error (${r.status}): ${text.slice(0, 120)}`);
+      }
+      const data: { ideas: GeneratedIdea[]; error?: string } = await r.json();
+      if (r.status === 429) throw new FatalBatchError(data.error ?? "Daily free-model limit reached.");
+      if (data.error) throw new Error(data.error);
+      if (!Array.isArray(data.ideas) || data.ideas.length === 0) throw new Error("no ideas returned");
+      return data.ideas;
+    }
+
+    /**
+     * Free models fail transiently — a rate limit or a malformed JSON response
+     * used to lose a whole batch of ideas for the rest of the day. Retry with
+     * backoff so all five batches actually land.
+     */
     async function fetchBatch(batch: number) {
-      try {
-        const r = await fetch(`/api/daily-ideas?date=${today}&batch=${batch}`);
+      for (let attempt = 1; attempt <= ATTEMPTS_PER_BATCH; attempt++) {
         if (cancelled) return;
-        const ct = r.headers.get("content-type") ?? "";
-        if (!ct.includes("application/json")) {
-          const text = await r.text().catch(() => `HTTP ${r.status}`);
-          const msg = `Server error (${r.status}): ${text.slice(0, 120)}`;
-          console.error(`[daily-ideas] batch ${batch} non-JSON:`, text.slice(0, 300));
-          if (!cancelled) setAiError(msg);
-          return;
-        }
-        const data: { ideas: GeneratedIdea[]; error?: string } = await r.json();
-        if (data.error) {
-          console.error(`[daily-ideas] batch ${batch} API error:`, data.error);
-          if (!cancelled) setAiError(data.error);
-        }
-        if (!cancelled && Array.isArray(data.ideas) && data.ideas.length > 0) {
-          allIdeas.push(...data.ideas);
+        try {
+          const ideas = await attemptBatch(batch);
+          if (cancelled) return;
+          allIdeas.push(...ideas);
           setAiIdeas([...allIdeas].map(toIdea));
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error(`[daily-ideas] batch ${batch} failed:`, err);
-          setAiError(String(err));
+          return;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (err instanceof FatalBatchError) {
+            failures.push(msg);
+            throw err; // stop the whole run — every remaining batch would fail too
+          }
+          console.warn(`[daily-ideas] batch ${batch} attempt ${attempt}/${ATTEMPTS_PER_BATCH}: ${msg}`);
+          if (attempt === ATTEMPTS_PER_BATCH) {
+            failures.push(`batch ${batch}: ${msg}`);
+            return;
+          }
+          await new Promise((res) => setTimeout(res, attempt * 1500));
         }
       }
     }
 
     // Sequential — one batch at a time to respect free-tier rate limits
     (async () => {
-      for (const batch of [0, 1, 2, 3, 4]) {
-        if (cancelled) break;
-        await fetchBatch(batch);
-      }
-      if (!cancelled) {
-        setAiLoading(false);
-        if (allIdeas.length > 0) {
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(allIdeas));
-            for (let i = localStorage.length - 1; i >= 0; i--) {
-              const k = localStorage.key(i);
-              if (k?.startsWith("aihub_daily_ideas_") && k !== cacheKey) localStorage.removeItem(k);
-            }
-          } catch { /* ignore quota errors */ }
+      try {
+        for (const batch of BATCHES) {
+          if (cancelled) break;
+          await fetchBatch(batch);
         }
+      } catch {
+        // FatalBatchError — already recorded in `failures`, reported below.
+      }
+      if (cancelled) return;
+
+      setAiLoading(false);
+
+      // Only complain when nothing arrived. A partial set is still useful, and
+      // the old code flashed an error banner over a screen full of ideas.
+      if (allIdeas.length === 0) {
+        setAiError(failures[0] ?? "No ideas could be generated right now.");
+      } else if (failures.length) {
+        console.warn(`[daily-ideas] ${failures.length}/${BATCHES.length} batches failed:`, failures);
+      }
+
+      // Cache only a complete run. Persisting a partial set meant a bad day's
+      // fetch was served from localStorage forever instead of being retried.
+      const complete = failures.length === 0;
+      if (complete && allIdeas.length > 0) {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(allIdeas));
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k?.startsWith("aihub_daily_ideas_") && k !== cacheKey) localStorage.removeItem(k);
+          }
+        } catch { /* ignore quota errors */ }
       }
     })();
 

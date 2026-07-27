@@ -4,22 +4,29 @@
 // Env vars: ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_MODEL
 // ============================================================
 
-import { FREE_MODELS, DEFAULT_MODEL } from "./models";
+import { DEFAULT_MODEL, FALLBACK_CHAIN, BLOCKED_MODELS } from "./models";
 
-export { FREE_MODELS, DEFAULT_MODEL } from "./models";
+export { FREE_MODELS, DEFAULT_MODEL, FALLBACK_CHAIN, CODE_MODEL } from "./models";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
+// OPENROUTER_* is checked first so both this client and /api/generate resolve
+// the same endpoint and credential. The ANTHROPIC_* names are the historical
+// spelling this project used for its OpenRouter config and still work.
 function apiKey(): string {
-  const key = process.env.ANTHROPIC_AUTH_TOKEN || process.env.OPENROUTER_API_KEY || "";
+  const key = process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || "";
   if (!key) {
-    console.warn("[AI] Warning: No API key configured. Set ANTHROPIC_AUTH_TOKEN or OPENROUTER_API_KEY");
+    console.warn("[AI] Warning: No API key configured. Set OPENROUTER_API_KEY or ANTHROPIC_AUTH_TOKEN");
   }
   return key;
 }
 
 function baseUrl(): string {
-  const raw = process.env.ANTHROPIC_BASE_URL || process.env.NEXT_PUBLIC_OPENROUTER_BASE_URL || "https://openrouter.ai/api";
+  const raw =
+    process.env.OPENROUTER_BASE_URL ||
+    process.env.ANTHROPIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_OPENROUTER_BASE_URL ||
+    "https://openrouter.ai/api";
   const trimmed = raw.replace(/\/+$/, "");
   return trimmed.endsWith("/v1") ? trimmed : `${trimmed}/v1`;
 }
@@ -33,18 +40,80 @@ function primaryModel(override?: string): string {
   );
 }
 
-// Fallback chain — ordered by reliability. Llama 3.3 70B is the most stable
-// free model on OpenRouter for structured JSON output.
-const FALLBACK_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "qwen/qwen-2.5-72b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "openai/gpt-oss-120b:free",
-  "openai/gpt-oss-20b:free",
-  "deepseek/deepseek-r1:free",
-];
+// Fallback chain lives in ./models.ts — ordered by measured latency against a
+// real structured generation. See that file for the benchmark numbers.
+const FALLBACK_MODELS = FALLBACK_CHAIN;
+
+// OpenRouter retires free tiers without notice; a retired model answers 404
+// "This model is unavailable for free". Remember those for the lifetime of the
+// process so we stop paying a round trip for them on every subsequent call.
+const deadModels = new Set<string>(BLOCKED_MODELS);
+
+function isUsable(model: string): boolean {
+  return !deadModels.has(model);
+}
+
+/**
+ * A leaked chain-of-thought opens with first-person planning prose rather than
+ * the artifact. Used both to trim a trace off the front of a real answer and to
+ * reject a response that is nothing but the trace.
+ */
+const REASONING_TELL =
+  /^(?:we need to|we should|i need to|i should|let me|let's|okay,|ok,|first,|the user (?:wants|asks|is asking)|thinking:|alright,|so,? the (?:task|user)|hmm)/i;
+
+export function looksLikeReasoning(s: string): boolean {
+  return REASONING_TELL.test(s.trimStart());
+}
+
+/**
+ * Most surviving free models are reasoning models. We ask OpenRouter to drop
+ * the reasoning trace, but a few providers ignore that and duplicate their
+ * chain-of-thought into `content` anyway — which is how raw "We need to output
+ * JSON only..." prose ended up rendered in the UI. Strip the obvious tells.
+ *
+ * When the trace precedes a real artifact this cuts it off. When the response
+ * is *only* a trace there is nothing to cut, so the text is returned unchanged
+ * and the per-type validator rejects it via looksLikeReasoning().
+ */
+export function sanitizeContent(raw: string): string {
+  let s = raw
+    // Some Nemotron builds emit long <unk> runs when the reasoning channel is suppressed
+    .replace(/(?:<unk>\s*){3,}/g, " ")
+    // Explicit reasoning delimiters used by several open-weight models
+    .replace(/<\/?(?:think|thinking|reasoning|analysis)>/gi, "")
+    .trim();
+
+  if (looksLikeReasoning(s)) {
+    const jsonStart = s.search(/[[{]/);
+    const mdStart = s.search(/^#{1,3}\s/m);
+    const cut = [jsonStart, mdStart].filter((i) => i > 0).sort((a, b) => a - b)[0];
+    if (cut !== undefined) s = s.slice(cut).trim();
+  }
+
+  return s;
+}
+
+// OpenRouter caps free-tier accounts at 50 free-model requests/day (1000 with
+// credit on the account). The cap is account-wide, so once it trips every
+// model in the chain fails identically and falling back cannot help.
+const QUOTA_MARKER = "free-models-per-day";
+export const QUOTA_MESSAGE =
+  "Daily free-model limit reached on this OpenRouter account. It resets at 00:00 UTC — or add $10 of credit at openrouter.ai/settings/credits to raise the cap to 1000 requests/day.";
+
+export class QuotaExceededError extends Error {
+  constructor() {
+    super(QUOTA_MESSAGE);
+    this.name = "QuotaExceededError";
+  }
+}
+
+/** Content that is present but useless — all whitespace, punctuation, or <unk>. */
+export function isDegenerate(content: string): boolean {
+  const s = content.trim();
+  if (s.length < 20) return true;
+  if ((s.match(/<unk>/g) ?? []).length > 5) return true;
+  return !/[a-z0-9]{3}/i.test(s);
+}
 
 // Strip non-ASCII chars from header values — HTTP headers only allow bytes 0-255.
 function toAscii(s: string) {
@@ -75,7 +144,7 @@ export async function callModel(
   temperature = 0.7,
   timeoutMs = 18_000,
 ): Promise<string> {
-  const models = [...new Set([primaryModel(modelOverride), ...FALLBACK_MODELS])];
+  const models = [...new Set([primaryModel(modelOverride), ...FALLBACK_MODELS])].filter(isUsable);
   const url = `${baseUrl()}/chat/completions`;
   let lastError: Error = new Error("No models tried");
 
@@ -91,6 +160,11 @@ export async function callModel(
           model,
           messages,
           max_tokens: maxTokens,
+          // Suppress chain-of-thought two ways: `reasoning.exclude` is the
+          // current OpenRouter contract, `include_reasoning` the legacy one.
+          // Without this, reasoning eats the whole token budget and content
+          // comes back empty or truncated mid-JSON.
+          reasoning: { exclude: true },
           include_reasoning: false,
           temperature,
         }),
@@ -99,6 +173,9 @@ export async function callModel(
 
       if (!res.ok) {
         const txt = await res.text().catch(() => `HTTP ${res.status}`);
+        // 404 = free tier retired. Never try this model again this process.
+        if (res.status === 404) deadModels.add(model);
+        if (res.status === 429 && txt.includes(QUOTA_MARKER)) throw new QuotaExceededError();
         throw new Error(`${model} → ${res.status}: ${txt.slice(0, 200)}`);
       }
 
@@ -108,13 +185,16 @@ export async function callModel(
         throw new Error(`${model} error: ${data.error.message || data.error.code}`);
       }
 
-      const content: string = data.choices?.[0]?.message?.content ?? "";
+      const content = sanitizeContent(data.choices?.[0]?.message?.content ?? "");
       if (!content) throw new Error(`${model} returned empty content`);
+      if (isDegenerate(content)) throw new Error(`${model} returned degenerate content`);
 
-      console.log(`[AI] Success with model: ${model.split('/')[0]}`);
+      console.log(`[AI] Success with model: ${model}`);
       return content;
     } catch (err) {
       clearTimeout(timeoutId);
+      // Account-wide cap — every remaining model would 429 too.
+      if (err instanceof QuotaExceededError) throw err;
       lastError = err instanceof Error ? err : new Error(String(err));
       console.warn(`[AI] Model ${model} failed: ${lastError.message} — trying next`);
     }

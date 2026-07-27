@@ -69,7 +69,7 @@ Requirements:
         { role: "user", content: prompt },
       ],
       4096,
-      "openai/gpt-oss-120b:free",
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
     );
 
     // Extract JSON from the response (handle cases where model adds markdown)

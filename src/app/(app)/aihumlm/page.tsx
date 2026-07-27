@@ -202,7 +202,7 @@ export default function AIHubLMPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "openai/gpt-oss-120b:free",
+          model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
           messages: [
             {
               role: "system",
@@ -244,7 +244,7 @@ export default function AIHubLMPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "openai/gpt-oss-120b:free",
+          model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
           messages: [
             {
               role: "system",
@@ -324,7 +324,7 @@ Make the summary and key points specific and actionable.`,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "openai/gpt-oss-120b:free",
+          model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
           messages: [
             {
               role: "system",
