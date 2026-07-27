@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FALLBACK_CHAIN } from "@/lib/ai/models";
 import { sanitizeContent, isDegenerate, looksLikeReasoning, extractJson } from "@/lib/ai/client";
 import { generateWithOllama } from "@/lib/ai/ollama";
+import { buildCandidates } from "@/lib/ai/catalog";
 
 // Node runtime + Fluid Compute: free models take 5-90s, well past the old
 // 30s edge budget. Chain is latency-ordered so the happy path returns in ~6s.
@@ -259,14 +260,17 @@ const TYPE_CONFIG: Record<GenerateType, TypeConfig> = {
 };
 
 /** Mirrors src/lib/ai/client.ts so both callers honour the same override. */
-function completionsUrl(): string {
+function completionsBase(): string {
   const raw =
     process.env.OPENROUTER_BASE_URL ||
     process.env.ANTHROPIC_BASE_URL ||
     "https://openrouter.ai/api";
   const trimmed = raw.replace(/\/+$/, "");
-  const base = trimmed.endsWith("/v1") ? trimmed : `${trimmed}/v1`;
-  return `${base}/chat/completions`;
+  return trimmed.endsWith("/v1") ? trimmed : `${trimmed}/v1`;
+}
+
+function completionsUrl(): string {
+  return `${completionsBase()}/chat/completions`;
 }
 
 function buildHeaders(): Record<string, string> {
@@ -366,34 +370,45 @@ async function generate(type: GenerateType, user: string): Promise<string> {
 
   let quotaHit = false;
 
-  for (const model of FALLBACK_CHAIN) {
-    if (Date.now() - startedAt > GLOBAL_DEADLINE_MS) break;
-    try {
-      const content = await collectFromModel(model, system, user, maxTokens, temperature);
-      if (!content) throw new Error("empty content");
-      if (!validate(content)) throw new Error(`failed ${type} validation (${content.length} chars)`);
-      console.log(`[Generate] ${type} OK via ${model} in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
-      return content;
-    } catch (err) {
-      // The daily cap is account-wide — every remaining hosted model will 429
-      // too, so stop walking the chain and go straight to the local fallback.
-      if (err instanceof QuotaExceededError) {
-        quotaHit = true;
-        break;
-      }
-      const msg = err instanceof Error ? err.message : String(err);
-      attempts.push(`${model}: ${msg}`);
-      console.warn(`[Generate] ${type} — ${model} rejected (${msg})`);
-    }
-  }
-
-  // Hosted models are unavailable. Ollama has no daily cap, so a developer
-  // running it locally keeps working through a quota wall. In production there
-  // is no Ollama to reach and this returns null within milliseconds.
-  const local = await generateWithOllama(system, user, maxTokens, temperature, validate);
-  if (local) {
+  // Local first — see callModel() for why. Every artifact here is validated
+  // per type, so a small local model that fumbles the format simply falls
+  // through to the cloud rather than shipping a bad result.
+  const tryLocal = async (): Promise<string | null> => {
+    const local = await generateWithOllama(system, user, maxTokens, temperature, validate);
+    if (!local) return null;
     console.log(`[Generate] ${type} served locally by ${local.model}`);
     return local.content;
+  };
+
+  const tryCloud = async (): Promise<string | null> => {
+    // Live catalogue, so retired models drop out instead of costing a round trip.
+    const candidates = await buildCandidates(completionsBase(), process.env.ANTHROPIC_MODEL);
+    for (const model of candidates.length ? candidates : FALLBACK_CHAIN) {
+      if (Date.now() - startedAt > GLOBAL_DEADLINE_MS) break;
+      try {
+        const content = await collectFromModel(model, system, user, maxTokens, temperature);
+        if (!content) throw new Error("empty content");
+        if (!validate(content)) throw new Error(`failed ${type} validation (${content.length} chars)`);
+        console.log(`[Generate] ${type} OK via ${model} in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
+        return content;
+      } catch (err) {
+        // The daily cap is account-wide — every remaining hosted model will
+        // 429 too, so stop rather than burning the rest of the chain.
+        if (err instanceof QuotaExceededError) {
+          quotaHit = true;
+          return null;
+        }
+        const msg = err instanceof Error ? err.message : String(err);
+        attempts.push(`${model}: ${msg}`);
+        console.warn(`[Generate] ${type} — ${model} rejected (${msg})`);
+      }
+    }
+    return null;
+  };
+
+  for (const attempt of [tryLocal, tryCloud]) {
+    const content = await attempt();
+    if (content) return content;
   }
 
   if (quotaHit) throw new QuotaExceededError();

@@ -136,6 +136,11 @@ export async function GET(req: NextRequest) {
       IDEAS_MODEL,
       0.4,
       75_000, // per-model ceiling; callModel falls through to the next model
+      // Cloud first for this one. A batch is ~4000 tokens of strict JSON, which
+      // small local models both fumble and take over ten minutes to emit —
+      // past the serverless limit. Ollama stays as the fallback, bounded by the
+      // timeout above, so a quota wall degrades instead of hanging.
+      { preferCloud: true },
     );
 
     const ideas = extractIdeas(raw);

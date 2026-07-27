@@ -137,84 +137,129 @@ interface OAMessage {
 }
 
 
+/**
+ * Local-first, cloud-fallback — the ordering AIHub-Browser uses.
+ *
+ * OpenRouter caps free-tier accounts at 50 free-model requests per day, and the
+ * cap is account-wide: once it trips, every hosted model 429s at once and no
+ * amount of falling back between them helps. Local inference has no cap, so
+ * trying Ollama first means normal use never reaches the ceiling.
+ *
+ * `preferCloud` flips the order for work where a small local model is a poor
+ * fit — strict-JSON generation, mainly — at the cost of spending quota.
+ */
 export async function callModel(
   messages: OAMessage[],
   maxTokens: number,
   modelOverride?: string,
   temperature = 0.7,
   timeoutMs = 18_000,
+  opts: { preferCloud?: boolean } = {},
 ): Promise<string> {
-  const models = [...new Set([primaryModel(modelOverride), ...FALLBACK_MODELS])].filter(isUsable);
-  const url = `${baseUrl()}/chat/completions`;
+  const accept = (c: string) => c.trim().length > 0 && !isDegenerate(c);
+
+  const tryLocal = async (): Promise<string | null> => {
+    const { generateWithOllama } = await import("./ollama");
+    const local = await generateWithOllama(
+      messages.find((m) => m.role === "system")?.content ?? "",
+      messages.filter((m) => m.role !== "system").map((m) => m.content).join("\n\n"),
+      maxTokens,
+      temperature,
+      accept,
+      // Honour the caller's budget. Without this a bulk request fell back to
+      // the 300s default and ran for over ten minutes on CPU — well past the
+      // serverless limit — instead of failing fast and reporting why.
+      timeoutMs,
+    );
+    return local?.content ?? null;
+  };
+
   let lastError: Error = new Error("No models tried");
   let quotaHit = false;
 
-  for (const model of models) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: headers(),
-        signal: controller.signal,
-        body: JSON.stringify({
-          model,
-          messages,
-          max_tokens: maxTokens,
-          // Suppress chain-of-thought two ways: `reasoning.exclude` is the
-          // current OpenRouter contract, `include_reasoning` the legacy one.
-          // Without this, reasoning eats the whole token budget and content
-          // comes back empty or truncated mid-JSON.
-          reasoning: { exclude: true },
-          include_reasoning: false,
-          temperature,
-        }),
-      });
-      clearTimeout(timeoutId);
+  const tryCloud = async (): Promise<string | null> => {
+    // Candidates come from the live catalogue, so models OpenRouter has retired
+    // drop out instead of costing a 404 round trip each.
+    const { buildCandidates } = await import("./catalog");
+    const models = (await buildCandidates(baseUrl(), primaryModel(modelOverride))).filter(isUsable);
+    const url = `${baseUrl()}/chat/completions`;
 
-      if (!res.ok) {
-        const txt = await res.text().catch(() => `HTTP ${res.status}`);
-        // 404 = free tier retired. Never try this model again this process.
-        if (res.status === 404) deadModels.add(model);
-        if (res.status === 429 && txt.includes(QUOTA_MARKER)) throw new QuotaExceededError();
-        throw new Error(`${model} → ${res.status}: ${txt.slice(0, 200)}`);
+    for (const model of models) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: headers(),
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            messages,
+            max_tokens: maxTokens,
+            // Suppress chain-of-thought two ways: `reasoning.exclude` is the
+            // current OpenRouter contract, `include_reasoning` the legacy one.
+            // Without this, reasoning eats the whole token budget and content
+            // comes back empty or truncated mid-JSON.
+            reasoning: { exclude: true },
+            include_reasoning: false,
+            temperature,
+          }),
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          const txt = await res.text().catch(() => `HTTP ${res.status}`);
+          // 404 = free tier retired. Never try this model again this process.
+          if (res.status === 404) deadModels.add(model);
+          if (res.status === 429 && txt.includes(QUOTA_MARKER)) throw new QuotaExceededError();
+          // 404/429 are per-model — move on. 401 and 5xx are not, so they
+          // propagate and stop the chain rather than burning every candidate.
+          if (res.status === 404 || res.status === 429) {
+            lastError = new Error(`${model} → ${res.status}`);
+            continue;
+          }
+          throw new Error(`${model} → ${res.status}: ${txt.slice(0, 200)}`);
+        }
+
+        const data = await res.json();
+
+        if (data.error) {
+          throw new Error(`${model} error: ${data.error.message || data.error.code}`);
+        }
+
+        // finish_reason 'length' means the model ran out of budget — reasoning
+        // models burn it invisibly — so the reply is cut mid-sentence or
+        // mid-JSON. Fail over rather than returning a truncated artifact.
+        if (data.choices?.[0]?.finish_reason === "length") {
+          lastError = new Error(`${model} hit the token limit`);
+          console.warn(`[AI] ${model} truncated (finish_reason=length) — trying next`);
+          continue;
+        }
+
+        const content = sanitizeContent(data.choices?.[0]?.message?.content ?? "");
+        if (!content) throw new Error(`${model} returned empty content`);
+        if (isDegenerate(content)) throw new Error(`${model} returned degenerate content`);
+
+        console.log(`[AI] Success with model: ${model}`);
+        return content;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        // Account-wide cap — every remaining hosted model would 429 too.
+        if (err instanceof QuotaExceededError) {
+          quotaHit = true;
+          return null;
+        }
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(`[AI] Model ${model} failed: ${lastError.message} — trying next`);
       }
-
-      const data = await res.json();
-
-      if (data.error) {
-        throw new Error(`${model} error: ${data.error.message || data.error.code}`);
-      }
-
-      const content = sanitizeContent(data.choices?.[0]?.message?.content ?? "");
-      if (!content) throw new Error(`${model} returned empty content`);
-      if (isDegenerate(content)) throw new Error(`${model} returned degenerate content`);
-
-      console.log(`[AI] Success with model: ${model}`);
-      return content;
-    } catch (err) {
-      clearTimeout(timeoutId);
-      // Account-wide cap — every remaining hosted model would 429 too.
-      if (err instanceof QuotaExceededError) {
-        quotaHit = true;
-        break;
-      }
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`[AI] Model ${model} failed: ${lastError.message} — trying next`);
     }
-  }
+    return null;
+  };
 
-  // Local models have no daily cap. Unavailable in production, where this
-  // returns null immediately and the hosted error is reported as before.
-  const { generateWithOllama } = await import("./ollama");
-  const local = await generateWithOllama(
-    messages.find((m) => m.role === "system")?.content ?? "",
-    messages.filter((m) => m.role !== "system").map((m) => m.content).join("\n\n"),
-    maxTokens,
-    temperature,
-    (c) => c.trim().length > 0 && !isDegenerate(c),
-  );
-  if (local) return local.content;
+  for (const attempt of opts.preferCloud ? [tryCloud, tryLocal] : [tryLocal, tryCloud]) {
+    const content = await attempt();
+    if (content) return content;
+  }
 
   if (quotaHit) throw new QuotaExceededError();
   throw new Error(`All models failed. Last error: ${lastError.message}`);
