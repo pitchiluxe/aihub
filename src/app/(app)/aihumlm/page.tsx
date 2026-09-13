@@ -14,6 +14,7 @@ import {
   Newspaper, RefreshCw, Download,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Markdown from "@/components/Markdown";
 
 interface Source {
   id: string;
@@ -705,11 +706,15 @@ Help users deeply understand their documents through insightful analysis, synthe
                           <div
                             className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
                               msg.role === "user"
-                                ? "bg-primary text-primary-foreground rounded-br-sm"
+                                ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap"
                                 : "bg-muted text-foreground rounded-bl-sm"
                             }`}
                           >
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            {msg.role === "user" ? (
+                              <p>{msg.content}</p>
+                            ) : (
+                              <Markdown content={msg.content} />
+                            )}
                           </div>
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <span className="text-xs text-muted-foreground">
@@ -954,10 +959,14 @@ Help users deeply understand their documents through insightful analysis, synthe
                       )}
                       <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                         m.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap"
                           : "bg-muted text-foreground rounded-bl-sm"
                       }`}>
-                        <p className="whitespace-pre-wrap">{m.content}</p>
+                        {m.role === "user" ? (
+                          <p>{m.content}</p>
+                        ) : (
+                          <Markdown content={m.content} />
+                        )}
                       </div>
                     </div>
                   ))}

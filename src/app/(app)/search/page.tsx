@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NewsArticle } from "@/types";
 import { formatDate } from "@/lib/utils";
+import Markdown from "@/components/Markdown";
 import {
   Search, Sparkles, Newspaper, ExternalLink,
   Loader2, Send, ChevronDown, ChevronRight, Copy, Check,
@@ -409,7 +410,11 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
                         ? "bg-primary text-primary-foreground rounded-br-sm"
                         : "bg-muted text-foreground rounded-bl-sm"
                     }`}>
-                      <MarkdownText content={msg.content} />
+                      {msg.role === "user" ? (
+                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                      ) : (
+                        <Markdown content={msg.content} />
+                      )}
                     </div>
 
                     {/* Sources */}
@@ -522,39 +527,6 @@ Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeri
       </div>
     </div>
   );
-}
-
-// Simple markdown renderer
-function MarkdownText({ content }: { content: string }) {
-  const lines = content.split("\n");
-  return (
-    <div className="space-y-1">
-      {lines.map((line, i) => {
-        if (line.startsWith("### ")) return <h3 key={i} className="font-bold text-sm mt-2">{line.slice(4)}</h3>;
-        if (line.startsWith("## "))  return <h2 key={i} className="font-bold text-sm mt-2">{line.slice(3)}</h2>;
-        if (line.startsWith("# "))   return <h1 key={i} className="font-bold text-base mt-2">{line.slice(2)}</h1>;
-        if (line.startsWith("- ") || line.startsWith("* ")) {
-          return <div key={i} className="flex items-start gap-1.5"><span className="text-primary mt-0.5 flex-shrink-0">•</span><span>{renderInline(line.slice(2))}</span></div>;
-        }
-        if (/^\d+\./.test(line)) {
-          const num = line.match(/^(\d+)\./)?.[1];
-          return <div key={i} className="flex items-start gap-1.5"><span className="text-primary font-bold flex-shrink-0 w-5">{num}.</span><span>{renderInline(line.replace(/^\d+\.\s*/, ""))}</span></div>;
-        }
-        if (line.startsWith("```")) return null;
-        if (!line.trim()) return <div key={i} className="h-1" />;
-        return <p key={i}>{renderInline(line)}</p>;
-      })}
-    </div>
-  );
-}
-
-function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) return <strong key={i}>{part.slice(2,-2)}</strong>;
-    if (part.startsWith("`") && part.endsWith("`")) return <code key={i} className="bg-background/50 rounded px-1 font-mono text-xs">{part.slice(1,-1)}</code>;
-    return part;
-  });
 }
 
 export default function SearchPage() {

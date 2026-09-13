@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import Markdown from "@/components/Markdown";
 import { MessageCircle, X, Send, Trash2 } from "lucide-react";
 
 interface Message {
@@ -192,13 +193,17 @@ export function ChatBot() {
                     className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[78%] px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
+                      className={`max-w-[78%] px-3 py-2 rounded-xl text-sm leading-relaxed ${
                         message.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap"
                           : "bg-muted text-foreground rounded-bl-sm"
                       }`}
                     >
-                      {message.content}
+                      {message.role === "user" ? (
+                        message.content
+                      ) : (
+                        <Markdown content={message.content} />
+                      )}
                     </div>
                   </motion.div>
                 ))}

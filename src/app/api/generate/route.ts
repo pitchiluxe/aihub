@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FALLBACK_CHAIN } from "@/lib/ai/models";
-import { sanitizeContent, isDegenerate, looksLikeReasoning, extractJson } from "@/lib/ai/client";
-import { generateWithOllama } from "@/lib/ai/ollama";
+import { sanitizeContent, isDegenerate, looksLikeReasoning, extractJson, isQuotaDead, markQuotaDead, QuotaExceededError, QUOTA_MARKER, QUOTA_MESSAGE } from "@/lib/ai/client";
+import { generateWithOllama, FAST_PREFERRED } from "@/lib/ai/ollama";
 import { buildCandidates } from "@/lib/ai/catalog";
 
 // Node runtime + Fluid Compute: free models take 5-90s, well past the old
@@ -12,20 +12,19 @@ export const maxDuration = 300;
 const PER_MODEL_TIMEOUT_MS = 75_000;
 const GLOBAL_DEADLINE_MS = 240_000;
 
+// The local attempt gets a bounded slice of the global deadline, not the whole
+// request — the old default (300s) let one slow local model consume everything,
+// leaving the cloud fallback zero time and the user a 503 after five minutes.
+// idea gets more: qwen2.5:7b measured ~95s warm for valid JSON on this machine.
+const LOCAL_BUDGET_MS = 90_000;
+const LOCAL_IDEA_BUDGET_MS = 125_000;
+
 // OpenRouter caps free-tier accounts at 50 free-model requests per day (1000
 // once the account holds credit). That cap is account-wide, so when it trips
 // every model in the chain 429s identically and no amount of falling back
 // helps — the user needs to be told that, not shown ten stack traces.
-const QUOTA_MARKER = "free-models-per-day";
-const QUOTA_MESSAGE =
-  "Daily free-model limit reached on this OpenRouter account. It resets at 00:00 UTC — or add $10 of credit at openrouter.ai/settings/credits to raise the cap to 1000 requests/day.";
-
-class QuotaExceededError extends Error {
-  constructor() {
-    super(QUOTA_MESSAGE);
-    this.name = "QuotaExceededError";
-  }
-}
+// QuotaExceededError / QUOTA_MARKER / isQuotaDead / markQuotaDead come from
+// lib/ai/client so every route shares one process-wide view of the cap.
 
 const SKILL_GENERATION_PROMPT = `You are an expert at creating AI skills for the AIHub platform.
 Generate a complete SKILL.md file based on the user's request.
@@ -367,6 +366,9 @@ async function generate(type: GenerateType, user: string): Promise<string> {
   const { system, maxTokens, temperature, validate } = TYPE_CONFIG[type];
   const startedAt = Date.now();
   const attempts: string[] = [];
+  // If the cap was already dead on entry, tryLocal got nearly the whole budget
+  // — a later quotaHit then means local genuinely failed, so don't retry it.
+  const quotaWasDead = isQuotaDead();
 
   let quotaHit = false;
 
@@ -374,13 +376,26 @@ async function generate(type: GenerateType, user: string): Promise<string> {
   // per type, so a small local model that fumbles the format simply falls
   // through to the cloud rather than shipping a bad result.
   const tryLocal = async (): Promise<string | null> => {
-    const local = await generateWithOllama(system, user, maxTokens, temperature, validate);
+    // idea keeps the JSON-proven PREFERRED order; prose artifacts go
+    // speed-first — a warm 3B writes markdown fine and lands inside budget.
+    // With cloud quota dead, local is the only path — give it nearly the whole
+    // global budget rather than the bounded slice.
+    const budget = isQuotaDead()
+      ? GLOBAL_DEADLINE_MS - 20_000
+      : type === "idea" ? LOCAL_IDEA_BUDGET_MS : LOCAL_BUDGET_MS;
+    const preferred = type === "idea" ? undefined : FAST_PREFERRED;
+    const local = await generateWithOllama(system, user, maxTokens, temperature, validate, budget, preferred);
     if (!local) return null;
     console.log(`[Generate] ${type} served locally by ${local.model}`);
     return local.content;
   };
 
   const tryCloud = async (): Promise<string | null> => {
+    // Account-wide cap already tripped — skip the 429 round-trips entirely.
+    if (isQuotaDead()) {
+      quotaHit = true;
+      return null;
+    }
     // Live catalogue, so retired models drop out instead of costing a round trip.
     const candidates = await buildCandidates(completionsBase(), process.env.ANTHROPIC_MODEL);
     for (const model of candidates.length ? candidates : FALLBACK_CHAIN) {
@@ -396,6 +411,7 @@ async function generate(type: GenerateType, user: string): Promise<string> {
         // 429 too, so stop rather than burning the rest of the chain.
         if (err instanceof QuotaExceededError) {
           quotaHit = true;
+          markQuotaDead();
           return null;
         }
         const msg = err instanceof Error ? err.message : String(err);
@@ -411,7 +427,24 @@ async function generate(type: GenerateType, user: string): Promise<string> {
     if (content) return content;
   }
 
-  if (quotaHit) throw new QuotaExceededError();
+  if (quotaHit) {
+    // Cap just tripped this request — the first local pass ran on the small
+    // slice. One warm retry is cheap: keep_alive left the model loaded.
+    const remaining = GLOBAL_DEADLINE_MS - (Date.now() - startedAt);
+    if (!quotaWasDead && remaining > 20_000) {
+      const preferred = type === "idea" ? undefined : FAST_PREFERRED;
+      const local = await generateWithOllama(system, user, maxTokens, temperature, validate, remaining, preferred);
+      if (local) {
+        console.log(`[Generate] ${type} served locally by ${local.model} after cloud quota exhaustion`);
+        return local.content;
+      }
+    }
+    // Local was tried too — the actionable fix is usually "wait for the model
+    // to finish the other generation and retry", not buying credits.
+    throw new QuotaExceededError(
+      `${QUOTA_MESSAGE} A local Ollama model was also busy or still loading — retry in a moment and it will usually answer.`,
+    );
+  }
   throw new Error(`All models failed for ${type}. ${attempts.join(" | ")}`);
 }
 

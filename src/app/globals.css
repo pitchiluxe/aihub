@@ -481,3 +481,13 @@ body {
   from { opacity: 0; transform: translateY(3px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
+
+/* ── AI markdown rendering scope ──────────────────────────────── */
+/* Tightens rendered markdown so it sits cleanly inside chat bubbles
+   and other compact AI response containers. Most styling lives in
+   the MarkdownRenderer component; these are container-level tweaks. */
+.aihub-md > :first-child { margin-top: 0 !important; }
+.aihub-md > :last-child  { margin-bottom: 0 !important; }
+.aihub-md table { display: block; overflow-x: auto; }
+.aihub-md pre { margin: 0; }
+.aihub-md p { overflow-wrap: break-word; }

@@ -12,6 +12,7 @@ import {
   Clock, Zap, Star, RefreshCw, Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Markdown from "@/components/Markdown";
 
 // Every id here is verified live on OpenRouter's free tier — see src/lib/ai/models.ts
 const PRESET_BATTLES = [
@@ -341,8 +342,8 @@ export default function BattlePage() {
                               )}
                             </div>
 
-                            <div className="text-xs text-foreground leading-relaxed max-h-48 overflow-y-auto bg-muted/50 rounded-lg p-3 whitespace-pre-wrap">
-                              {result.response}
+                            <div className="text-xs text-foreground leading-relaxed max-h-48 overflow-y-auto bg-muted/50 rounded-lg p-3">
+                              <Markdown content={result.response} />
                             </div>
 
                             <div>

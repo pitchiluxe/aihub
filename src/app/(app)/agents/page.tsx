@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AI_AGENTS } from "@/lib/agents";
 import { AgentProfile, AgentMessage } from "@/types";
 import { useStore } from "@/store";
+import Markdown from "@/components/Markdown";
 import {
   Send, Bot, Sparkles, ChevronLeft, Trash2, Copy, Check,
   Zap, Brain, Pen, Code, Microscope, Newspaper, RotateCcw, X, ExternalLink, Heart,
@@ -265,11 +266,15 @@ export default function AgentsPage() {
                         <div
                           className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
                             msg.role === "user"
-                              ? "bg-primary text-primary-foreground rounded-br-sm"
+                              ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap"
                               : "bg-muted text-foreground rounded-bl-sm"
                           }`}
                         >
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {msg.role === "user" ? (
+                            <p>{msg.content}</p>
+                          ) : (
+                            <Markdown content={msg.content} accent={selectedAgent.color} />
+                          )}
                         </div>
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <span className="text-xs text-muted-foreground">
@@ -884,6 +889,11 @@ function getQuickPrompts(agentId: string): string[] {
       "How do I manage financial risk?",
     ],
     "healthcare-ai": [
+      "How do I implement medical AI responsibly?",
+      "What regulatory requirements should I know?",
+      "How do I ensure healthcare AI accuracy?",
+    ],
+    "medical-ai": [
       "How do I implement medical AI responsibly?",
       "What regulatory requirements should I know?",
       "How do I ensure healthcare AI accuracy?",

@@ -96,15 +96,30 @@ export function sanitizeContent(raw: string): string {
 // OpenRouter caps free-tier accounts at 50 free-model requests/day (1000 with
 // credit on the account). The cap is account-wide, so once it trips every
 // model in the chain fails identically and falling back cannot help.
-const QUOTA_MARKER = "free-models-per-day";
+export const QUOTA_MARKER = "free-models-per-day";
 export const QUOTA_MESSAGE =
   "Daily free-model limit reached on this OpenRouter account. It resets at 00:00 UTC — or add $10 of credit at openrouter.ai/settings/credits to raise the cap to 1000 requests/day.";
 
 export class QuotaExceededError extends Error {
-  constructor() {
-    super(QUOTA_MESSAGE);
+  constructor(message: string = QUOTA_MESSAGE) {
+    super(message);
     this.name = "QuotaExceededError";
   }
+}
+
+// The free-tier cap is account-wide and resets at 00:00 UTC. Once it trips,
+// every hosted model 429s identically — so we record it process-wide and let
+// later requests skip the pointless cloud round-trip entirely, giving the
+// local model the whole budget instead.
+let quotaDeadUntil = 0;
+
+export function isQuotaDead(): boolean {
+  return Date.now() < quotaDeadUntil;
+}
+
+export function markQuotaDead(): void {
+  const now = new Date();
+  quotaDeadUntil = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
 }
 
 /** Content that is present but useless — all whitespace, punctuation, or <unk>. */
@@ -154,30 +169,49 @@ export async function callModel(
   modelOverride?: string,
   temperature = 0.7,
   timeoutMs = 18_000,
-  opts: { preferCloud?: boolean } = {},
+  opts: {
+    preferCloud?: boolean;
+    localTimeoutMs?: number;
+    served?: { provider?: string; model?: string };
+    // Content gate for both providers. The default rejects sub-20-char output,
+    // which is right for artifact generation but wrong for chat — callers doing
+    // conversational turns should pass a lenient validator.
+    validate?: (content: string) => boolean;
+  } = {},
 ): Promise<string> {
-  const accept = (c: string) => c.trim().length > 0 && !isDegenerate(c);
+  const accept = opts.validate ?? ((c: string) => c.trim().length > 0 && !isDegenerate(c));
+  // If the cap was already known-dead on entry, tryLocal got the full budget —
+  // a later quotaHit then means local genuinely failed, so don't retry it.
+  const quotaWasDead = isQuotaDead();
 
   const tryLocal = async (): Promise<string | null> => {
-    const { generateWithOllama } = await import("./ollama");
-    const local = await generateWithOllama(
-      messages.find((m) => m.role === "system")?.content ?? "",
-      messages.filter((m) => m.role !== "system").map((m) => m.content).join("\n\n"),
-      maxTokens,
-      temperature,
-      accept,
-      // Honour the caller's budget. Without this a bulk request fell back to
-      // the 300s default and ran for over ten minutes on CPU — well past the
-      // serverless limit — instead of failing fast and reporting why.
-      timeoutMs,
-    );
-    return local?.content ?? null;
+    const { chatWithOllama } = await import("./ollama");
+    // The local attempt gets its own budget — a cold model load alone can
+    // exceed the per-model cloud timeout. keep_alive makes follow-ups fast.
+    // When the cloud quota is dead, local is the only path — give it room to
+    // actually finish instead of the chat-sized slice.
+    const localBudget = isQuotaDead()
+      ? Math.max(opts.localTimeoutMs ?? timeoutMs, 150_000)
+      : (opts.localTimeoutMs ?? timeoutMs);
+    const local = await chatWithOllama(messages, accept, localBudget);
+    if (local) {
+      if (opts.served) { opts.served.provider = "ollama"; opts.served.model = local.model; }
+      return local.content;
+    }
+    return null;
   };
 
   let lastError: Error = new Error("No models tried");
   let quotaHit = false;
 
   const tryCloud = async (): Promise<string | null> => {
+    // Account-wide cap already tripped this process — every hosted model would
+    // 429 identically. Skip the round-trips; local is the only path today.
+    if (isQuotaDead()) {
+      quotaHit = true;
+      console.warn("[AI] Skipping OpenRouter — free-tier quota exhausted until 00:00 UTC");
+      return null;
+    }
     // Candidates come from the live catalogue, so models OpenRouter has retired
     // drop out instead of costing a 404 round trip each.
     const { buildCandidates } = await import("./catalog");
@@ -238,15 +272,17 @@ export async function callModel(
 
         const content = sanitizeContent(data.choices?.[0]?.message?.content ?? "");
         if (!content) throw new Error(`${model} returned empty content`);
-        if (isDegenerate(content)) throw new Error(`${model} returned degenerate content`);
+        if (!accept(content)) throw new Error(`${model} returned degenerate content`);
 
         console.log(`[AI] Success with model: ${model}`);
+        if (opts.served) { opts.served.provider = "openrouter"; opts.served.model = model; }
         return content;
       } catch (err) {
         clearTimeout(timeoutId);
         // Account-wide cap — every remaining hosted model would 429 too.
         if (err instanceof QuotaExceededError) {
           quotaHit = true;
+          markQuotaDead();
           return null;
         }
         lastError = err instanceof Error ? err : new Error(String(err));
@@ -261,7 +297,21 @@ export async function callModel(
     if (content) return content;
   }
 
-  if (quotaHit) throw new QuotaExceededError();
+  if (quotaHit) {
+    // The cap usually trips mid-request — tryLocal already ran with the normal
+    // slice before we knew the cloud was dead. One warm retry is cheap:
+    // keep_alive left the model loaded, so it answers in seconds if it can.
+    if (!quotaWasDead) {
+      const { chatWithOllama } = await import("./ollama");
+      const retry = await chatWithOllama(messages, accept, 90_000).catch(() => null);
+      if (retry) {
+        console.log(`[AI] Served locally by ${retry.model} after cloud quota exhaustion`);
+        if (opts.served) { opts.served.provider = "ollama"; opts.served.model = retry.model; }
+        return retry.content;
+      }
+    }
+    throw new QuotaExceededError();
+  }
   throw new Error(`All models failed. Last error: ${lastError.message}`);
 }
 

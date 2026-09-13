@@ -76,21 +76,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Use centralized OpenRouter client with fallback chain
+    // Local-first, cloud-fallback: callModel tries Ollama (free, no daily cap)
+    // before OpenRouter. Chat needs a longer local budget than the per-model
+    // cloud timeout — a cold model load alone can exceed 18s.
     try {
+      const served: { provider?: string; model?: string } = {};
       const content = await callModel(
         messages.map((msg: any) => ({
           role: msg.role,
           content: msg.content,
         })),
         2048,
-        model
+        model,
+        0.7,
+        18_000,
+        {
+          localTimeoutMs: 120_000,
+          served,
+          // Short replies are valid in chat — the default validator rejects
+          // anything under 20 chars, which wrongly fails "The answer is 4."
+          validate: (c: string) => c.trim().length > 0 && /[a-z0-9]/i.test(c),
+        }
       );
 
       return NextResponse.json({
         content,
-        model,
-        provider: "openrouter",
+        model: served.model ?? model,
+        provider: served.provider ?? "openrouter",
       });
     } catch (error) {
       console.error("[Chat API] OpenRouter error:", error);

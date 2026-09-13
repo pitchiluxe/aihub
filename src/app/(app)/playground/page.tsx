@@ -16,6 +16,7 @@ import {
   Share2, Eye, EyeOff, ArrowDownToLine,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Markdown from "@/components/Markdown";
 
 const TYPE_ICONS: Record<ProjectType, React.ElementType> = {
   chatbot: Bot, agent: Sparkles, rag: Search, workflow: Zap, api: GitBranch, custom: Code,
@@ -716,8 +717,8 @@ Code requirements:
                   <div className="flex-1 flex flex-col overflow-hidden">
                     <ScrollArea className="flex-1 p-3">
                       {aiResponse && (
-                        <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap mb-3 p-3 rounded-lg bg-muted">
-                          {aiResponse}
+                        <div className="max-w-none text-sm leading-relaxed mb-3 p-3 rounded-lg bg-muted">
+                          <Markdown content={aiResponse} />
                         </div>
                       )}
                       {!aiResponse && (

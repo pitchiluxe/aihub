@@ -7,6 +7,7 @@ import {
   X, Send, Sparkles, ExternalLink, Loader2, Bot,
   MessageSquare, RotateCcw,
 } from "lucide-react";
+import Markdown from "@/components/Markdown";
 
 interface ChatMsg {
   id: string;
@@ -20,32 +21,6 @@ const QUICK_PROMPTS = [
   "Explain the technical concepts",
   "How does this compare to recent trends?",
 ];
-
-function renderMarkdown(text: string) {
-  return text
-    .split("\n")
-    .map((line, i) => {
-      if (line.startsWith("### ")) return <h3 key={i} className="font-bold text-sm mt-2 mb-1">{line.slice(4)}</h3>;
-      if (line.startsWith("## "))  return <h2 key={i} className="font-bold text-sm mt-2 mb-1">{line.slice(3)}</h2>;
-      if (line.startsWith("- ") || line.startsWith("• ")) {
-        return <li key={i} className="ml-3 list-disc text-sm">{formatInline(line.slice(2))}</li>;
-      }
-      if (line.startsWith("**") && line.endsWith("**") && line.length > 4) {
-        return <p key={i} className="font-semibold text-sm">{line.slice(2, -2)}</p>;
-      }
-      if (line.trim() === "") return <div key={i} className="h-1.5" />;
-      return <p key={i} className="text-sm leading-relaxed">{formatInline(line)}</p>;
-    });
-}
-
-function formatInline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) return <strong key={i}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith("`") && part.endsWith("`")) return <code key={i} className="bg-muted px-1 rounded text-xs font-mono">{part.slice(1, -1)}</code>;
-    return part;
-  });
-}
 
 export function ArticleChatDrawer({
   article,
@@ -214,10 +189,14 @@ YOUR ROLE:
               )}
               <div className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 ${
                 msg.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-sm"
+                  ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap"
                   : "bg-muted text-foreground rounded-bl-sm"
               }`}>
-                {renderMarkdown(msg.content)}
+                {msg.role === "user" ? (
+                  msg.content
+                ) : (
+                  <Markdown content={msg.content} />
+                )}
               </div>
             </div>
           ))}

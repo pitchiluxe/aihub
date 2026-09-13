@@ -13,6 +13,7 @@ import {
   ArrowLeft, ArrowRight, Copy, Check, Sparkles, Loader2, Trophy, RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Markdown from "@/components/Markdown";
 
 interface TutorialStep {
   title: string;
@@ -294,7 +295,9 @@ Make it clear, engaging, and practical. Help me understand WHY this matters.`,
                   </Button>
                 </div>
                 {aiExplanation ? (
-                  <div className="p-4 text-sm leading-relaxed whitespace-pre-wrap">{aiExplanation}</div>
+                  <div className="p-4 text-sm leading-relaxed">
+                    <Markdown content={aiExplanation} />
+                  </div>
                 ) : (
                   <div className="p-4 text-sm text-muted-foreground text-center py-8">
                     Click &ldquo;Explain this step&rdquo; to get a simplified AI explanation
