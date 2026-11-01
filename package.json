@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3005",
     "lint": "eslint",
-    "verify:models": "node tools/verify-models.mjs"
+    "verify:models": "node tools/verify-models.mjs",
+    "verify:iam-ideas": "node tools/test-iam-ideas.cjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

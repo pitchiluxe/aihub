@@ -66,6 +66,7 @@ function formatCountdown(ms: number): string {
 
 // ─── Category Icon Map ─────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  "Identity & Access Management": Lock,
   Healthcare: Heart, Legal: Briefcase, Education: BookOpen, Finance: DollarSign,
   "Home Services": Hammer, Construction: Building, Food: Sparkles, Agriculture: Leaf,
   HR: Users, "Mental Health": Heart, "Real Estate": Building, Retail: ShoppingCart,
@@ -1140,7 +1141,7 @@ function PaymentGateModal({ onGoBack }: { onGoBack: () => void }) {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
-const LS_KEY = (date: string) => `aihub_daily_ideas_${date}`;
+const LS_KEY = (date: string) => `aihub_daily_ideas_iam_v1_${date}`;
 const LS_REVIEWS = "aihub_reviews";
 
 export default function MillionIdeasPage() {
@@ -1234,9 +1235,9 @@ export default function MillionIdeasPage() {
         const stored = localStorage.getItem(cacheKey);
         if (stored) {
           const parsed: GeneratedIdea[] = JSON.parse(stored);
-          // 5 batches x 5 ideas. Anything short is a stale partial write from
+          // 6 batches x 5 ideas, including the IAM batch. Anything short is a stale partial write from
           // before complete-run caching — ignore it and refetch.
-          if (parsed.length >= 25) {
+          if (parsed.length >= 30) {
             setAiIdeas(parsed.map(toIdea));
             setAiLoading(false);
             return;
@@ -1251,7 +1252,7 @@ export default function MillionIdeasPage() {
     const allIdeas: GeneratedIdea[] = [];
     let cancelled = false;
 
-    const BATCHES = [0, 1, 2, 3, 4];
+    const BATCHES = [5, 0, 1, 2, 3, 4];
     const ATTEMPTS_PER_BATCH = 3;
     const failures: string[] = [];
 
@@ -1277,7 +1278,7 @@ export default function MillionIdeasPage() {
     /**
      * Free models fail transiently — a rate limit or a malformed JSON response
      * used to lose a whole batch of ideas for the rest of the day. Retry with
-     * backoff so all five batches actually land.
+     * backoff so all six batches actually land.
      */
     async function fetchBatch(batch: number) {
       for (let attempt = 1; attempt <= ATTEMPTS_PER_BATCH; attempt++) {

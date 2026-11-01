@@ -1,3 +1,4 @@
+import { IAM_CATEGORY, IAM_GENERATION_GUIDANCE } from '@/lib/iam-idea-guidance';
 import { NextRequest, NextResponse } from "next/server";
 import { callModel, DEFAULT_MODEL, QuotaExceededError } from "@/lib/ai/client";
 
@@ -25,9 +26,10 @@ export interface GeneratedIdea {
   isAiGenerated: true;
 }
 
-// 5 industry groups — 10 ideas each = 50 fresh ideas per day
+// Six batches of five ideas include a dedicated IAM innovation batch.
 // Rotates daily so the full topic space is covered over a week
 const BATCH_GROUPS: Record<number, string[]> = {
+  5: [IAM_CATEGORY],
   0: ["Healthcare", "Mental Health", "FinTech", "Accounting", "Insurance"],
   1: ["Networking", "Cloud Engineering", "Cybersecurity", "DevOps", "AI Infrastructure"],
   2: ["Travel", "Cheap Flight Hacking", "Hotel Arbitrage", "Points Optimization", "Digital Nomad Tools"],
@@ -47,9 +49,10 @@ function systemPrompt(batch: number, date: string): string {
     2: "Focus on flight price hacking, error fare detection, points/miles optimization, and travel arbitrage. Include real data sources (Amadeus, Duffel, GDS systems).",
     3: "Focus on real, actionable trading tools: ICT/Smart Money Concepts, prop firm challenge coaching, institutional order flow, gold-DXY correlation, FOMC event trading. Include specific financial APIs and accurate market mechanics.",
   };
+  if (batch === 5) domainHints[5] = IAM_GENERATION_GUIDANCE + ` Every object must use category "${IAM_CATEGORY}". Generate five different mechanisms, not five names for the same workflow.`;
   const hint = domainHints[batch] ? `\n\nDomain guidance: ${domainHints[batch]}` : "";
 
-  return `You are an AI startup idea generator. Date: ${date}, batch ${batch + 1}/5.
+  return `You are an AI startup idea generator. Date: ${date}, batch ${batch + 1}/6.
 Generate exactly 5 unique, commercially viable AI tool ideas for: ${industries}.${hint}
 
 Return ONLY a valid JSON array. No markdown, no explanation, nothing else.
@@ -57,6 +60,7 @@ Return ONLY a valid JSON array. No markdown, no explanation, nothing else.
 Each object:
 {"id":"kebab-id-${date}-b${batch}-N","title":"Name (max 6 words)","category":"Industry","emoji":"emoji","tagline":"one-liner under 70 chars","problem":"1 sentence with specific $ pain point","solution":"1 sentence how AI solves it","revenueModel":"$XX-$XXX/month SaaS","revenuePotential":"$XM-$YM ARR","difficulty":"Medium","timeToMVP":"X-Y weeks","techStack":["Tech1","Tech2","Tech3","Tech4"],"features":["Feature1","Feature2","Feature3","Feature4","Feature5"],"whyNow":"why build this now"}
 
+Do not fabricate statistics or revenue validation. Describe commercial potential as a hypothesis.
 Rules: difficulty = "Easy"|"Medium"|"Hard". Return array of exactly 5 objects, nothing else.`;
 }
 
@@ -117,7 +121,8 @@ export async function GET(req: NextRequest) {
   const date  = req.nextUrl.searchParams.get("date")  ?? todayUTC();
   const batch = Number(req.nextUrl.searchParams.get("batch") ?? "0");
 
-  const cacheKey = `${date}-${batch}`;
+  if (!Number.isInteger(batch) || !(batch in BATCH_GROUPS) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: "Choose a valid date and batch 0–5.", ideas: [] }, { status: 400 });
+  const cacheKey = `iam-v1-${date}-${batch}`;
   const cached = cache.get(cacheKey);
   if (cached) return NextResponse.json({ ideas: cached, date, batch, cached: true });
 
@@ -144,12 +149,15 @@ export async function GET(req: NextRequest) {
     );
 
     const ideas = extractIdeas(raw);
+    if (batch === 5) {
+      for (const idea of ideas) idea.category = IAM_CATEGORY;
+    }
 
     cache.set(cacheKey, ideas);
 
     // Evict cache entries older than 2 days
     for (const [key] of cache) {
-      if (key.slice(0, 10) < date) cache.delete(key);
+      if (key.slice(7, 17) < date) cache.delete(key);
     }
 
     return NextResponse.json({ ideas, date, batch, cached: false });

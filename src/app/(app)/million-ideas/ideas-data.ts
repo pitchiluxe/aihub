@@ -1,3 +1,5 @@
+import { IAM_IDEAS } from './iam-ideas';
+
 export type Difficulty = "Easy" | "Medium" | "Hard";
 
 export interface Idea {
@@ -22,6 +24,7 @@ export interface Idea {
 }
 
 export const CATEGORY_META: Record<string, { color: string; gradient: string; emoji: string }> = {
+  "Identity & Access Management": { color: "#06b6d4", gradient: "from-cyan-500/20 to-sky-900/10", emoji: "🔐" },
   Healthcare:      { color: "#ef4444", gradient: "from-red-500/20 to-rose-900/10",    emoji: "🏥" },
   Legal:           { color: "#6366f1", gradient: "from-indigo-500/20 to-blue-900/10", emoji: "⚖️" },
   Education:       { color: "#10b981", gradient: "from-emerald-500/20 to-green-900/10", emoji: "🎓" },
@@ -56,6 +59,7 @@ export const CATEGORY_META: Record<string, { color: string; gradient: string; em
 };
 
 export const IDEAS: Idea[] = [
+  ...IAM_IDEAS,
   // ─── HEALTHCARE ───────────────────────────────────────────────
   {
     id: "medical-intake-ai",

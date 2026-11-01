@@ -1,3 +1,4 @@
+import { IAM_CATEGORY, IAM_BUILD_BLUEPRINT } from '@/lib/iam-idea-guidance';
 import { NextRequest, NextResponse } from "next/server";
 import JSZip from "jszip";
 import type { Idea } from "@/app/(app)/million-ideas/ideas-data";
@@ -1187,7 +1188,8 @@ export async function POST(req: NextRequest) {
     const name = skillName(idea);
 
     // ── Root files ──────────────────────────────────────────
-    root.file("CLAUDE.md",      claudeMd(idea));
+    root.file("CLAUDE.md",      claudeMd(idea) + (idea.category === IAM_CATEGORY ? "\n\n" + IAM_BUILD_BLUEPRINT : ""));
+    if (idea.category === IAM_CATEGORY) root.file("IAM-SECURITY-BLUEPRINT.md", IAM_BUILD_BLUEPRINT);
     root.file("agent.md",       agentMd(idea));
     root.file("README.md",      readme(idea));
     root.file("package.json",   packageJson(idea));
@@ -1231,7 +1233,7 @@ export async function POST(req: NextRequest) {
     lib.file("utils.ts", `import { clsx, type ClassValue } from "clsx";\nimport { twMerge } from "tailwind-merge";\n\nexport function cn(...inputs: ClassValue[]) {\n  return twMerge(clsx(inputs));\n}\n`);
 
     // ── supabase/ ───────────────────────────────────────────
-    root.folder("supabase")!.file("schema.sql", supabaseSchema(idea));
+    root.folder("supabase")!.file("schema.sql", idea.category === IAM_CATEGORY ? supabaseSchema(idea).replaceAll("for all using (true);", "for all using (false) with check (false);") : supabaseSchema(idea));
 
     const buffer   = await zip.generateAsync({ type: "arraybuffer" });
     const filename = `${idea.id}-starter-kit.zip`;
